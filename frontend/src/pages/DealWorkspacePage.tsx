@@ -56,7 +56,11 @@ export function DealWorkspacePage() {
 
       <DealHero deal={deal} />
 
-      <DealWorkspaceTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <DealWorkspaceTabs
+        dealId={deal.id}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </div>
   );
 }
