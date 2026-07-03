@@ -10,13 +10,16 @@ import { createPlaceholderDeal, getDealById } from "@/lib/deal-utils";
 interface CreateDealNavigationState {
   customerId?: string;
   customerName?: string;
+  tab?: string;
 }
 
 export function DealWorkspacePage() {
   const { dealId } = useParams<{ dealId: string }>();
   const location = useLocation();
   const navigationState = location.state as CreateDealNavigationState | null;
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(
+    () => navigationState?.tab ?? "overview"
+  );
 
   const seedDeal = dealId ? getDealById(seedDeals, dealId) : undefined;
   const deal =

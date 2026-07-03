@@ -8,11 +8,17 @@ import { seedInvoices } from "@/data/seed-invoices";
 import { createPlaceholderInvoice, getInvoiceById } from "@/lib/invoice-utils";
 import type { GenerateInvoiceContext } from "@/types/invoice";
 
+type InvoiceNavigationState = GenerateInvoiceContext & {
+  tab?: string;
+};
+
 export function InvoiceWorkspacePage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const location = useLocation();
-  const navigationState = location.state as GenerateInvoiceContext | null;
-  const [activeTab, setActiveTab] = useState("overview");
+  const navigationState = location.state as InvoiceNavigationState | null;
+  const [activeTab, setActiveTab] = useState(
+    () => navigationState?.tab ?? "overview"
+  );
 
   const seedInvoice = invoiceId ? getInvoiceById(seedInvoices, invoiceId) : undefined;
   const invoice =
