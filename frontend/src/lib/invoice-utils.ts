@@ -96,6 +96,43 @@ export function getInvoiceById(
   return invoices.find((invoice) => invoice.id === id);
 }
 
+export function getInvoicesByCustomerId(
+  invoices: Invoice[],
+  customerId: string
+): Invoice[] {
+  return invoices.filter((invoice) => invoice.customerId === customerId);
+}
+
+export function getInvoicesByDealId(invoices: Invoice[], dealId: string): Invoice[] {
+  return invoices.filter((invoice) => invoice.dealId === dealId);
+}
+
+export function createPlaceholderInvoice(
+  context: {
+    customerId: string;
+    customerName: string;
+    dealId: string;
+    dealTitle: string;
+  }
+): Invoice {
+  return {
+    id: "inv-new",
+    invoiceNo: "INV-NEW",
+    customerId: context.customerId,
+    customerName: context.customerName,
+    dealId: context.dealId,
+    dealTitle: context.dealTitle,
+    amount: 0,
+    received: 0,
+    outstanding: 0,
+    invoiceDate: new Date().toISOString().split("T")[0],
+    dueDate: new Date().toISOString().split("T")[0],
+    status: "draft",
+    gstPercent: 18,
+    componentIds: [],
+  };
+}
+
 export function getUniqueCustomers(invoices: Invoice[]) {
   const map = new Map<string, string>();
   for (const invoice of invoices) {

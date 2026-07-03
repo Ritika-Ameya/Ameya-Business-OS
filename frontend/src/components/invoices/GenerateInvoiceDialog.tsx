@@ -30,6 +30,7 @@ interface GenerateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context?: GenerateInvoiceContext;
+  onGenerate?: () => void;
 }
 
 const PLACEHOLDER_SUMMARY = {
@@ -42,6 +43,7 @@ export function GenerateInvoiceDialog({
   open,
   onOpenChange,
   context,
+  onGenerate,
 }: GenerateInvoiceDialogProps) {
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const isLocked = Boolean(context);
@@ -67,6 +69,7 @@ export function GenerateInvoiceDialog({
     e.preventDefault();
     onOpenChange(false);
     setSelectedComponents([]);
+    onGenerate?.();
   };
 
   return (
