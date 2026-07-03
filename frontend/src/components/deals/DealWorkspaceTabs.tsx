@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReactNode } from "react";
+import { DealComponentsTab } from "./components/DealComponentsTab";
 import { PlaceholderCard } from "./PlaceholderCard";
 
 interface DealWorkspaceTabsProps {
+  dealId: string;
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
@@ -22,7 +24,7 @@ function TabPlaceholderGrid({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
-export function DealWorkspaceTabs({ activeTab, onTabChange }: DealWorkspaceTabsProps) {
+export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorkspaceTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
       <div className="overflow-x-auto pb-1">
@@ -95,24 +97,7 @@ export function DealWorkspaceTabs({ activeTab, onTabChange }: DealWorkspaceTabsP
       </TabsContent>
 
       <TabsContent value="components" className="mt-0">
-        <TabPlaceholderGrid>
-          <PlaceholderCard
-            icon={Layers}
-            title="Service Components"
-            description="Billable items"
-            message="Components added to this deal will appear here."
-            accent="bg-blue-500/10"
-            iconColor="text-blue-600 dark:text-blue-400"
-          />
-          <PlaceholderCard
-            icon={Receipt}
-            title="Component Pricing"
-            description="Rate structure"
-            message="Pricing details will be displayed here."
-            accent="bg-emerald-500/10"
-            iconColor="text-emerald-600 dark:text-emerald-400"
-          />
-        </TabPlaceholderGrid>
+        <DealComponentsTab dealId={dealId} />
       </TabsContent>
 
       <TabsContent value="invoices" className="mt-0">
