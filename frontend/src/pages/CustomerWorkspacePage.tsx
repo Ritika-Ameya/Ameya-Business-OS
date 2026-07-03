@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 
 export function CustomerWorkspacePage() {
-  const { id } = useParams<{ id: string }>();
+  const { customerId } = useParams<{ customerId: string }>();
   const { getCustomer } = useCustomers();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const customer = id ? getCustomer(id) : undefined;
+  const customer = customerId ? getCustomer(customerId) : undefined;
 
   if (!customer) {
     return <Navigate to="/customers" replace />;
