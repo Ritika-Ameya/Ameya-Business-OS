@@ -9,6 +9,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomerDealsTab } from "./CustomerDealsTab";
 import { CustomerEmptyState } from "./CustomerEmptyState";
 import { CustomerOverviewTab } from "./CustomerOverviewTab";
 import type { Customer } from "@/types/customer";
@@ -64,13 +65,7 @@ export function CustomerWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="deals" className="mt-0">
-        <CustomerEmptyState
-          icon={Handshake}
-          title="No Deals Yet"
-          description="Create your first deal to start tracking revenue for this customer."
-          actionLabel="Create Deal"
-          onAction={() => {}}
-        />
+        <CustomerDealsTab customer={customer} />
       </TabsContent>
 
       <TabsContent value="invoices" className="mt-0">

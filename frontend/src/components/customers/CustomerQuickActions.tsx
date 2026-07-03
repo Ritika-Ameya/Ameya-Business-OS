@@ -1,4 +1,5 @@
 import { Handshake, History, Mail, Phone } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { Customer } from "@/types/customer";
 
@@ -13,9 +14,11 @@ export function CustomerQuickActions({
 }: CustomerQuickActionsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button className="rounded-xl">
-        <Handshake />
-        Create Deal
+      <Button className="rounded-xl" asChild>
+        <Link to={`/customers/${customer.id}/deals/new`}>
+          <Handshake />
+          Create Deal
+        </Link>
       </Button>
       <Button variant="outline" className="rounded-xl" asChild>
         <a href={`tel:${customer.phone.replace(/\s/g, "")}`}>
