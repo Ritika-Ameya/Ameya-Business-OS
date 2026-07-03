@@ -1,4 +1,4 @@
-import type { Deal, DealFilters } from "@/types/deal";
+import type { Deal, DealFilters, RenewalFrequency } from "@/types/deal";
 
 export function formatDate(date?: string): string {
   if (!date) return "—";
@@ -44,6 +44,41 @@ export const dealRenewalLabels: Record<DealFilters["renewal"], string> = {
   none: "No Renewal",
 };
 
+export const dealTypeLabels: Record<
+  NonNullable<Deal["dealType"]>,
+  string
+> = {
+  "annual-maintenance": "Annual Maintenance",
+  consulting: "Consulting",
+  project: "Project",
+  subscription: "Subscription",
+};
+
+export const renewalFrequencyLabels: Record<RenewalFrequency, string> = {
+  none: "No Renewal",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  annual: "Annual",
+};
+
+export function computeNextRenewal(
+  startDate: string,
+  frequency: RenewalFrequency
+): string | undefined {
+  if (frequency === "none") return undefined;
+
+  const date = new Date(startDate);
+  if (frequency === "monthly") {
+    date.setMonth(date.getMonth() + 1);
+  } else if (frequency === "quarterly") {
+    date.setMonth(date.getMonth() + 3);
+  } else if (frequency === "annual") {
+    date.setFullYear(date.getFullYear() + 1);
+  }
+
+  return date.toISOString().split("T")[0];
+}
+
 export function filterDeals(deals: Deal[], query: string, filters: DealFilters): Deal[] {
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -73,20 +108,4 @@ export function getDealById(deals: Deal[], id: string): Deal | undefined {
 
 export function getDealsByCustomerId(deals: Deal[], customerId: string): Deal[] {
   return deals.filter((deal) => deal.customerId === customerId);
-}
-
-export function createPlaceholderDeal(
-  dealId: string,
-  customerId: string,
-  customerName: string
-): Deal {
-  return {
-    id: dealId,
-    title: "New Deal",
-    customerId,
-    customerName,
-    status: "draft",
-    startDate: new Date().toISOString().split("T")[0],
-    componentsCount: 0,
-  };
 }

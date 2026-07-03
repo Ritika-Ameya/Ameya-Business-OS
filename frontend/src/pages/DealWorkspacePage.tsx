@@ -4,55 +4,34 @@ import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { DealHero } from "@/components/deals/DealHero";
 import { DealWorkspaceTabs } from "@/components/deals/DealWorkspaceTabs";
 import { Button } from "@/components/ui/button";
-import { seedDeals } from "@/data/seed-deals";
-import { createPlaceholderDeal, getDealById } from "@/lib/deal-utils";
+import { useDeals } from "@/hooks/use-deals";
 
-interface CreateDealNavigationState {
-  customerId?: string;
-  customerName?: string;
+interface DealNavigationState {
   tab?: string;
 }
 
 export function DealWorkspacePage() {
   const { dealId } = useParams<{ dealId: string }>();
   const location = useLocation();
-  const navigationState = location.state as CreateDealNavigationState | null;
+  const navigationState = location.state as DealNavigationState | null;
+  const { getDeal } = useDeals();
   const [activeTab, setActiveTab] = useState(
     () => navigationState?.tab ?? "overview"
   );
 
-  const seedDeal = dealId ? getDealById(seedDeals, dealId) : undefined;
-  const deal =
-    seedDeal ??
-    (dealId === "deal-new" && navigationState?.customerId && navigationState.customerName
-      ? createPlaceholderDeal(
-          dealId,
-          navigationState.customerId,
-          navigationState.customerName
-        )
-      : undefined);
+  const deal = dealId ? getDeal(dealId) : undefined;
 
   if (!deal) {
     return <Navigate to="/deals" replace />;
   }
 
-  const backPath =
-    navigationState?.customerId && dealId === "deal-new"
-      ? `/customers/${navigationState.customerId}`
-      : "/deals";
-
-  const backLabel =
-    navigationState?.customerId && dealId === "deal-new"
-      ? "Back to Customer"
-      : "Back to Deals";
-
   return (
     <div className="space-y-8">
       <div>
         <Button variant="ghost" size="sm" className="mb-4 -ml-2 rounded-xl" asChild>
-          <Link to={backPath}>
+          <Link to="/deals">
             <ArrowLeft />
-            {backLabel}
+            Back to Deals
           </Link>
         </Button>
       </div>

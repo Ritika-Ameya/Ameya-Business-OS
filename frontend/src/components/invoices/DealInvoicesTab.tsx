@@ -4,9 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { GenerateInvoiceDialog } from "@/components/invoices/GenerateInvoiceDialog";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
 import { Button } from "@/components/ui/button";
-import { seedDeals } from "@/data/seed-deals";
+import { useDeals } from "@/hooks/use-deals";
 import { seedInvoices } from "@/data/seed-invoices";
-import { getDealById } from "@/lib/deal-utils";
 import { getInvoicesByDealId } from "@/lib/invoice-utils";
 import type { GenerateInvoiceContext } from "@/types/invoice";
 
@@ -16,9 +15,10 @@ interface DealInvoicesTabProps {
 
 export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
   const navigate = useNavigate();
+  const { getDeal } = useDeals();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const deal = getDealById(seedDeals, dealId);
+  const deal = getDeal(dealId);
   const dealInvoices = getInvoicesByDealId(seedInvoices, dealId);
 
   if (!deal) {

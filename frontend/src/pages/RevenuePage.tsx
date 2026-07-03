@@ -1,13 +1,22 @@
 import { IndianRupee, Receipt, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { PageHeader } from "@/components/customers/PageHeader";
 import { RevenueCollectionsTab } from "@/components/revenue/RevenueCollectionsTab";
 import { RevenueInvoicesTab } from "@/components/revenue/RevenueInvoicesTab";
 import { RevenueRenewalsTab } from "@/components/revenue/RevenueRenewalsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+type RevenueNavigationState = {
+  tab?: string;
+};
+
 export function RevenuePage() {
-  const [activeTab, setActiveTab] = useState("invoices");
+  const location = useLocation();
+  const navigationState = location.state as RevenueNavigationState | null;
+  const [activeTab, setActiveTab] = useState(
+    () => navigationState?.tab ?? "invoices"
+  );
 
   return (
     <div className="space-y-8">

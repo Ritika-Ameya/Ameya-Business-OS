@@ -3,11 +3,14 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { CreateDealWizard } from "@/components/deals/CreateDealWizard";
 import { Button } from "@/components/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
+import { useDeals } from "@/hooks/use-deals";
+import type { DealFormData } from "@/types/deal";
 
 export function CreateDealPage() {
   const { customerId } = useParams<{ customerId: string }>();
   const navigate = useNavigate();
   const { getCustomer } = useCustomers();
+  const { addDeal } = useDeals();
 
   const customer = customerId ? getCustomer(customerId) : undefined;
 
@@ -15,13 +18,13 @@ export function CreateDealPage() {
     return <Navigate to="/customers" replace />;
   }
 
-  const handleSave = () => {
-    navigate(`/deals/deal-new`, {
-      state: {
-        customerId: customer.id,
-        customerName: customer.name,
-      },
+  const handleSave = (data: DealFormData) => {
+    const deal = addDeal({
+      ...data,
+      customerId: customer.id,
+      customerName: customer.name,
     });
+    navigate(`/deals/${deal.id}`);
   };
 
   return (
