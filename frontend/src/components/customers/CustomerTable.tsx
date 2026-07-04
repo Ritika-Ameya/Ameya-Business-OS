@@ -1,17 +1,17 @@
 import { Users } from "lucide-react";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { Edit, Eye, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -19,9 +19,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/types/customer";
 
 const statusStyles: Record<CustomerStatus, string> = {

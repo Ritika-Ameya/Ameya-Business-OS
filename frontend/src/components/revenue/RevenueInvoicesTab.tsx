@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { InvoiceSearchFilters } from "@/components/invoices/InvoiceSearchFilters";
 import { InvoiceStatsCards } from "@/components/invoices/InvoiceStatsCards";
 import { RevenueInvoicesTable } from "@/components/revenue/RevenueInvoicesTable";
-import { StatsSkeleton, TableSkeleton } from "@/components/revenue/TableSkeleton";
+import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
 import { seedInvoices } from "@/data/seed-invoices";
 import { defaultInvoiceFilters, filterInvoices } from "@/lib/invoice-utils";
 import type { InvoiceFilters } from "@/types/invoice";

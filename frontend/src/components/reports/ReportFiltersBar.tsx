@@ -1,15 +1,15 @@
 import { CalendarClock } from "lucide-react";
-import { FilterResetButton } from "@/components/shared/FilterResetButton";
-import { SearchField } from "@/components/shared/SearchField";
-import { Input } from "@/components/ui/input";
+import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import { SearchField } from "@/shared/components/SearchField";
+import { Input } from "@/shared/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+} from "@/shared/ui/select";
+import { Button } from "@/shared/ui/button";
 import { invoiceStatusLabels } from "@/lib/invoice-utils";
 import {
   defaultReportFilters,

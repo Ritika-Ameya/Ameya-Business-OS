@@ -1,9 +1,9 @@
 import { Eye, IndianRupee } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Table,
   TableBody,
@@ -11,14 +11,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatInvoiceCurrency,
   formatInvoiceDate,
 } from "@/lib/invoice-utils";
 import { formatPaymentDate } from "@/lib/payment-utils";
 import type { CollectionRow } from "@/lib/revenue-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 interface RevenueCollectionsTableProps {
   rows: CollectionRow[];

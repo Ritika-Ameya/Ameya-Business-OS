@@ -8,7 +8,7 @@ import { InvoiceEmptyState } from "@/components/invoices/InvoiceEmptyState";
 import { InvoiceOverviewTab } from "@/components/invoices/InvoiceOverviewTab";
 import { InvoicePaymentsTab } from "@/components/invoices/payments/InvoicePaymentsTab";
 import { InvoiceTimelineTab } from "@/components/invoices/payments/InvoiceTimelineTab";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import type { Invoice } from "@/types/invoice";
 
 interface InvoiceWorkspaceTabsProps {

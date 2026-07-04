@@ -5,7 +5,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useMemo } from "react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { RenewalReportTable } from "@/components/reports/RenewalReportTable";
 import { useDeals } from "@/hooks/use-deals";
 import {

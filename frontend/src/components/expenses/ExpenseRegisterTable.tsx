@@ -1,15 +1,15 @@
 import { Edit, MoreHorizontal, Paperclip, ReceiptText, RefreshCw } from "lucide-react";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { ExpenseStatusBadge } from "@/components/expenses/ExpenseStatusBadge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatExpenseCurrency,
   formatExpenseDate,

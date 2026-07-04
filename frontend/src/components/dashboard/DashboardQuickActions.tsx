@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AddCustomerDialog } from "@/components/customers/AddCustomerDialog";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 import type { CustomerFormData } from "@/types/customer";
 

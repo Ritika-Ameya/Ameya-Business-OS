@@ -1,10 +1,10 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { PageHeader } from "@/components/customers/PageHeader";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { AddComponentDialog } from "@/components/deals/components/AddComponentDialog";
 import { DealComponentsEmptyState } from "@/components/deals/components/DealComponentsEmptyState";
 import { DealComponentsTable } from "@/components/deals/components/DealComponentsTable";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/hooks/use-deals";
 
 interface DealComponentsTabProps {

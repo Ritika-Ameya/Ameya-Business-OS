@@ -1,11 +1,11 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import {
   billingTypeLabels,
   billingTypeStyles,
   componentStatusLabels,
   componentStatusStyles,
 } from "@/lib/deal-component-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { BillingType, ComponentStatus } from "@/types/deal-component";
 
 export function BillingTypeBadge({ type }: { type: BillingType }) {

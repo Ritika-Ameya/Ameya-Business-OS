@@ -1,13 +1,13 @@
 import { Edit, Eye, MoreHorizontal } from "lucide-react";
 import { PaymentModeBadge, PaymentStatusBadge } from "@/components/invoices/payments/PaymentBadges";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatPaymentCurrency,
   formatPaymentDate,

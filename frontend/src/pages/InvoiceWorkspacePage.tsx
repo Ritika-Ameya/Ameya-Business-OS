@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 import { InvoiceHero } from "@/components/invoices/InvoiceHero";
 import { InvoiceWorkspaceTabs } from "@/components/invoices/InvoiceWorkspaceTabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/hooks/use-deals";
 import { seedInvoices } from "@/data/seed-invoices";
 import { createPlaceholderInvoice, getInvoiceById } from "@/lib/invoice-utils";

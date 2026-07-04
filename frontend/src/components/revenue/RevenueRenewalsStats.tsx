@@ -1,6 +1,6 @@
 import { AlertCircle, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { useDeals } from "@/hooks/use-deals";
 import { getCompanyRenewals, getRenewalStats } from "@/lib/revenue-utils";
 

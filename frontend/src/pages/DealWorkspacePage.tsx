@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 import { DealHero } from "@/components/deals/DealHero";
 import { DealWorkspaceTabs } from "@/components/deals/DealWorkspaceTabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/hooks/use-deals";
 
 interface DealNavigationState {

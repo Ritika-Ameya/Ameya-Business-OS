@@ -1,11 +1,11 @@
 import { Layers, Plus, ReceiptText } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/customers/PageHeader";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { ExpenseMasterTab } from "@/components/expenses/ExpenseMasterTab";
 import { ExpenseRegisterTab } from "@/components/expenses/ExpenseRegisterTab";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/shared/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 
 type ExpenseTab = "register" | "master";
 

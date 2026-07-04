@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { CreateDealWizard } from "@/components/deals/CreateDealWizard";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 import { useDeals } from "@/hooks/use-deals";
 import type { DealFormData } from "@/types/deal";

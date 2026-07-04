@@ -5,7 +5,7 @@ import { ExpenseCategoriesMasterPanel } from "@/components/settings/masters/Expe
 import { PaymentMethodsMasterPanel } from "@/components/settings/masters/PaymentMethodsMasterPanel";
 import { RenewalTypesMasterPanel } from "@/components/settings/masters/RenewalTypesMasterPanel";
 import { VendorsMasterPanel } from "@/components/settings/masters/VendorsMasterPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { masterTabLabels } from "@/lib/settings-utils";
 import type { MasterTab } from "@/types/settings";
 

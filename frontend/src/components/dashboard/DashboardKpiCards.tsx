@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDashboardKpis } from "@/lib/dashboard-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { DashboardKpi } from "@/types/dashboard";
 
 function TrendIndicator({ kpi }: { kpi: DashboardKpi }) {

@@ -1,8 +1,8 @@
 import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
+import { Badge } from "@/shared/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,14 +10,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatDate } from "@/lib/deal-utils";
 import {
   companyRenewalStatusStyles,
   renewalStatusLabels,
   type CompanyRenewalRow,
 } from "@/lib/revenue-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 interface RenewalReportTableProps {
   renewals: CompanyRenewalRow[];

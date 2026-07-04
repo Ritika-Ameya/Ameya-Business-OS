@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AppLayout } from "@/shared/layouts/AppLayout";
 import { SettingsLayout } from "@/components/settings/SettingsLayout";
 import { CustomersProvider } from "@/context/CustomersContext";
 import { DealsProvider } from "@/context/DealsContext";

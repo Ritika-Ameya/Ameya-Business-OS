@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import { useAppConfig } from "@/hooks/use-app-config";
 import {
   getPaymentModeLabel,
@@ -6,7 +6,7 @@ import {
   paymentStatusLabels,
   paymentStatusStyles,
 } from "@/lib/payment-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { PaymentMode, PaymentStatus } from "@/types/payment";
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {

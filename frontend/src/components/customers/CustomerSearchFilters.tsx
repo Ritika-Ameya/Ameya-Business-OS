@@ -1,12 +1,12 @@
-import { FilterResetButton } from "@/components/shared/FilterResetButton";
-import { SearchField } from "@/components/shared/SearchField";
+import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import { SearchField } from "@/shared/components/SearchField";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/ui/select";
 import {
   activeDealsFilterLabels,
   defaultFilters,

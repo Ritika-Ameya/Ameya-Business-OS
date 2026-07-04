@@ -5,9 +5,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { preventNestedOverlayDismiss } from "@/lib/dialog-utils";
+} from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
 import { formatExpenseCurrency } from "@/lib/expense-utils";
 
 interface UpdateRecurringTemplateDialogProps {

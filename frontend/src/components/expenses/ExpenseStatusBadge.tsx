@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import { transactionStatusLabels } from "@/lib/expense-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { ExpenseTransactionStatus } from "@/types/expense";
 
 const statusStyles: Record<ExpenseTransactionStatus, string> = {

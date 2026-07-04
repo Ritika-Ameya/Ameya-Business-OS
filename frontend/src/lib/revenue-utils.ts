@@ -266,3 +266,18 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]) {
 export function getRevenueCustomers() {
   return getUniqueCustomers(seedInvoices);
 }
+
+export const revenueTabLabels: Record<string, string> = {
+  invoices: "Invoices",
+  collections: "Collections",
+  renewals: "Renewals",
+};
+
+export type RevenueTab = keyof typeof revenueTabLabels;
+
+export function parseRevenueTab(value: string | null): RevenueTab {
+  if (value === "collections" || value === "renewals") {
+    return value;
+  }
+  return "invoices";
+}

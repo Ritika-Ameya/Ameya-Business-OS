@@ -1,7 +1,7 @@
 import { Building2, Database, IndianRupee, SlidersHorizontal } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
-import { PageHeader } from "@/components/customers/PageHeader";
-import { cn } from "@/lib/utils";
+import { PageHeader } from "@/shared/components/PageHeader";
+import { cn } from "@/shared/utils";
 import { settingsSectionLabels } from "@/lib/settings-utils";
 
 const navItems = [

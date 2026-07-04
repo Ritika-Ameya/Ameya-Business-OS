@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { RevenueRenewalsFilters } from "@/components/revenue/RevenueRenewalsFilters";
 import { RevenueRenewalsStats } from "@/components/revenue/RevenueRenewalsStats";
 import { RevenueRenewalsTable } from "@/components/revenue/RevenueRenewalsTable";
-import { StatsSkeleton, TableSkeleton } from "@/components/revenue/TableSkeleton";
+import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
 import { useDeals } from "@/hooks/use-deals";
 import {
   defaultRenewalFilters,

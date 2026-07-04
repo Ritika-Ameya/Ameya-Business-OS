@@ -1,14 +1,14 @@
 import { AlertCircle, IndianRupee, ReceiptText, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/customers/PageHeader";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { ExpenseReportTab } from "@/components/reports/ExpenseReportTab";
 import { OutstandingReportTab } from "@/components/reports/OutstandingReportTab";
 import { RenewalReportTab } from "@/components/reports/RenewalReportTab";
 import { ReportExportActions } from "@/components/reports/ReportExportActions";
 import { ReportFiltersBar } from "@/components/reports/ReportFiltersBar";
 import { RevenueReportTab } from "@/components/reports/RevenueReportTab";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { seedInvoices } from "@/data/seed-invoices";
 import { useAppConfig } from "@/hooks/use-app-config";
 import { useCustomers } from "@/hooks/use-customers";

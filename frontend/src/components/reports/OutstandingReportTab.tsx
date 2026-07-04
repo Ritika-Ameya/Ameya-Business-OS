@@ -5,7 +5,7 @@ import {
   IndianRupee,
 } from "lucide-react";
 import { useMemo } from "react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { OutstandingReportTable } from "@/components/reports/OutstandingReportTable";
 import { seedInvoices } from "@/data/seed-invoices";
 import {

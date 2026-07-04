@@ -5,14 +5,14 @@ import {
   Phone,
   Receipt,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
 import {
   getCustomerBillingAddress,
   getCustomerServiceAddress,
 } from "@/lib/app-config-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/types/customer";
 
 const statusStyles: Record<CustomerStatus, string> = {

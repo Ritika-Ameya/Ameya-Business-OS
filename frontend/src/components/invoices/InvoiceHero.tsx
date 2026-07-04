@@ -5,7 +5,7 @@ import {
   formatInvoiceCurrency,
   formatInvoiceDate,
 } from "@/lib/invoice-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Invoice } from "@/types/invoice";
 
 interface InvoiceHeroProps {

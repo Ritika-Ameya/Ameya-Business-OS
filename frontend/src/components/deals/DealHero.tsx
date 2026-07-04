@@ -1,8 +1,8 @@
 import { Calendar, Handshake, Layers, User } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import { formatDate } from "@/lib/deal-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Deal, DealStatus } from "@/types/deal";
 
 const statusStyles: Record<DealStatus, string> = {

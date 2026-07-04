@@ -1,6 +1,6 @@
 import { Handshake, History, Mail, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import type { Customer } from "@/types/customer";
 
 interface CustomerQuickActionsProps {

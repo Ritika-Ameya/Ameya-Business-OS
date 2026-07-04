@@ -9,7 +9,7 @@ import {
   StickyNote,
   Wallet,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import type { ReactNode } from "react";
 import { DealComponentsTab } from "./components/DealComponentsTab";
 import { DealInvoicesTab } from "@/components/invoices/DealInvoicesTab";

@@ -5,7 +5,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useMemo } from "react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { RevenueReportTable } from "@/components/reports/RevenueReportTable";
 import { seedInvoices } from "@/data/seed-invoices";
 import {

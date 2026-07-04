@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { EmployeeDialog } from "@/components/settings/masters/dialogs/EmployeeDialog";
 import { SettingsSearchBar } from "@/components/settings/SettingsSearchBar";
 import { SettingsStatusBadge } from "@/components/settings/SettingsStatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { useSettings } from "@/hooks/use-settings";
 import { filterByQuery } from "@/lib/settings-utils";
 import type { SettingsEmployee } from "@/types/settings";

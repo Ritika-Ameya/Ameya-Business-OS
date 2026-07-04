@@ -6,33 +6,10 @@ import type {
   RenewalFilter,
   StatusFilter,
 } from "@/types/customer";
+import { isRenewalThisMonth } from "@/shared/utils/format-date";
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-export function formatDate(date?: string): string {
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
-}
-
-export function isRenewalThisMonth(date?: string): boolean {
-  if (!date) return false;
-  const renewal = new Date(date);
-  const now = new Date();
-  return (
-    renewal.getMonth() === now.getMonth() &&
-    renewal.getFullYear() === now.getFullYear()
-  );
-}
+export { formatCurrency } from "@/shared/utils/format-currency";
+export { formatDate, isRenewalThisMonth } from "@/shared/utils/format-date";
 
 export function isUpcomingRenewal(date?: string): boolean {
   if (!date) return false;

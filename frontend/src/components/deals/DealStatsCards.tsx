@@ -1,5 +1,5 @@
 import { CalendarClock, Handshake, Layers, Sparkles } from "lucide-react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { isRenewalThisMonth } from "@/lib/deal-utils";
 import type { Deal } from "@/types/deal";
 

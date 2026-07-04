@@ -5,8 +5,8 @@ import { ExpenseRegisterFiltersBar } from "@/components/expenses/ExpenseRegister
 import { ExpenseRegisterSkeleton } from "@/components/expenses/ExpenseRegisterSkeleton";
 import { ExpenseRegisterTable } from "@/components/expenses/ExpenseRegisterTable";
 import { UpdateRecurringTemplateDialog } from "@/components/expenses/UpdateRecurringTemplateDialog";
-import { StatCard } from "@/components/customers/PageHeader";
-import { Button } from "@/components/ui/button";
+import { StatCard } from "@/shared/components/PageHeader";
+import { Button } from "@/shared/ui/button";
 import { useExpenses } from "@/hooks/use-expenses";
 import {
   computeRegisterStats,

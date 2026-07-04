@@ -1,5 +1,5 @@
 import { Layers } from "lucide-react";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/shared/components/EmptyState";
 
 interface DealComponentsEmptyStateProps {
   onAddComponent: () => void;

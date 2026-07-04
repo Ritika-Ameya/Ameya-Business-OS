@@ -5,7 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/shared/ui/card";
 import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
 import type { Customer } from "@/types/customer";

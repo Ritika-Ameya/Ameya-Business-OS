@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { getUpcomingRenewalsTop5 } from "@/lib/dashboard-utils";
 
 export function UpcomingRenewalsCard() {

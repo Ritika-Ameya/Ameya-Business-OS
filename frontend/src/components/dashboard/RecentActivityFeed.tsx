@@ -6,7 +6,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { formatActivityTime, getRecentActivity } from "@/lib/dashboard-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { DashboardActivityType } from "@/types/dashboard";
 
 const activityConfig: Record<

@@ -1,7 +1,7 @@
 import { ReceiptText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { ExpenseStatusBadge } from "@/components/expenses/ExpenseStatusBadge";
 import {
   Table,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatExpenseCurrency,
   formatExpenseDate,

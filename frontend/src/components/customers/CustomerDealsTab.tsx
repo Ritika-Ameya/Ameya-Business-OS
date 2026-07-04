@@ -1,7 +1,7 @@
 import { Handshake } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DealTable } from "@/components/deals/DealTable";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/hooks/use-deals";
 import { getDealsByCustomerId } from "@/lib/deal-utils";
 import type { Customer } from "@/types/customer";

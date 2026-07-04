@@ -1,12 +1,12 @@
 import { IndianRupee, Receipt, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/customers/PageHeader";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { RevenueCollectionsTab } from "@/components/revenue/RevenueCollectionsTab";
 import { RevenueInvoicesTab } from "@/components/revenue/RevenueInvoicesTab";
 import { RevenueRenewalsTab } from "@/components/revenue/RevenueRenewalsTab";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { parseRevenueTab } from "@/lib/navigation-utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { parseRevenueTab } from "@/lib/revenue-utils";
 
 type RevenueNavigationState = {
   tab?: string;

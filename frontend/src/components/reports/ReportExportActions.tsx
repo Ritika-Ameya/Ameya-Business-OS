@@ -1,5 +1,5 @@
 import { FileDown, FileSpreadsheet, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import type { ReportTab } from "@/types/reports";
 
 const exportLabels: Record<ReportTab, string> = {

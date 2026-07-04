@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GenerateInvoiceDialog } from "@/components/invoices/GenerateInvoiceDialog";
 import { InvoiceTable } from "@/components/invoices/InvoiceTable";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/hooks/use-deals";
 import { seedInvoices } from "@/data/seed-invoices";
 import { getInvoicesByDealId } from "@/lib/invoice-utils";
