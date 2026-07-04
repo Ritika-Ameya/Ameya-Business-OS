@@ -9,14 +9,7 @@ export type ExpenseMasterStatus = "active" | "inactive";
 
 export type ExpenseTransactionStatus = "paid" | "pending" | "partial" | "cancelled";
 
-export type PaymentMethod =
-  | "bank-transfer"
-  | "upi"
-  | "credit-card"
-  | "debit-card"
-  | "cash"
-  | "cheque"
-  | "other";
+export type PaymentMethod = string;
 
 export type PayeeType = "vendor" | "employee";
 

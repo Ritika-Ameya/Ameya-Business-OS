@@ -1,4 +1,7 @@
+import { RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -30,17 +33,16 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
 
   if (renewals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No renewal records found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your date range or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={RefreshCw}
+        title="No renewal records found"
+        description="Try adjusting your date range or filters."
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -57,8 +59,9 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
             <TableRow
               key={renewal.id}
               className="cursor-pointer"
+              title="Open deal workspace"
               onClick={() =>
-                navigate(`/deals/${renewal.dealId}`, { state: { tab: "renewals" } })
+                navigate(`/deals/${renewal.dealId}?tab=renewals`)
               }
             >
               <TableCell className="pl-4 text-muted-foreground">
@@ -84,6 +87,6 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

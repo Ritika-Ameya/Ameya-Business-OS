@@ -1,6 +1,12 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { DealHero } from "@/components/deals/DealHero";
 import { DealWorkspaceTabs } from "@/components/deals/DealWorkspaceTabs";
 import { Button } from "@/components/ui/button";
@@ -10,14 +16,39 @@ interface DealNavigationState {
   tab?: string;
 }
 
+const dealTabs = new Set([
+  "overview",
+  "components",
+  "invoices",
+  "payments",
+  "renewals",
+  "documents",
+  "timeline",
+  "notes",
+]);
+
+function parseDealTab(value: string | null, fallback?: string): string {
+  if (value && dealTabs.has(value)) return value;
+  if (fallback && dealTabs.has(fallback)) return fallback;
+  return "overview";
+}
+
 export function DealWorkspacePage() {
   const { dealId } = useParams<{ dealId: string }>();
   const location = useLocation();
   const navigationState = location.state as DealNavigationState | null;
+  const [searchParams] = useSearchParams();
   const { getDeal } = useDeals();
-  const [activeTab, setActiveTab] = useState(
-    () => navigationState?.tab ?? "overview"
+  const [activeTab, setActiveTab] = useState(() =>
+    parseDealTab(searchParams.get("tab"), navigationState?.tab)
   );
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl && dealTabs.has(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   const deal = dealId ? getDeal(dealId) : undefined;
 

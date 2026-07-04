@@ -1,6 +1,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { isNavItemActive } from "@/lib/navigation-utils";
 import { cn } from "@/lib/utils";
 import { navItems } from "./navigation";
 
@@ -45,10 +46,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             key={item.href}
             to={item.href}
             className={({ isActive }) => {
-              const active =
-                item.href === "/settings"
-                  ? pathname.startsWith("/settings")
-                  : isActive;
+              const active = isNavItemActive(item.href, pathname) || isActive;
 
               return cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",

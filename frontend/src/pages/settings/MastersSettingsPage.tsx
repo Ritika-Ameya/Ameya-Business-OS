@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router-dom";
+import { DealTypesMasterPanel } from "@/components/settings/masters/DealTypesMasterPanel";
 import { EmployeesMasterPanel } from "@/components/settings/masters/EmployeesMasterPanel";
 import { ExpenseCategoriesMasterPanel } from "@/components/settings/masters/ExpenseCategoriesMasterPanel";
 import { PaymentMethodsMasterPanel } from "@/components/settings/masters/PaymentMethodsMasterPanel";
@@ -14,6 +15,7 @@ const masterTabs: MasterTab[] = [
   "expense-categories",
   "renewal-types",
   "payment-methods",
+  "deal-types",
 ];
 
 export function MastersSettingsPage() {
@@ -63,6 +65,9 @@ export function MastersSettingsPage() {
         </TabsContent>
         <TabsContent value="payment-methods" className="mt-0">
           <PaymentMethodsMasterPanel />
+        </TabsContent>
+        <TabsContent value="deal-types" className="mt-0">
+          <DealTypesMasterPanel />
         </TabsContent>
       </Tabs>
     </div>

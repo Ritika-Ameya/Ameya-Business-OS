@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { AddExpenseMasterDialog } from "@/components/expenses/AddExpenseMasterDialog";
 import { ExpenseMasterFiltersBar } from "@/components/expenses/ExpenseMasterFiltersBar";
 import { ExpenseMasterTable } from "@/components/expenses/ExpenseMasterTable";
+import { TableSkeleton } from "@/components/shared/ListSkeleton";
 import { Button } from "@/components/ui/button";
 import { useExpenses } from "@/hooks/use-expenses";
 import { defaultMasterFilters, filterMasters } from "@/lib/expense-utils";
@@ -26,17 +27,44 @@ export function ExpenseMasterTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMaster, setEditingMaster] = useState<ExpenseMasterTemplate | undefined>();
 
+  const deferredQuery = useDeferredValue(query);
+  const isSearching = query !== deferredQuery;
+
   const filteredMasters = useMemo(
-    () => filterMasters(masters, query, filters),
-    [masters, query, filters]
+    () => filterMasters(masters, deferredQuery, filters),
+    [masters, deferredQuery, filters]
   );
+
+  const hasActiveFilters =
+    deferredQuery.trim().length > 0 ||
+    filters.category !== defaultMasterFilters.category ||
+    filters.status !== defaultMasterFilters.status ||
+    filters.frequency !== defaultMasterFilters.frequency;
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilters(defaultMasterFilters);
+  };
+
+  const handleOpenAdd = () => {
+    setEditingMaster(undefined);
+    setDialogOpen(true);
+  };
 
   const handleSave = (data: ExpenseMasterFormData) => {
     if (editingMaster) {
       updateMaster(editingMaster.id, data);
-      return;
+    } else {
+      addMaster(data);
     }
-    addMaster(data);
+    setEditingMaster(undefined);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingMaster(undefined);
+    }
   };
 
   return (
@@ -45,13 +73,7 @@ export function ExpenseMasterTab() {
         <p className="text-sm text-muted-foreground">
           Recurring expense templates auto-generate pending entries in the register.
         </p>
-        <Button
-          className="rounded-xl"
-          onClick={() => {
-            setEditingMaster(undefined);
-            setDialogOpen(true);
-          }}
-        >
+        <Button className="rounded-xl" onClick={handleOpenAdd}>
           <Plus />
           Add Template
         </Button>
@@ -65,19 +87,26 @@ export function ExpenseMasterTab() {
         categories={categories}
       />
 
-      <ExpenseMasterTable
-        masters={filteredMasters}
-        categories={categories}
-        onEdit={(master) => {
-          setEditingMaster(master);
-          setDialogOpen(true);
-        }}
-      />
+      {isSearching ? (
+        <TableSkeleton rows={5} />
+      ) : (
+        <ExpenseMasterTable
+          masters={filteredMasters}
+          categories={categories}
+          onEdit={(master) => {
+            setEditingMaster(master);
+            setDialogOpen(true);
+          }}
+          isFiltered={hasActiveFilters}
+          isEmpty={masters.length === 0}
+          onAdd={handleOpenAdd}
+          onResetFilters={resetFilters}
+        />
+      )}
 
       <AddExpenseMasterDialog
-        key={`${editingMaster?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
         onSave={handleSave}
         categories={categories}
         vendors={vendors}

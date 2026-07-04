@@ -41,8 +41,8 @@ export function AppLayout() {
             onOpenMobileNav={() => setMobileNavOpen(true)}
           />
 
-          <main className="flex-1 p-4 sm:p-6">
-            <div className="rounded-2xl border border-border/70 bg-card/50 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+          <main className="flex-1 p-3 sm:p-5 lg:p-6">
+            <div className="rounded-2xl border border-border/70 bg-card/50 p-4 shadow-sm backdrop-blur-sm dark:bg-card/40 sm:p-6 lg:p-8">
               <Outlet />
             </div>
           </main>

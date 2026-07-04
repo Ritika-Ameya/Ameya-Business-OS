@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { paymentModeLabels } from "@/lib/payment-utils";
+import { useAppConfig } from "@/hooks/use-app-config";
+import { getActivePaymentMethods } from "@/lib/app-config-utils";
 import type { PaymentFormData, PaymentMode } from "@/types/payment";
 
 const emptyForm: PaymentFormData = {
@@ -40,6 +41,8 @@ export function RecordPaymentDialog({
   open,
   onOpenChange,
 }: RecordPaymentDialogProps) {
+  const { paymentMethods } = useAppConfig();
+  const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [form, setForm] = useState<PaymentFormData>(emptyForm);
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -113,9 +116,9 @@ export function RecordPaymentDialog({
                   <SelectValue placeholder="Select payment mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(paymentModeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {activePaymentMethods.map((method) => (
+                    <SelectItem key={method.id} value={method.slug}>
+                      {method.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

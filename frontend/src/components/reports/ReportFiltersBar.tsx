@@ -1,4 +1,6 @@
-import { CalendarRange, RotateCcw, Search } from "lucide-react";
+import { CalendarClock } from "lucide-react";
+import { FilterResetButton } from "@/components/shared/FilterResetButton";
+import { SearchField } from "@/components/shared/SearchField";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -11,8 +13,6 @@ import { Button } from "@/components/ui/button";
 import { invoiceStatusLabels } from "@/lib/invoice-utils";
 import {
   defaultReportFilters,
-  getReportCustomers,
-  getReportDeals,
   reportQuickDateLabels,
   reportQuickDatePresets,
 } from "@/lib/report-utils";
@@ -28,6 +28,8 @@ interface ReportFiltersBarProps {
   categories: ExpenseCategoryItem[];
   vendors: VendorItem[];
   employees: EmployeeItem[];
+  customers: { id: string; name: string }[];
+  deals: { id: string; title: string }[];
 }
 
 const revenueStatusOptions = Object.entries(invoiceStatusLabels);
@@ -64,11 +66,13 @@ export function ReportFiltersBar({
   categories,
   vendors,
   employees,
+  customers,
+  deals,
 }: ReportFiltersBarProps) {
-  const customers = getReportCustomers();
-  const deals = getReportDeals();
   const defaults = defaultReportFilters();
   const statusOptions = getStatusOptions(activeTab);
+  const showCustomerDeal = activeTab !== "expense";
+  const showExpenseFilters = activeTab === "expense";
 
   const hasActiveFilters =
     filters.datePreset !== defaults.datePreset ||
@@ -92,21 +96,24 @@ export function ReportFiltersBar({
   };
 
   return (
-    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={filters.search}
-          onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          placeholder="Search reports..."
-          className="h-11 rounded-xl border-border/70 bg-background pl-10"
-        />
-      </div>
+    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 dark:bg-card/90">
+      <SearchField
+        value={filters.search}
+        onChange={(value) => onFiltersChange({ ...filters, search: value })}
+        placeholder={
+          activeTab === "expense"
+            ? "Search expenses, vendors, categories..."
+            : activeTab === "renewal"
+              ? "Search customers, deals, renewals..."
+              : "Search invoices, customers, deals..."
+        }
+        ariaLabel="Search report records"
+      />
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            <CalendarRange className="size-3.5" />
+            <CalendarClock className="size-3.5" />
             Date Range
           </span>
           {reportQuickDatePresets.map((preset) => (
@@ -159,39 +166,43 @@ export function ReportFiltersBar({
           Filters
         </span>
 
-        <Select
-          value={filters.customer}
-          onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
-        >
-          <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
-            <SelectValue placeholder="Customer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Customers</SelectItem>
-            {customers.map((customer) => (
-              <SelectItem key={customer.id} value={customer.id}>
-                {customer.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {showCustomerDeal && (
+          <>
+            <Select
+              value={filters.customer}
+              onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
+            >
+              <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
+                <SelectValue placeholder="Customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select
-          value={filters.deal}
-          onValueChange={(value) => onFiltersChange({ ...filters, deal: value })}
-        >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
-            <SelectValue placeholder="Deal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Deals</SelectItem>
-            {deals.map((deal) => (
-              <SelectItem key={deal.id} value={deal.id}>
-                {deal.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <Select
+              value={filters.deal}
+              onValueChange={(value) => onFiltersChange({ ...filters, deal: value })}
+            >
+              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+                <SelectValue placeholder="Deal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Deals</SelectItem>
+                {deals.map((deal) => (
+                  <SelectItem key={deal.id} value={deal.id}>
+                    {deal.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
 
         <Select
           value={filters.status}
@@ -209,68 +220,63 @@ export function ReportFiltersBar({
           </SelectContent>
         </Select>
 
-        <Select
-          value={filters.category}
-          onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
-        >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {showExpenseFilters && (
+          <>
+            <Select
+              value={filters.category}
+              onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
+            >
+              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select
-          value={filters.employee}
-          onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
-        >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
-            <SelectValue placeholder="Employee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Employees</SelectItem>
-            {employees.map((employee) => (
-              <SelectItem key={employee.id} value={employee.id}>
-                {employee.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <Select
+              value={filters.employee}
+              onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
+            >
+              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+                <SelectValue placeholder="Employee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees.map((employee) => (
+                  <SelectItem key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select
-          value={filters.vendor}
-          onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
-        >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
-            <SelectValue placeholder="Vendor" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Vendors</SelectItem>
-            {vendors.map((vendor) => (
-              <SelectItem key={vendor.id} value={vendor.id}>
-                {vendor.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <Select
+              value={filters.vendor}
+              onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
+            >
+              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+                <SelectValue placeholder="Vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Vendors</SelectItem>
+                {vendors.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
 
         {hasActiveFilters && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="rounded-xl text-muted-foreground"
-            onClick={() => onFiltersChange(defaultReportFilters())}
-          >
-            <RotateCcw />
-            Reset Filters
-          </Button>
+          <FilterResetButton onClick={() => onFiltersChange(defaultReportFilters())} />
         )}
       </div>
     </div>

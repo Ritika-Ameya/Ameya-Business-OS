@@ -37,7 +37,7 @@ export function UpcomingRenewalsCard() {
 
       <div className="mt-auto border-t border-border/50 px-5 py-3">
         <Button variant="ghost" size="sm" className="w-full rounded-xl" asChild>
-          <Link to="/revenue" state={{ tab: "renewals" }}>
+          <Link to="/revenue?tab=renewals">
             View All
             <ArrowRight />
           </Link>

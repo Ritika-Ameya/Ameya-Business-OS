@@ -21,20 +21,42 @@ const CustomersContext = createContext<CustomersContextValue | null>(null);
 
 export { CustomersContext };
 
+function normalizeCustomer(customer: Customer): Customer {
+  return {
+    ...customer,
+    billingAddress: customer.billingAddress ?? customer.address,
+    serviceAddress: customer.serviceAddress ?? customer.billingAddress ?? customer.address,
+  };
+}
+
 function loadCustomers(): Customer[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored) as Customer[];
+      return (JSON.parse(stored) as Customer[]).map(normalizeCustomer);
     }
   } catch {
     // fall through to seed data
   }
-  return seedCustomers;
+  return seedCustomers.map(normalizeCustomer);
 }
 
 function persistCustomers(customers: Customer[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
+}
+
+function formToCustomerFields(data: CustomerFormData) {
+  return {
+    name: data.name.trim(),
+    company: data.company.trim(),
+    phone: data.phone.trim(),
+    email: data.email.trim(),
+    gst: data.gst.trim().toUpperCase() || undefined,
+    billingAddress: data.billingAddress.trim() || undefined,
+    serviceAddress: data.serviceAddress.trim() || undefined,
+    address: data.billingAddress.trim() || undefined,
+    notes: data.notes.trim() || undefined,
+  };
 }
 
 export function CustomersProvider({ children }: { children: ReactNode }) {
@@ -43,13 +65,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
   const addCustomer = useCallback((data: CustomerFormData): Customer => {
     const customer: Customer = {
       id: `cust-${crypto.randomUUID().slice(0, 8)}`,
-      name: data.name.trim(),
-      company: data.company.trim(),
-      phone: data.phone.trim(),
-      email: data.email.trim(),
-      gst: data.gst.trim() || undefined,
-      address: data.address.trim() || undefined,
-      notes: data.notes.trim() || undefined,
+      ...formToCustomerFields(data),
       status: "active",
       outstanding: 0,
       activeDeals: 0,
@@ -73,13 +89,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
         customer.id === id
           ? {
               ...customer,
-              name: data.name.trim(),
-              company: data.company.trim(),
-              phone: data.phone.trim(),
-              email: data.email.trim(),
-              gst: data.gst.trim() || undefined,
-              address: data.address.trim() || undefined,
-              notes: data.notes.trim() || undefined,
+              ...formToCustomerFields(data),
             }
           : customer
       );

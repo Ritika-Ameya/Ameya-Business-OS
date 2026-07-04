@@ -46,6 +46,14 @@ export interface SettingsRenewalType {
 export interface SettingsPaymentMethod {
   id: string;
   name: string;
+  slug: string;
+  status: SettingsEntityStatus;
+}
+
+export interface SettingsDealType {
+  id: string;
+  name: string;
+  slug: string;
   status: SettingsEntityStatus;
 }
 
@@ -93,6 +101,13 @@ export interface RenewalTypeFormData {
 
 export interface PaymentMethodFormData {
   name: string;
+  slug: string;
+  status: SettingsEntityStatus;
+}
+
+export interface DealTypeFormData {
+  name: string;
+  slug: string;
   status: SettingsEntityStatus;
 }
 
@@ -103,4 +118,5 @@ export type MasterTab =
   | "vendors"
   | "expense-categories"
   | "renewal-types"
-  | "payment-methods";
+  | "payment-methods"
+  | "deal-types";

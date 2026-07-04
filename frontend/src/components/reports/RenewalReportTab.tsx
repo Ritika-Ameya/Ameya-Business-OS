@@ -7,6 +7,7 @@ import {
 import { useMemo } from "react";
 import { StatCard } from "@/components/customers/PageHeader";
 import { RenewalReportTable } from "@/components/reports/RenewalReportTable";
+import { useDeals } from "@/hooks/use-deals";
 import {
   computeRenewalReportStats,
   filterRenewalsForReport,
@@ -19,12 +20,17 @@ interface RenewalReportTabProps {
 }
 
 export function RenewalReportTab({ filters }: RenewalReportTabProps) {
-  const renewals = useMemo(() => {
-    const all = getAllRenewals();
-    return filterRenewalsForReport(all, filters);
-  }, [filters]);
+  const { deals } = useDeals();
 
-  const stats = useMemo(() => computeRenewalReportStats(renewals), [renewals]);
+  const renewals = useMemo(() => {
+    const all = getAllRenewals(deals);
+    return filterRenewalsForReport(all, filters);
+  }, [deals, filters]);
+
+  const stats = useMemo(
+    () => computeRenewalReportStats(renewals, deals),
+    [renewals, deals]
+  );
 
   return (
     <div className="space-y-6">

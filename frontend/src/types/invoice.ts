@@ -32,4 +32,5 @@ export interface GenerateInvoiceContext {
   customerName: string;
   dealId: string;
   dealTitle: string;
+  componentIds?: string[];
 }

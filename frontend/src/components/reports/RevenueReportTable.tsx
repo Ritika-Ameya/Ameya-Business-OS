@@ -1,4 +1,7 @@
+import { IndianRupee } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
 import {
   Table,
@@ -24,17 +27,16 @@ export function RevenueReportTable({ invoices }: RevenueReportTableProps) {
 
   if (invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No revenue records found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your date range or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={IndianRupee}
+        title="No revenue records found"
+        description="Try adjusting your date range or filters."
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -53,6 +55,7 @@ export function RevenueReportTable({ invoices }: RevenueReportTableProps) {
             <TableRow
               key={invoice.id}
               className="cursor-pointer"
+              title="Open invoice workspace"
               onClick={() => navigate(`/invoices/${invoice.id}`)}
             >
               <TableCell className="pl-4 font-medium">{invoice.invoiceNo}</TableCell>
@@ -90,6 +93,6 @@ export function RevenueReportTable({ invoices }: RevenueReportTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

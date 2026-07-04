@@ -1,28 +1,37 @@
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDeferredValue, useMemo, useState } from "react";
 import { AddCustomerDialog } from "@/components/customers/AddCustomerDialog";
 import { CustomerSearchFilters } from "@/components/customers/CustomerSearchFilters";
 import { CustomerStatsCards } from "@/components/customers/CustomerStatsCards";
 import { CustomerTable } from "@/components/customers/CustomerTable";
 import { PageHeader } from "@/components/customers/PageHeader";
+import { TableSkeleton } from "@/components/shared/ListSkeleton";
 import { Button } from "@/components/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 import { defaultFilters, filterCustomers } from "@/lib/customer-utils";
 import type { Customer, CustomerFilters, CustomerFormData } from "@/types/customer";
 
 export function CustomersPage() {
-  const navigate = useNavigate();
   const { customers, addCustomer, updateCustomer } = useCustomers();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | undefined>();
 
+  const deferredQuery = useDeferredValue(query);
+  const isSearching = query !== deferredQuery;
+
   const filteredCustomers = useMemo(
-    () => filterCustomers(customers, query, filters),
-    [customers, query, filters]
+    () => filterCustomers(customers, deferredQuery, filters),
+    [customers, deferredQuery, filters]
   );
+
+  const hasActiveFilters =
+    deferredQuery.trim().length > 0 ||
+    filters.status !== defaultFilters.status ||
+    filters.outstanding !== defaultFilters.outstanding ||
+    filters.renewal !== defaultFilters.renewal ||
+    filters.activeDeals !== defaultFilters.activeDeals;
 
   const handleAdd = () => {
     setEditingCustomer(undefined);
@@ -39,12 +48,16 @@ export function CustomersPage() {
       updateCustomer(editingCustomer.id, data);
       return;
     }
-    const customer = addCustomer(data);
-    navigate(`/customers/${customer.id}`);
+    addCustomer(data);
+  };
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilters(defaultFilters);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Customers"
         subtitle="Manage all customers and their complete business relationship."
@@ -65,7 +78,18 @@ export function CustomersPage() {
         onFiltersChange={setFilters}
       />
 
-      <CustomerTable customers={filteredCustomers} onEdit={handleEdit} />
+      {isSearching ? (
+        <TableSkeleton rows={6} />
+      ) : (
+        <CustomerTable
+          customers={filteredCustomers}
+          onEdit={handleEdit}
+          isFiltered={hasActiveFilters}
+          isEmpty={customers.length === 0}
+          onAdd={handleAdd}
+          onResetFilters={resetFilters}
+        />
+      )}
 
       <AddCustomerDialog
         key={`${editingCustomer?.id ?? "new"}-${dialogOpen}`}

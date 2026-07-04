@@ -13,6 +13,7 @@ export const masterTabLabels = {
   "expense-categories": "Expense Categories",
   "renewal-types": "Renewal Types",
   "payment-methods": "Payment Methods",
+  "deal-types": "Deal Types",
 } as const;
 
 export const statusLabels: Record<SettingsEntityStatus, string> = {

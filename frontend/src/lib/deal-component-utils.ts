@@ -1,4 +1,4 @@
-import type { BillingType, ComponentStatus, DealComponent } from "@/types/deal-component";
+import type { BillingType, ComponentFormData, ComponentStatus, DealComponent } from "@/types/deal-component";
 
 export function formatComponentCurrency(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -15,6 +15,29 @@ export function formatComponentDate(date?: string): string {
     month: "short",
     year: "numeric",
   }).format(new Date(date));
+}
+
+export function validateComponentForm(
+  data: ComponentFormData
+): Partial<Record<keyof ComponentFormData, string>> {
+  const errors: Partial<Record<keyof ComponentFormData, string>> = {};
+
+  if (!data.name.trim()) {
+    errors.name = "Component name is required";
+  }
+
+  if (!data.amount.trim()) {
+    errors.amount = "Amount is required";
+  } else if (parseAmount(data.amount) <= 0) {
+    errors.amount = "Enter a valid amount";
+  }
+
+  return errors;
+}
+
+function parseAmount(value: string): number {
+  const parsed = Number.parseFloat(value.replace(/,/g, ""));
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 export function getComponentsByDealId(

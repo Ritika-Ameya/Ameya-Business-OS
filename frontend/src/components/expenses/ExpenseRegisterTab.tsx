@@ -18,12 +18,16 @@ import {
 import type { ExpenseRegisterFilters, ExpenseTransaction, ExpenseTransactionFormData } from "@/types/expense";
 
 interface ExpenseRegisterTabProps {
+  expenseId?: string | null;
+  onExpenseIdHandled?: () => void;
   onAddExpense?: () => void;
   dialogOpen?: boolean;
   onDialogOpenChange?: (open: boolean) => void;
 }
 
 export function ExpenseRegisterTab({
+  expenseId,
+  onExpenseIdHandled,
   onAddExpense,
   dialogOpen: controlledOpen,
   onDialogOpenChange,
@@ -66,10 +70,35 @@ export function ExpenseRegisterTab({
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!ready || !expenseId) return;
+
+    const transaction = transactions.find((txn) => txn.id === expenseId);
+    if (transaction) {
+      setEditingTransaction(transaction);
+      setDialogOpen(true);
+    }
+    onExpenseIdHandled?.();
+  }, [ready, expenseId, transactions, onExpenseIdHandled, setDialogOpen]);
+
   const filteredTransactions = useMemo(
     () => filterTransactions(transactions, deferredQuery, deferredFilters),
     [transactions, deferredQuery, deferredFilters]
   );
+
+  const hasActiveFilters =
+    deferredQuery.trim().length > 0 ||
+    filters.datePreset !== defaultRegisterFilters().datePreset ||
+    filters.category !== defaultRegisterFilters().category ||
+    filters.status !== defaultRegisterFilters().status ||
+    filters.vendor !== defaultRegisterFilters().vendor ||
+    filters.employee !== defaultRegisterFilters().employee ||
+    filters.paymentMethod !== defaultRegisterFilters().paymentMethod;
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilters(defaultRegisterFilters());
+  };
 
   const stats = useMemo(
     () => computeRegisterStats(filteredTransactions, masters),
@@ -103,9 +132,11 @@ export function ExpenseRegisterTab({
         return;
       }
       updateTransaction(editingTransaction.id, data);
+      setEditingTransaction(undefined);
       return;
     }
     addTransaction(data);
+    setEditingTransaction(undefined);
   };
 
   const handleTemplateDecision = (updateTemplate: boolean) => {
@@ -179,6 +210,10 @@ export function ExpenseRegisterTab({
         transactions={filteredTransactions}
         categories={categories}
         onEdit={handleEdit}
+        isFiltered={hasActiveFilters}
+        isEmpty={transactions.length === 0}
+        onAdd={handleAdd}
+        onResetFilters={resetFilters}
       />
 
       {controlledOpen === undefined && (

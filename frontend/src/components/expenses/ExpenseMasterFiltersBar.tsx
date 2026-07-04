@@ -1,5 +1,5 @@
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { FilterResetButton } from "@/components/shared/FilterResetButton";
+import { SearchField } from "@/components/shared/SearchField";
 import {
   Select,
   SelectContent,
@@ -33,19 +33,25 @@ export function ExpenseMasterFiltersBar({
     filters.status !== defaultMasterFilters.status ||
     filters.frequency !== defaultMasterFilters.frequency;
 
+  const resetAll = () => {
+    onQueryChange("");
+    onFiltersChange(defaultMasterFilters);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search templates..."
-          className="h-11 rounded-xl border-border/70 bg-card pl-10"
-        />
-      </div>
+      <SearchField
+        value={query}
+        onChange={onQueryChange}
+        placeholder="Search templates..."
+        ariaLabel="Search expense templates"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Filters
+        </span>
+
         <Select
           value={filters.category}
           onValueChange={(value) =>
@@ -106,14 +112,8 @@ export function ExpenseMasterFiltersBar({
           </SelectContent>
         </Select>
 
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => onFiltersChange(defaultMasterFilters)}
-            className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Clear filters
-          </button>
+        {(hasActiveFilters || query.trim().length > 0) && (
+          <FilterResetButton onClick={resetAll} />
         )}
       </div>
     </div>

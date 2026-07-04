@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { isValidEmail } from "@/lib/customer-utils";
+import { isValidEmail, isValidGstin } from "@/lib/customer-utils";
 import type { Customer, CustomerFormData } from "@/types/customer";
 
 const emptyForm: CustomerFormData = {
@@ -20,7 +20,8 @@ const emptyForm: CustomerFormData = {
   phone: "",
   email: "",
   gst: "",
-  address: "",
+  billingAddress: "",
+  serviceAddress: "",
   notes: "",
 };
 
@@ -32,7 +33,8 @@ function formFromCustomer(customer?: Customer): CustomerFormData {
     phone: customer.phone,
     email: customer.email,
     gst: customer.gst ?? "",
-    address: customer.address ?? "",
+    billingAddress: customer.billingAddress ?? customer.address ?? "",
+    serviceAddress: customer.serviceAddress ?? customer.billingAddress ?? customer.address ?? "",
     notes: customer.notes ?? "",
   };
 }
@@ -41,6 +43,7 @@ interface FormErrors {
   name?: string;
   phone?: string;
   email?: string;
+  gst?: string;
 }
 
 interface AddCustomerDialogProps {
@@ -80,6 +83,9 @@ export function AddCustomerDialog({
     }
     if (!isValidEmail(form.email)) {
       nextErrors.email = "Enter a valid email address";
+    }
+    if (!isValidGstin(form.gst)) {
+      nextErrors.gst = "Enter a valid 15-character GSTIN";
     }
 
     setErrors(nextErrors);
@@ -126,10 +132,13 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Full name"
                 aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? "name-error" : undefined}
                 className="rounded-xl"
               />
               {errors.name && (
-                <p className="text-xs text-destructive">{errors.name}</p>
+                <p id="name-error" role="alert" className="text-xs text-destructive">
+                  {errors.name}
+                </p>
               )}
             </div>
 
@@ -154,10 +163,13 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("phone", e.target.value)}
                 placeholder="+91 98765 43210"
                 aria-invalid={Boolean(errors.phone)}
+                aria-describedby={errors.phone ? "phone-error" : undefined}
                 className="rounded-xl"
               />
               {errors.phone && (
-                <p className="text-xs text-destructive">{errors.phone}</p>
+                <p id="phone-error" role="alert" className="text-xs text-destructive">
+                  {errors.phone}
+                </p>
               )}
             </div>
 
@@ -170,31 +182,53 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("email", e.target.value)}
                 placeholder="email@company.com"
                 aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? "email-error" : undefined}
                 className="rounded-xl"
               />
               {errors.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
+                <p id="email-error" role="alert" className="text-xs text-destructive">
+                  {errors.email}
+                </p>
               )}
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="gst">GST Number</Label>
+              <Label htmlFor="gst">GSTIN</Label>
               <Input
                 id="gst"
                 value={form.gst}
-                onChange={(e) => updateField("gst", e.target.value)}
+                onChange={(e) => updateField("gst", e.target.value.toUpperCase())}
                 placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+                aria-invalid={Boolean(errors.gst)}
+                aria-describedby={errors.gst ? "gst-error" : undefined}
+                className="rounded-xl"
+              />
+              {errors.gst && (
+                <p id="gst-error" role="alert" className="text-xs text-destructive">
+                  {errors.gst}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="billing-address">Billing Address</Label>
+              <Input
+                id="billing-address"
+                value={form.billingAddress}
+                onChange={(e) => updateField("billingAddress", e.target.value)}
+                placeholder="Billing address for invoices"
                 className="rounded-xl"
               />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="service-address">Service Address</Label>
               <Input
-                id="address"
-                value={form.address}
-                onChange={(e) => updateField("address", e.target.value)}
-                placeholder="Business address"
+                id="service-address"
+                value={form.serviceAddress}
+                onChange={(e) => updateField("serviceAddress", e.target.value)}
+                placeholder="Service or delivery address"
                 className="rounded-xl"
               />
             </div>

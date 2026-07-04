@@ -2,23 +2,13 @@ import type {
   DatePreset,
   ExpenseCategoryItem,
   ExpenseMasterFilters,
+  ExpenseMasterFormData,
   ExpenseMasterTemplate,
   ExpenseRegisterFilters,
   ExpenseTransaction,
   ExpenseTransactionFormData,
   ExpenseTransactionStatus,
-  PaymentMethod,
 } from "@/types/expense";
-
-export const paymentMethodLabels: Record<PaymentMethod, string> = {
-  "bank-transfer": "Bank Transfer",
-  upi: "UPI",
-  "credit-card": "Credit Card",
-  "debit-card": "Debit Card",
-  cash: "Cash",
-  cheque: "Cheque",
-  other: "Other",
-};
 
 export const frequencyLabels = {
   monthly: "Monthly",
@@ -447,6 +437,31 @@ export function validateTransactionForm(
     Number.parseFloat(data.amount) <= 0
   ) {
     errors.amount = "Enter a valid amount";
+  }
+
+  return errors;
+}
+
+export function validateMasterForm(
+  data: ExpenseMasterFormData
+): Partial<Record<keyof ExpenseMasterFormData, string>> {
+  const errors: Partial<Record<keyof ExpenseMasterFormData, string>> = {};
+
+  if (!data.name.trim()) errors.name = "Template name is required";
+  if (!data.categoryId) errors.categoryId = "Category is required";
+  if (!data.defaultAmount.trim()) {
+    errors.defaultAmount = "Amount is required";
+  } else if (parseAmount(data.defaultAmount) <= 0) {
+    errors.defaultAmount = "Enter a valid amount";
+  }
+  if (!data.startDate) errors.startDate = "Start date is required";
+  if (!data.frequency) errors.frequency = "Frequency is required";
+
+  const hasPayee =
+    data.vendorOrEmployee.trim() ||
+    (data.payeeType === "employee" ? data.employeeId : data.vendorId);
+  if (!hasPayee) {
+    errors.vendorOrEmployee = "Select or create a payee";
   }
 
   return errors;

@@ -6,7 +6,12 @@ import {
   Receipt,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
+import {
+  getCustomerBillingAddress,
+  getCustomerServiceAddress,
+} from "@/lib/app-config-utils";
 import { cn } from "@/lib/utils";
 import type { Customer, CustomerStatus } from "@/types/customer";
 
@@ -47,6 +52,11 @@ function HeroMetric({
 }
 
 export function CustomerHero({ customer }: CustomerHeroProps) {
+  const { deals } = useDeals();
+  const activeDealsCount = deals.filter(
+    (deal) => deal.customerId === customer.id && deal.status !== "completed"
+  ).length;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20">
       <div className="p-6 sm:p-8">
@@ -64,9 +74,9 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                   Outstanding
                 </Badge>
               )}
-              {customer.activeDeals > 0 && (
+              {activeDealsCount > 0 && (
                 <Badge variant="outline">
-                  {customer.activeDeals} active {customer.activeDeals === 1 ? "deal" : "deals"}
+                  {activeDealsCount} active {activeDealsCount === 1 ? "deal" : "deals"}
                 </Badge>
               )}
             </div>
@@ -100,12 +110,20 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                   GST: {customer.gst}
                 </span>
               )}
-              {customer.address && (
+              {getCustomerBillingAddress(customer) && (
                 <span className="flex items-center gap-2">
                   <MapPin className="size-4" />
-                  {customer.address}
+                  Billing: {getCustomerBillingAddress(customer)}
                 </span>
               )}
+              {getCustomerServiceAddress(customer) &&
+                getCustomerServiceAddress(customer) !==
+                  getCustomerBillingAddress(customer) && (
+                  <span className="flex items-center gap-2">
+                    <MapPin className="size-4" />
+                    Service: {getCustomerServiceAddress(customer)}
+                  </span>
+                )}
             </div>
           </div>
 
@@ -133,7 +151,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
             />
             <HeroMetric
               label="Active Deals"
-              value={String(customer.activeDeals)}
+              value={String(activeDealsCount)}
             />
           </div>
         </div>

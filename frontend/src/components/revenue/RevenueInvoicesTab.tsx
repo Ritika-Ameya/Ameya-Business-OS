@@ -27,6 +27,17 @@ export function RevenueInvoicesTab() {
     [deferredQuery, deferredFilters]
   );
 
+  const hasActiveFilters =
+    deferredQuery.trim().length > 0 ||
+    filters.status !== defaultInvoiceFilters.status ||
+    filters.customer !== defaultInvoiceFilters.customer ||
+    filters.date !== defaultInvoiceFilters.date;
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilters(defaultInvoiceFilters);
+  };
+
   return (
     <div className="space-y-6">
       {loading ? <StatsSkeleton /> : <InvoiceStatsCards invoices={seedInvoices} />}
@@ -40,7 +51,11 @@ export function RevenueInvoicesTab() {
       {loading ? (
         <TableSkeleton />
       ) : (
-        <RevenueInvoicesTable invoices={filteredInvoices} />
+        <RevenueInvoicesTable
+          invoices={filteredInvoices}
+          isFiltered={hasActiveFilters}
+          onResetFilters={resetFilters}
+        />
       )}
     </div>
   );

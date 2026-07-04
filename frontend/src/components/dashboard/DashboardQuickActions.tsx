@@ -33,7 +33,7 @@ export function DashboardQuickActions() {
           </Link>
         </Button>
         <Button variant="outline" className="rounded-xl" asChild>
-          <Link to="/expenses">
+          <Link to="/expenses?action=add">
             <Plus />
             Expense
           </Link>

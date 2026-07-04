@@ -54,7 +54,6 @@ export function DashboardKpiCards() {
           <Link
             key={kpi.id}
             to={kpi.href}
-            state={kpi.tab ? { tab: kpi.tab } : undefined}
             className="block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
           >
             <KpiCardContent kpi={kpi} />

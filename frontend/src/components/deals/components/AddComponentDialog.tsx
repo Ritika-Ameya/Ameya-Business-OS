@@ -18,9 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useDeals } from "@/hooks/use-deals";
 import {
   billingTypeLabels,
   componentStatusLabels,
+  validateComponentForm,
 } from "@/lib/deal-component-utils";
 import type { BillingType, ComponentFormData, ComponentStatus } from "@/types/deal-component";
 
@@ -39,24 +41,43 @@ const emptyForm: ComponentFormData = {
 };
 
 interface AddComponentDialogProps {
+  dealId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AddComponentDialog({ open, onOpenChange }: AddComponentDialogProps) {
+export function AddComponentDialog({
+  dealId,
+  open,
+  onOpenChange,
+}: AddComponentDialogProps) {
+  const { addComponent } = useDeals();
   const [form, setForm] = useState<ComponentFormData>(emptyForm);
+  const [errors, setErrors] = useState<Partial<Record<keyof ComponentFormData, string>>>(
+    {}
+  );
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setForm(emptyForm);
+      setErrors({});
     }
     onOpenChange(nextOpen);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const validationErrors = validateComponentForm(form);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    addComponent(dealId, form);
     onOpenChange(false);
     setForm(emptyForm);
+    setErrors({});
   };
 
   const updateField = <K extends keyof ComponentFormData>(
@@ -64,6 +85,13 @@ export function AddComponentDialog({ open, onOpenChange }: AddComponentDialogPro
     value: ComponentFormData[K]
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   return (
@@ -72,7 +100,7 @@ export function AddComponentDialog({ open, onOpenChange }: AddComponentDialogPro
         <DialogHeader>
           <DialogTitle>Add Component</DialogTitle>
           <DialogDescription>
-            Add a billable component to this deal. This is a UI preview only.
+            Add a billable component to this deal.
           </DialogDescription>
         </DialogHeader>
 
@@ -89,6 +117,9 @@ export function AddComponentDialog({ open, onOpenChange }: AddComponentDialogPro
                 placeholder="e.g. Platform Maintenance"
                 className="rounded-xl"
               />
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -114,6 +145,9 @@ export function AddComponentDialog({ open, onOpenChange }: AddComponentDialogPro
                 placeholder="0"
                 className="rounded-xl"
               />
+              {errors.amount && (
+                <p className="text-xs text-destructive">{errors.amount}</p>
+              )}
             </div>
 
             <div className="space-y-2 sm:col-span-2">

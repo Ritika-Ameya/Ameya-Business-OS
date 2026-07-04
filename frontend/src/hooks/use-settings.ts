@@ -1,10 +1,6 @@
-import { useContext } from "react";
-import { SettingsContext } from "@/context/SettingsContext";
+import { useAppConfig } from "@/hooks/use-app-config";
 
+/** @deprecated Use useAppConfig — kept for Settings module compatibility. */
 export function useSettings() {
-  const context = useContext(SettingsContext);
-  if (!context) {
-    throw new Error("useSettings must be used within SettingsProvider");
-  }
-  return context;
+  return useAppConfig();
 }

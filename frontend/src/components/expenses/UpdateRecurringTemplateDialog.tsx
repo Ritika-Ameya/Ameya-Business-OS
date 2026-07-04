@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { preventNestedOverlayDismiss } from "@/lib/dialog-utils";
 import { formatExpenseCurrency } from "@/lib/expense-utils";
 
 interface UpdateRecurringTemplateDialogProps {
@@ -28,7 +29,10 @@ export function UpdateRecurringTemplateDialog({
 }: UpdateRecurringTemplateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
+      <DialogContent
+        className="rounded-2xl sm:max-w-md"
+        {...preventNestedOverlayDismiss}
+      >
         <DialogHeader>
           <DialogTitle>Update recurring template?</DialogTitle>
           <DialogDescription>

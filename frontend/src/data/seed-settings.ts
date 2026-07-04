@@ -2,6 +2,7 @@ import type {
   CompanySettings,
   FinanceSettings,
   PreferencesSettings,
+  SettingsDealType,
   SettingsEmployee,
   SettingsExpenseCategory,
   SettingsPaymentMethod,
@@ -88,6 +89,42 @@ export const seedSettingsVendors: SettingsVendor[] = [
     email: "enterprise@airtel.in",
     status: "active",
   },
+  {
+    id: "ven-004",
+    name: "BESCOM",
+    category: "Electricity",
+    contactPerson: "Billing",
+    phone: "",
+    email: "",
+    status: "active",
+  },
+  {
+    id: "ven-005",
+    name: "Google",
+    category: "Software",
+    contactPerson: "Billing",
+    phone: "",
+    email: "",
+    status: "active",
+  },
+  {
+    id: "ven-006",
+    name: "GoDaddy",
+    category: "Domain",
+    contactPerson: "Support",
+    phone: "",
+    email: "",
+    status: "active",
+  },
+  {
+    id: "ven-007",
+    name: "HDFC ERGO",
+    category: "Insurance",
+    contactPerson: "Agent",
+    phone: "",
+    email: "",
+    status: "active",
+  },
 ];
 
 export const seedSettingsExpenseCategories: SettingsExpenseCategory[] = [
@@ -105,14 +142,74 @@ export const seedSettingsExpenseCategories: SettingsExpenseCategory[] = [
   },
   {
     id: "cat-003",
-    name: "Cloud Infrastructure",
-    description: "AWS, hosting and cloud services",
+    name: "AWS",
+    description: "Cloud infrastructure and hosting",
     status: "active",
   },
   {
     id: "cat-004",
     name: "Marketing",
     description: "Advertising and growth spend",
+    status: "active",
+  },
+  {
+    id: "cat-005",
+    name: "Internet",
+    description: "Internet and connectivity",
+    status: "active",
+  },
+  {
+    id: "cat-006",
+    name: "Electricity",
+    description: "Power and utilities",
+    status: "active",
+  },
+  {
+    id: "cat-007",
+    name: "Insurance",
+    description: "Business insurance premiums",
+    status: "active",
+  },
+  {
+    id: "cat-008",
+    name: "Hosting",
+    description: "Web hosting services",
+    status: "active",
+  },
+  {
+    id: "cat-009",
+    name: "Domain",
+    description: "Domain registrations",
+    status: "active",
+  },
+  {
+    id: "cat-010",
+    name: "Google Workspace",
+    description: "Productivity subscriptions",
+    status: "active",
+  },
+  {
+    id: "cat-011",
+    name: "Office Maintenance",
+    description: "Repairs and upkeep",
+    status: "active",
+  },
+  {
+    id: "cat-012",
+    name: "Travel",
+    description: "Business travel expenses",
+    status: "active",
+  },
+  {
+    id: "cat-013",
+    name: "Professional Fees",
+    description: "Consulting and legal fees",
+    status: "active",
+  },
+  {
+    id: "cat-014",
+    name: "Other",
+    description: "Miscellaneous expenses",
     status: "active",
   },
 ];
@@ -129,10 +226,56 @@ export const seedSettingsRenewalTypes: SettingsRenewalType[] = [
 ];
 
 export const seedSettingsPaymentMethods: SettingsPaymentMethod[] = [
-  { id: "pay-001", name: "Cash", status: "active" },
-  { id: "pay-002", name: "Bank Transfer", status: "active" },
-  { id: "pay-003", name: "UPI", status: "active" },
-  { id: "pay-004", name: "Cheque", status: "active" },
-  { id: "pay-005", name: "Credit Card", status: "active" },
-  { id: "pay-006", name: "Other", status: "active" },
+  { id: "pay-001", name: "Cash", slug: "cash", status: "active" },
+  { id: "pay-002", name: "Bank Transfer", slug: "bank-transfer", status: "active" },
+  { id: "pay-003", name: "UPI", slug: "upi", status: "active" },
+  { id: "pay-004", name: "Cheque", slug: "cheque", status: "active" },
+  { id: "pay-005", name: "Credit Card", slug: "credit-card", status: "active" },
+  { id: "pay-006", name: "Debit Card", slug: "debit-card", status: "active" },
+  { id: "pay-007", name: "Other", slug: "other", status: "active" },
 ];
+
+export const seedSettingsDealTypes: SettingsDealType[] = [
+  {
+    id: "dtype-001",
+    name: "Annual Maintenance",
+    slug: "annual-maintenance",
+    status: "active",
+  },
+  {
+    id: "dtype-002",
+    name: "Consulting",
+    slug: "consulting",
+    status: "active",
+  },
+  {
+    id: "dtype-003",
+    name: "Project",
+    slug: "project",
+    status: "active",
+  },
+  {
+    id: "dtype-004",
+    name: "Subscription",
+    slug: "subscription",
+    status: "active",
+  },
+];
+
+/** Maps legacy expense category slugs to canonical App Config IDs. */
+export const legacyCategoryIdMap: Record<string, string> = {
+  salary: "cat-001",
+  "office-rent": "cat-002",
+  aws: "cat-003",
+  marketing: "cat-004",
+  internet: "cat-005",
+  electricity: "cat-006",
+  insurance: "cat-007",
+  hosting: "cat-008",
+  domain: "cat-009",
+  "google-workspace": "cat-010",
+  "office-maintenance": "cat-011",
+  travel: "cat-012",
+  "professional-fees": "cat-013",
+  other: "cat-014",
+};

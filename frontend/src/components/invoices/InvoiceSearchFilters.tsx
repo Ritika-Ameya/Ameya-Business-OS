@@ -1,5 +1,5 @@
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { FilterResetButton } from "@/components/shared/FilterResetButton";
+import { SearchField } from "@/components/shared/SearchField";
 import {
   Select,
   SelectContent,
@@ -36,17 +36,19 @@ export function InvoiceSearchFilters({
     filters.customer !== defaultInvoiceFilters.customer ||
     filters.date !== defaultInvoiceFilters.date;
 
+  const resetAll = () => {
+    onQueryChange("");
+    onFiltersChange(defaultInvoiceFilters);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search by invoice number, customer, or deal..."
-          className="h-11 rounded-xl border-border/70 bg-card pl-10"
-        />
-      </div>
+      <SearchField
+        value={query}
+        onChange={onQueryChange}
+        placeholder="Search by invoice number, customer, or deal..."
+        ariaLabel="Search invoices"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -108,14 +110,8 @@ export function InvoiceSearchFilters({
           </SelectContent>
         </Select>
 
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => onFiltersChange(defaultInvoiceFilters)}
-            className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Clear filters
-          </button>
+        {(hasActiveFilters || query.trim().length > 0) && (
+          <FilterResetButton onClick={resetAll} />
         )}
       </div>
     </div>

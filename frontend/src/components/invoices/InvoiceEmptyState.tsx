@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface InvoiceEmptyStateProps {
   icon: LucideIcon;
@@ -10,30 +9,6 @@ interface InvoiceEmptyStateProps {
   onAction?: () => void;
 }
 
-export function InvoiceEmptyState({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  onAction,
-}: InvoiceEmptyStateProps) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70",
-        "bg-muted/10 px-6 py-16 text-center transition-colors"
-      )}
-    >
-      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
-        <Icon className="size-6 text-muted-foreground" />
-      </div>
-      <h3 className="text-base font-medium">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
-      {actionLabel && onAction && (
-        <Button className="mt-6 rounded-xl" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      )}
-    </div>
-  );
+export function InvoiceEmptyState(props: InvoiceEmptyStateProps) {
+  return <EmptyState {...props} />;
 }

@@ -1,7 +1,8 @@
 import type { ReportFilters } from "@/types/reports";
 
-import { seedDeals } from "@/data/seed-deals";
 import { seedInvoices } from "@/data/seed-invoices";
+import type { Customer } from "@/types/customer";
+import type { Deal } from "@/types/deal";
 import {
   computeRegisterStats,
   formatExpenseCurrency,
@@ -9,7 +10,6 @@ import {
 } from "@/lib/expense-utils";
 import {
   formatInvoiceCurrency,
-  getUniqueCustomers,
 } from "@/lib/invoice-utils";
 import {
   buildCollectionRows,
@@ -55,19 +55,33 @@ export const defaultReportFilters = (): ReportFilters => ({
   search: "",
 });
 
-export function getReportDeals() {
+export function getReportDeals(deals: Deal[], invoices: Invoice[] = seedInvoices) {
   const map = new Map<string, string>();
-  for (const invoice of seedInvoices) {
-    map.set(invoice.dealId, invoice.dealTitle);
-  }
-  for (const deal of seedDeals) {
+  for (const deal of deals) {
     map.set(deal.id, deal.title);
   }
-  return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  for (const invoice of invoices) {
+    map.set(invoice.dealId, invoice.dealTitle);
+  }
+  return Array.from(map.entries())
+    .map(([id, title]) => ({ id, title }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export function getReportCustomers() {
-  return getUniqueCustomers(seedInvoices);
+export function getReportCustomers(
+  customers: Customer[],
+  invoices: Invoice[] = seedInvoices
+) {
+  const map = new Map<string, string>();
+  for (const customer of customers) {
+    map.set(customer.id, customer.name);
+  }
+  for (const invoice of invoices) {
+    map.set(invoice.customerId, invoice.customerName);
+  }
+  return Array.from(map.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getDateBounds(filters: ReportFilters) {
@@ -259,16 +273,24 @@ export function computeOutstandingReportStats(invoices: Invoice[]) {
   };
 }
 
-export function computeRenewalReportStats(renewals: CompanyRenewalRow[]) {
+export function computeRenewalReportStats(
+  renewals: CompanyRenewalRow[],
+  deals: Deal[] = []
+) {
   const upcoming = renewals.filter((renewal) => renewal.status === "upcoming").length;
   const overdue = renewals.filter((renewal) => renewal.status === "overdue").length;
   const renewed = renewals.filter((renewal) => renewal.status === "renewed").length;
+  const renewalValue = renewals.reduce((sum, renewal) => {
+    const deal = deals.find((item) => item.id === renewal.dealId);
+    return sum + (deal?.contractValue ?? 0);
+  }, 0);
 
   return {
     upcomingRenewals: String(upcoming),
     overdueRenewals: String(overdue),
     renewed: String(renewed),
-    renewalValue: "—",
+    renewalValue:
+      renewalValue > 0 ? formatInvoiceCurrency(renewalValue) : "—",
   };
 }
 
@@ -279,6 +301,6 @@ export function getOutstandingRows(invoices: Invoice[]) {
   }));
 }
 
-export function getAllRenewals(): CompanyRenewalRow[] {
-  return getCompanyRenewals();
+export function getAllRenewals(deals: Deal[]): CompanyRenewalRow[] {
+  return getCompanyRenewals(deals);
 }

@@ -5,8 +5,7 @@ import { AddComponentDialog } from "@/components/deals/components/AddComponentDi
 import { DealComponentsEmptyState } from "@/components/deals/components/DealComponentsEmptyState";
 import { DealComponentsTable } from "@/components/deals/components/DealComponentsTable";
 import { Button } from "@/components/ui/button";
-import { seedDealComponents } from "@/data/seed-deal-components";
-import { getComponentsByDealId } from "@/lib/deal-component-utils";
+import { useDeals } from "@/hooks/use-deals";
 
 interface DealComponentsTabProps {
   dealId: string;
@@ -14,7 +13,8 @@ interface DealComponentsTabProps {
 
 export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const components = getComponentsByDealId(seedDealComponents, dealId);
+  const { getComponentsByDeal } = useDeals();
+  const components = getComponentsByDeal(dealId);
 
   return (
     <div className="space-y-8">
@@ -35,7 +35,11 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
         <DealComponentsTable components={components} />
       )}
 
-      <AddComponentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <AddComponentDialog
+        dealId={dealId}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }

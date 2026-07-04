@@ -1,4 +1,7 @@
+import { AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
 import {
   Table,
@@ -21,17 +24,16 @@ export function OutstandingReportTable({ rows }: OutstandingReportTableProps) {
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No outstanding invoices found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All invoices are fully collected for the selected period.
-        </p>
-      </div>
+      <EmptyState
+        icon={AlertCircle}
+        title="No outstanding invoices found"
+        description="All invoices are fully collected for the selected period."
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -48,9 +50,8 @@ export function OutstandingReportTable({ rows }: OutstandingReportTableProps) {
             <TableRow
               key={invoice.id}
               className="cursor-pointer"
-              onClick={() =>
-                navigate(`/invoices/${invoice.id}`, { state: { tab: "payments" } })
-              }
+              title="Open invoice workspace"
+              onClick={() => navigate(`/invoices/${invoice.id}`)}
             >
               <TableCell className="pl-4 text-muted-foreground">
                 {invoice.customerName}
@@ -82,6 +83,6 @@ export function OutstandingReportTable({ rows }: OutstandingReportTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

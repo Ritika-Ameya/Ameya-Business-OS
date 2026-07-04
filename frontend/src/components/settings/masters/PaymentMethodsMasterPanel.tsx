@@ -1,6 +1,6 @@
 import { Edit, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { SimpleMasterDialog } from "@/components/settings/masters/dialogs/SimpleMasterDialog";
+import { SlugMasterDialog } from "@/components/settings/masters/dialogs/SlugMasterDialog";
 import { SettingsSearchBar } from "@/components/settings/SettingsSearchBar";
 import { SettingsStatusBadge } from "@/components/settings/SettingsStatusBadge";
 import { Button } from "@/components/ui/button";
@@ -103,12 +103,16 @@ export function PaymentMethodsMasterPanel() {
         </Table>
       </div>
 
-      <SimpleMasterDialog
+      <SlugMasterDialog
         key={`${editing?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? "Edit Payment Method" : "Add Payment Method"}
-        initialData={editing ? { name: editing.name, status: editing.status } : undefined}
+        initialData={
+          editing
+            ? { name: editing.name, slug: editing.slug, status: editing.status }
+            : undefined
+        }
         onSave={(data) => {
           if (editing) updatePaymentMethod(editing.id, data);
           else addPaymentMethod(data);

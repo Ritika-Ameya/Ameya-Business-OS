@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useDeals } from "@/hooks/use-deals";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
 import type { Customer } from "@/types/customer";
 
@@ -14,6 +15,11 @@ interface CustomerOverviewTabProps {
 }
 
 export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
+  const { deals } = useDeals();
+  const activeDealsCount = deals.filter(
+    (deal) => deal.customerId === customer.id && deal.status !== "completed"
+  ).length;
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -40,7 +46,7 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Active Deals</span>
-              <span className="font-medium">{customer.activeDeals}</span>
+              <span className="font-medium">{activeDealsCount}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Status</span>

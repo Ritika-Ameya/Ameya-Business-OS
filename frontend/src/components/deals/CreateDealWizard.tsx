@@ -13,7 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { dealTypeLabels, renewalFrequencyLabels } from "@/lib/deal-utils";
+import { renewalFrequencyLabels } from "@/lib/deal-utils";
+import { getActiveDealTypes } from "@/lib/app-config-utils";
+import { useAppConfig } from "@/hooks/use-app-config";
 import { cn } from "@/lib/utils";
 import type { DealFormData } from "@/types/deal";
 
@@ -51,6 +53,8 @@ export function CreateDealWizard({
   customerName,
   onSave,
 }: CreateDealWizardProps) {
+  const { dealTypes } = useAppConfig();
+  const activeDealTypes = getActiveDealTypes(dealTypes);
   const [form, setForm] = useState<DealFormData>(emptyForm);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -191,9 +195,9 @@ export function CreateDealWizard({
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(dealTypeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {activeDealTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.slug}>
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -32,8 +32,8 @@ export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
     dealTitle: deal.title,
   };
 
-  const handleGenerate = () => {
-    navigate(`/invoices/inv-new`, { state: context });
+  const handleGenerate = (componentIds: string[]) => {
+    navigate(`/invoices/inv-new`, { state: { ...context, componentIds } });
   };
 
   if (dealInvoices.length === 0) {

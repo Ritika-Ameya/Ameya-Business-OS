@@ -25,8 +25,8 @@ function App() {
   return (
     <CustomersProvider>
       <DealsProvider>
-        <ExpensesProvider>
-          <SettingsProvider>
+        <SettingsProvider>
+          <ExpensesProvider>
             <Routes>
               <Route element={<AppLayout />}>
                 <Route index element={<Navigate replace to="/dashboard" />} />
@@ -50,8 +50,8 @@ function App() {
                 </Route>
               </Route>
             </Routes>
-          </SettingsProvider>
-        </ExpensesProvider>
+          </ExpensesProvider>
+        </SettingsProvider>
       </DealsProvider>
     </CustomersProvider>
   );

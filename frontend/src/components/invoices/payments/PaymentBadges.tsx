@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
+import { useAppConfig } from "@/hooks/use-app-config";
 import {
-  paymentModeLabels,
-  paymentModeStyles,
+  getPaymentModeLabel,
+  getPaymentModeStyle,
   paymentStatusLabels,
   paymentStatusStyles,
 } from "@/lib/payment-utils";
@@ -17,9 +18,11 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
 }
 
 export function PaymentModeBadge({ mode }: { mode: PaymentMode }) {
+  const { paymentMethods } = useAppConfig();
+
   return (
-    <Badge variant="secondary" className={cn(paymentModeStyles[mode])}>
-      {paymentModeLabels[mode]}
+    <Badge variant="secondary" className={cn(getPaymentModeStyle(mode))}>
+      {getPaymentModeLabel(mode, paymentMethods)}
     </Badge>
   );
 }

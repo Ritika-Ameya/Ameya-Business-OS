@@ -1,11 +1,12 @@
 import { IndianRupee, Receipt, RefreshCw } from "lucide-react";
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/customers/PageHeader";
 import { RevenueCollectionsTab } from "@/components/revenue/RevenueCollectionsTab";
 import { RevenueInvoicesTab } from "@/components/revenue/RevenueInvoicesTab";
 import { RevenueRenewalsTab } from "@/components/revenue/RevenueRenewalsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { parseRevenueTab } from "@/lib/navigation-utils";
 
 type RevenueNavigationState = {
   tab?: string;
@@ -14,18 +15,39 @@ type RevenueNavigationState = {
 export function RevenuePage() {
   const location = useLocation();
   const navigationState = location.state as RevenueNavigationState | null;
-  const [activeTab, setActiveTab] = useState(
-    () => navigationState?.tab ?? "invoices"
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseRevenueTab(searchParams.get("tab"));
+
+  useEffect(() => {
+    if (!navigationState?.tab) return;
+
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", parseRevenueTab(navigationState.tab ?? null));
+        return next;
+      },
+      { replace: true }
+    );
+    window.history.replaceState({}, document.title);
+  }, [navigationState, setSearchParams]);
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value }, { replace: true });
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Revenue"
         subtitle="Company-wide financial overview across invoices, collections, and renewals."
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="gap-6"
+      >
         <div className="overflow-x-auto pb-1">
           <TabsList
             variant="line"

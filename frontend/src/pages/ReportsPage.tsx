@@ -1,5 +1,5 @@
 import { AlertCircle, IndianRupee, ReceiptText, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/customers/PageHeader";
 import { ExpenseReportTab } from "@/components/reports/ExpenseReportTab";
@@ -9,8 +9,16 @@ import { ReportExportActions } from "@/components/reports/ReportExportActions";
 import { ReportFiltersBar } from "@/components/reports/ReportFiltersBar";
 import { RevenueReportTab } from "@/components/reports/RevenueReportTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useExpenses } from "@/hooks/use-expenses";
-import { defaultReportFilters } from "@/lib/report-utils";
+import { seedInvoices } from "@/data/seed-invoices";
+import { useAppConfig } from "@/hooks/use-app-config";
+import { useCustomers } from "@/hooks/use-customers";
+import { useDeals } from "@/hooks/use-deals";
+import { toEmployeeItems, toExpenseCategoryItems, toVendorItems } from "@/lib/app-config-utils";
+import {
+  defaultReportFilters,
+  getReportCustomers,
+  getReportDeals,
+} from "@/lib/report-utils";
 import type { ReportTab } from "@/types/reports";
 
 const reportTabs: { value: ReportTab; label: string; icon: typeof ReceiptText }[] = [
@@ -21,25 +29,40 @@ const reportTabs: { value: ReportTab; label: string; icon: typeof ReceiptText }[
 ];
 
 export function ReportsPage() {
-  const { categories, vendors, employees } = useExpenses();
+  const appConfig = useAppConfig();
+  const { customers } = useCustomers();
+  const { deals } = useDeals();
+  const categories = toExpenseCategoryItems(appConfig.expenseCategories);
+  const vendors = toVendorItems(appConfig.vendors);
+  const employees = toEmployeeItems(appConfig.employees);
+  const reportCustomers = useMemo(
+    () => getReportCustomers(customers, seedInvoices),
+    [customers]
+  );
+  const reportDeals = useMemo(
+    () => getReportDeals(deals, seedInvoices),
+    [deals]
+  );
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as ReportTab | null;
   const activeTab: ReportTab =
     tabParam && reportTabs.some((tab) => tab.value === tabParam)
       ? tabParam
       : "revenue";
-  const [filters, setFilters] = useState(defaultReportFilters());
+  const [filters, setFilters] = useState(defaultReportFilters);
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
+    setFilters((prev) => ({ ...prev, status: "all" }));
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Reports"
         subtitle="Analyze your business performance with simple and actionable reports."
-        action={<ReportExportActions />}
+        action={<ReportExportActions activeTab={activeTab} />}
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-6">
@@ -68,6 +91,8 @@ export function ReportsPage() {
           categories={categories}
           vendors={vendors}
           employees={employees}
+          customers={reportCustomers}
+          deals={reportDeals}
         />
 
         <TabsContent value="revenue" className="mt-0">

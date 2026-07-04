@@ -1,10 +1,6 @@
 export type DealStatus = "draft" | "active" | "completed" | "on-hold";
 
-export type DealType =
-  | "annual-maintenance"
-  | "consulting"
-  | "project"
-  | "subscription";
+export type DealType = string;
 
 export type RenewalFrequency = "none" | "monthly" | "quarterly" | "annual";
 

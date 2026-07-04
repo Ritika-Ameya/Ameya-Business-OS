@@ -1,5 +1,7 @@
-import { Eye } from "lucide-react";
+import { Eye, IndianRupee } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ResponsiveTableFrame } from "@/components/shared/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,17 +29,16 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No pending collections</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All invoices are fully collected.
-        </p>
-      </div>
+      <EmptyState
+        icon={IndianRupee}
+        title="No pending collections"
+        description="All invoices are fully collected for the current view."
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -57,7 +58,7 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
               key={invoice.id}
               className="cursor-pointer"
               onClick={() =>
-                navigate(`/invoices/${invoice.id}`, { state: { tab: "payments" } })
+                navigate(`/invoices/${invoice.id}?tab=payments`)
               }
             >
               <TableCell className="pl-4 text-muted-foreground">
@@ -96,9 +97,7 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
                   aria-label="View invoice payments"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/invoices/${invoice.id}`, {
-                      state: { tab: "payments" },
-                    });
+                    navigate(`/invoices/${invoice.id}?tab=payments`);
                   }}
                 >
                   <Eye />
@@ -108,6 +107,6 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

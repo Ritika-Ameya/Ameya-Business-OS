@@ -2,6 +2,7 @@ import { seedDeals } from "@/data/seed-deals";
 import { seedInvoices } from "@/data/seed-invoices";
 import { seedPayments } from "@/data/seed-payments";
 import { formatInvoiceCurrency, getUniqueCustomers } from "@/lib/invoice-utils";
+import type { Deal, RenewalFrequency } from "@/types/deal";
 import type { Invoice } from "@/types/invoice";
 import type {
   CollectionFilters,
@@ -166,18 +167,26 @@ export function getCollectionStats() {
   };
 }
 
-const renewalTypeByDeal: Record<string, CompanyRenewalRow["renewalType"]> = {
-  "deal-001": "annual",
-  "deal-002": "quarterly",
-};
+function mapRenewalType(frequency?: RenewalFrequency): CompanyRenewalRow["renewalType"] {
+  switch (frequency) {
+    case "monthly":
+      return "monthly";
+    case "quarterly":
+      return "quarterly";
+    default:
+      return "annual";
+  }
+}
 
-export function getCompanyRenewals(): CompanyRenewalRow[] {
+export function getCompanyRenewals(deals: Deal[] = seedDeals): CompanyRenewalRow[] {
   const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
-  return seedDeals
-    .filter((deal) => deal.nextRenewal)
+  return deals
+    .filter((deal) => deal.nextRenewal && deal.renewalFrequency !== "none")
     .map((deal) => {
       const renewalDate = new Date(deal.nextRenewal!);
+      renewalDate.setHours(0, 0, 0, 0);
       const status: CompanyRenewalStatus =
         renewalDate < now ? "overdue" : "upcoming";
 
@@ -189,9 +198,11 @@ export function getCompanyRenewals(): CompanyRenewalRow[] {
         renewalLabel: `${deal.title} Renewal`,
         dealTitle: deal.title,
         renewalDate: deal.nextRenewal!,
-        amount: "—",
+        amount: deal.contractValue
+          ? formatInvoiceCurrency(deal.contractValue)
+          : "—",
         status,
-        renewalType: renewalTypeByDeal[deal.id] ?? "annual",
+        renewalType: mapRenewalType(deal.renewalFrequency),
       };
     })
     .sort(

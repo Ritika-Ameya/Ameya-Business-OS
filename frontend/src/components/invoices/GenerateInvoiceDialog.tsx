@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,9 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { seedDealComponents } from "@/data/seed-deal-components";
-import { seedDeals } from "@/data/seed-deals";
-import { seedCustomers } from "@/data/seed-customers";
+import { useAppConfig } from "@/hooks/use-app-config";
+import { useCustomers } from "@/hooks/use-customers";
+import { useDeals } from "@/hooks/use-deals";
+import {
+  getDefaultTaxPercentage,
+  resolveCustomerAddress,
+  type InvoiceAddressType,
+} from "@/lib/app-config-utils";
 import { formatComponentCurrency } from "@/lib/deal-component-utils";
 import { cn } from "@/lib/utils";
 import type { GenerateInvoiceContext } from "@/types/invoice";
@@ -30,7 +35,7 @@ interface GenerateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context?: GenerateInvoiceContext;
-  onGenerate?: () => void;
+  onGenerate?: (componentIds: string[]) => void;
 }
 
 const PLACEHOLDER_SUMMARY = {
@@ -45,16 +50,39 @@ export function GenerateInvoiceDialog({
   context,
   onGenerate,
 }: GenerateInvoiceDialogProps) {
+  const { finance } = useAppConfig();
+  const { customers } = useCustomers();
+  const { deals, getComponentsByDeal } = useDeals();
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(
+    () => context?.customerId ?? customers[0]?.id ?? ""
+  );
+  const [addressType, setAddressType] = useState<InvoiceAddressType>("billing");
   const isLocked = Boolean(context);
+  const defaultTax = getDefaultTaxPercentage(finance);
 
   const dealComponents = context
-    ? seedDealComponents.filter((c) => c.dealId === context.dealId)
-    : seedDealComponents.slice(0, 4);
+    ? getComponentsByDeal(context.dealId)
+    : deals[0]
+      ? getComponentsByDeal(deals[0].id)
+      : [];
+
+  const selectedCustomer = useMemo(
+    () =>
+      customers.find(
+        (customer) => customer.id === (context?.customerId ?? selectedCustomerId)
+      ),
+    [customers, context?.customerId, selectedCustomerId]
+  );
+
+  const invoiceAddress = selectedCustomer
+    ? resolveCustomerAddress(selectedCustomer, addressType)
+    : "";
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setSelectedComponents([]);
+      setAddressType("billing");
     }
     onOpenChange(nextOpen);
   };
@@ -68,8 +96,8 @@ export function GenerateInvoiceDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onOpenChange(false);
+    onGenerate?.(selectedComponents);
     setSelectedComponents([]);
-    onGenerate?.();
   };
 
   return (
@@ -96,12 +124,15 @@ export function GenerateInvoiceDialog({
                       className="rounded-xl bg-muted/50"
                     />
                   ) : (
-                    <Select defaultValue={seedCustomers[0]?.id}>
+                    <Select
+                      value={selectedCustomerId}
+                      onValueChange={setSelectedCustomerId}
+                    >
                       <SelectTrigger id="customer" className="w-full rounded-xl">
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
-                        {seedCustomers.map((customer) => (
+                        {customers.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id}>
                             {customer.name}
                           </SelectItem>
@@ -121,12 +152,12 @@ export function GenerateInvoiceDialog({
                       className="rounded-xl bg-muted/50"
                     />
                   ) : (
-                    <Select defaultValue={seedDeals[0]?.id}>
+                    <Select defaultValue={deals[0]?.id}>
                       <SelectTrigger id="deal" className="w-full rounded-xl">
                         <SelectValue placeholder="Select deal" />
                       </SelectTrigger>
                       <SelectContent>
-                        {seedDeals.map((deal) => (
+                        {deals.map((deal) => (
                           <SelectItem key={deal.id} value={deal.id}>
                             {deal.title}
                           </SelectItem>
@@ -137,10 +168,43 @@ export function GenerateInvoiceDialog({
                 </div>
               </div>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="address-type">Invoice Address</Label>
+                  <Select
+                    value={addressType}
+                    onValueChange={(value) =>
+                      setAddressType(value as InvoiceAddressType)
+                    }
+                  >
+                    <SelectTrigger id="address-type" className="w-full rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="billing">Billing Address</SelectItem>
+                      <SelectItem value="service">Service Address</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-1">
+                  <Label>Selected Address</Label>
+                  <Input
+                    value={invoiceAddress || "No address on file"}
+                    readOnly
+                    className="rounded-xl bg-muted/50"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Components</Label>
                 <div className="space-y-2 rounded-xl border border-border/70 p-2">
-                  {dealComponents.map((component) => {
+                  {dealComponents.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No billable components available for this deal.
+                    </p>
+                  ) : (
+                    dealComponents.map((component) => {
                     const isSelected = selectedComponents.includes(component.id);
                     return (
                       <button
@@ -175,7 +239,8 @@ export function GenerateInvoiceDialog({
                         </span>
                       </button>
                     );
-                  })}
+                  })
+                  )}
                 </div>
               </div>
 
@@ -195,7 +260,7 @@ export function GenerateInvoiceDialog({
                 <Input
                   id="gst"
                   type="number"
-                  defaultValue="18"
+                  defaultValue={defaultTax}
                   className="rounded-xl"
                 />
               </div>
@@ -223,7 +288,7 @@ export function GenerateInvoiceDialog({
                     <span className="font-medium">{PLACEHOLDER_SUMMARY.subtotal}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">GST (18%)</span>
+                    <span className="text-muted-foreground">GST ({defaultTax}%)</span>
                     <span className="font-medium">{PLACEHOLDER_SUMMARY.gst}</span>
                   </div>
                   <div className="border-t border-border/70 pt-3">

@@ -107,6 +107,8 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+export { isValidGstin } from "@/lib/app-config-utils";
+
 export const defaultFilters: CustomerFilters = {
   status: "all",
   outstanding: "all",

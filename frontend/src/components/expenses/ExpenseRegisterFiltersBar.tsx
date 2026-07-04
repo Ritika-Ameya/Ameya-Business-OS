@@ -1,4 +1,5 @@
-import { Search } from "lucide-react";
+import { FilterResetButton } from "@/components/shared/FilterResetButton";
+import { SearchField } from "@/components/shared/SearchField";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -10,9 +11,10 @@ import {
 import {
   datePresetLabels,
   defaultRegisterFilters,
-  paymentMethodLabels,
   transactionStatusLabels,
 } from "@/lib/expense-utils";
+import { getActivePaymentMethods } from "@/lib/app-config-utils";
+import { useAppConfig } from "@/hooks/use-app-config";
 import type {
   EmployeeItem,
   ExpenseCategoryItem,
@@ -39,6 +41,8 @@ export function ExpenseRegisterFiltersBar({
   vendors,
   employees,
 }: ExpenseRegisterFiltersBarProps) {
+  const { paymentMethods } = useAppConfig();
+  const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const defaults = defaultRegisterFilters();
   const hasActiveFilters =
     filters.datePreset !== defaults.datePreset ||
@@ -48,17 +52,19 @@ export function ExpenseRegisterFiltersBar({
     filters.employee !== defaults.employee ||
     filters.paymentMethod !== defaults.paymentMethod;
 
+  const resetAll = () => {
+    onQueryChange("");
+    onFiltersChange(defaultRegisterFilters());
+  };
+
   return (
-    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search expense, vendor, employee, or reference..."
-          className="h-11 rounded-xl border-border/70 bg-background pl-10"
-        />
-      </div>
+    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 dark:bg-card/90">
+      <SearchField
+        value={query}
+        onChange={onQueryChange}
+        placeholder="Search expense, vendor, employee, or reference..."
+        ariaLabel="Search expenses"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -95,12 +101,14 @@ export function ExpenseRegisterFiltersBar({
                 onFiltersChange({ ...filters, dateFrom: e.target.value })
               }
               className="h-8 w-[140px] rounded-xl"
+              aria-label="From date"
             />
             <Input
               type="date"
               value={filters.dateTo}
               onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
               className="h-8 w-[140px] rounded-xl"
+              aria-label="To date"
             />
           </>
         )}
@@ -192,22 +200,16 @@ export function ExpenseRegisterFiltersBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Methods</SelectItem>
-            {Object.entries(paymentMethodLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
+            {activePaymentMethods.map((method) => (
+              <SelectItem key={method.id} value={method.slug}>
+                {method.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => onFiltersChange(defaultRegisterFilters())}
-            className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Clear filters
-          </button>
+        {(hasActiveFilters || query.trim().length > 0) && (
+          <FilterResetButton onClick={resetAll} />
         )}
       </div>
     </div>

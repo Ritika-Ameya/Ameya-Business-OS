@@ -38,7 +38,7 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
             <TableRow key={renewal.id}>
               <TableCell className="pl-4">
                 <Link
-                  to={`/deals/${renewal.dealId}`}
+                  to={`/deals/${renewal.dealId}?tab=renewals`}
                   className="font-medium transition-colors hover:text-primary"
                 >
                   {renewal.renewalLabel}

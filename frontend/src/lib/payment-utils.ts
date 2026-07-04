@@ -1,4 +1,6 @@
-import type { Payment, PaymentMode, PaymentStatus } from "@/types/payment";
+import { getPaymentMethodLabel } from "@/lib/app-config-utils";
+import type { SettingsPaymentMethod } from "@/types/settings";
+import type { Payment, PaymentStatus } from "@/types/payment";
 
 export function formatPaymentCurrency(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -24,14 +26,12 @@ export function getPaymentsByInvoiceId(
   return payments.filter((payment) => payment.invoiceId === invoiceId);
 }
 
-export const paymentModeLabels: Record<PaymentMode, string> = {
-  upi: "UPI",
-  "bank-transfer": "Bank Transfer",
-  cheque: "Cheque",
-  cash: "Cash",
-  "credit-card": "Credit Card",
-  other: "Other",
-};
+export function getPaymentModeLabel(
+  mode: string,
+  methods: SettingsPaymentMethod[]
+): string {
+  return getPaymentMethodLabel(mode, methods);
+}
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
   received: "Received",
@@ -45,11 +45,16 @@ export const paymentStatusStyles: Record<PaymentStatus, string> = {
   failed: "bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
-export const paymentModeStyles: Record<PaymentMode, string> = {
+const paymentModeStyleFallback: Record<string, string> = {
   upi: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
   "bank-transfer": "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   cheque: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
   cash: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   "credit-card": "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400",
+  "debit-card": "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400",
   other: "bg-muted text-muted-foreground",
 };
+
+export function getPaymentModeStyle(mode: string): string {
+  return paymentModeStyleFallback[mode] ?? "bg-muted text-muted-foreground";
+}

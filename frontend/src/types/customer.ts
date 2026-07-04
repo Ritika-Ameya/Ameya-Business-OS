@@ -7,7 +7,10 @@ export interface Customer {
   phone: string;
   email: string;
   gst?: string;
+  /** @deprecated Use billingAddress */
   address?: string;
+  billingAddress?: string;
+  serviceAddress?: string;
   notes?: string;
   status: CustomerStatus;
   outstanding: number;
@@ -25,7 +28,8 @@ export interface CustomerFormData {
   phone: string;
   email: string;
   gst: string;
-  address: string;
+  billingAddress: string;
+  serviceAddress: string;
   notes: string;
 }
 
