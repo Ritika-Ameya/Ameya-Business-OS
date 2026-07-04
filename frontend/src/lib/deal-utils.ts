@@ -44,16 +44,6 @@ export const dealRenewalLabels: Record<DealFilters["renewal"], string> = {
   none: "No Renewal",
 };
 
-export const dealTypeLabels: Record<
-  NonNullable<Deal["dealType"]>,
-  string
-> = {
-  "annual-maintenance": "Annual Maintenance",
-  consulting: "Consulting",
-  project: "Project",
-  subscription: "Subscription",
-};
-
 export const renewalFrequencyLabels: Record<RenewalFrequency, string> = {
   none: "No Renewal",
   monthly: "Monthly",
@@ -100,10 +90,6 @@ export function filterDeals(deals: Deal[], query: string, filters: DealFilters):
 
     return matchesSearch && matchesStatus && matchesRenewal;
   });
-}
-
-export function getDealById(deals: Deal[], id: string): Deal | undefined {
-  return deals.find((deal) => deal.id === id);
 }
 
 export function getDealsByCustomerId(deals: Deal[], customerId: string): Deal[] {

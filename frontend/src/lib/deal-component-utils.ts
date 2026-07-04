@@ -1,4 +1,4 @@
-import type { BillingType, ComponentFormData, ComponentStatus, DealComponent } from "@/types/deal-component";
+import type { BillingType, ComponentFormData, ComponentStatus } from "@/types/deal-component";
 
 export function formatComponentCurrency(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -38,13 +38,6 @@ export function validateComponentForm(
 function parseAmount(value: string): number {
   const parsed = Number.parseFloat(value.replace(/,/g, ""));
   return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-export function getComponentsByDealId(
-  components: DealComponent[],
-  dealId: string
-): DealComponent[] {
-  return components.filter((component) => component.dealId === dealId);
 }
 
 export const billingTypeLabels: Record<BillingType, string> = {

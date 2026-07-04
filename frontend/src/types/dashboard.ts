@@ -23,12 +23,6 @@ export interface DashboardKpi {
   tab?: string;
 }
 
-export interface RevenueExpensePoint {
-  month: string;
-  revenue: number;
-  expense: number;
-}
-
 export interface FounderInsight {
   message: string;
 }

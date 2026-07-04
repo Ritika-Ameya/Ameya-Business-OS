@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/deal-utils";
 import {
   companyRenewalStatusStyles,
+  renewalStatusLabels,
   type CompanyRenewalRow,
 } from "@/lib/revenue-utils";
 import { cn } from "@/lib/utils";
@@ -24,12 +25,6 @@ interface RevenueRenewalsTableProps {
   isFiltered?: boolean;
   onResetFilters?: () => void;
 }
-
-const renewalStatusLabels = {
-  upcoming: "Upcoming",
-  overdue: "Overdue",
-  renewed: "Renewed",
-} as const;
 
 export function RevenueRenewalsTable({
   renewals,

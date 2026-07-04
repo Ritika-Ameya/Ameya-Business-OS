@@ -1,4 +1,4 @@
-import { seedDashboardActivity, seedRevenueExpenseChart } from "@/data/seed-dashboard";
+import { seedDashboardActivity } from "@/data/seed-dashboard";
 import { seedInvoices } from "@/data/seed-invoices";
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/lib/invoice-utils";
 import {
@@ -136,10 +136,6 @@ export function getRecentActivity() {
   return [...seedDashboardActivity].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-}
-
-export function getRevenueExpenseChartData() {
-  return seedRevenueExpenseChart;
 }
 
 export function formatActivityTime(timestamp: string): string {
