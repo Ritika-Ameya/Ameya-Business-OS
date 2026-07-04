@@ -1,5 +1,13 @@
 export type DealStatus = "draft" | "active" | "completed" | "on-hold";
 
+export type DealType =
+  | "annual-maintenance"
+  | "consulting"
+  | "project"
+  | "subscription";
+
+export type RenewalFrequency = "none" | "monthly" | "quarterly" | "annual";
+
 export interface Deal {
   id: string;
   title: string;
@@ -9,6 +17,19 @@ export interface Deal {
   startDate: string;
   nextRenewal?: string;
   componentsCount: number;
+  dealType?: DealType;
+  contractValue?: number;
+  renewalFrequency?: RenewalFrequency;
+  description?: string;
+}
+
+export interface DealFormData {
+  title: string;
+  dealType: DealType | "";
+  contractValue: string;
+  startDate: string;
+  renewalFrequency: RenewalFrequency | "";
+  description: string;
 }
 
 export type DealStatusFilter = "all" | DealStatus;

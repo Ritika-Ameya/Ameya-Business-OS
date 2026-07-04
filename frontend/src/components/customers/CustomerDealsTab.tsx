@@ -2,7 +2,7 @@ import { Handshake } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DealTable } from "@/components/deals/DealTable";
 import { Button } from "@/components/ui/button";
-import { seedDeals } from "@/data/seed-deals";
+import { useDeals } from "@/hooks/use-deals";
 import { getDealsByCustomerId } from "@/lib/deal-utils";
 import type { Customer } from "@/types/customer";
 
@@ -11,7 +11,8 @@ interface CustomerDealsTabProps {
 }
 
 export function CustomerDealsTab({ customer }: CustomerDealsTabProps) {
-  const customerDeals = getDealsByCustomerId(seedDeals, customer.id);
+  const { deals } = useDeals();
+  const customerDeals = getDealsByCustomerId(deals, customer.id);
   const createDealPath = `/customers/${customer.id}/deals/new`;
 
   if (customerDeals.length === 0) {

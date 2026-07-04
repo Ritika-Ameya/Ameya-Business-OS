@@ -12,6 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReactNode } from "react";
 import { DealComponentsTab } from "./components/DealComponentsTab";
+import { DealInvoicesTab } from "@/components/invoices/DealInvoicesTab";
 import { PlaceholderCard } from "./PlaceholderCard";
 
 interface DealWorkspaceTabsProps {
@@ -101,24 +102,7 @@ export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorksp
       </TabsContent>
 
       <TabsContent value="invoices" className="mt-0">
-        <TabPlaceholderGrid>
-          <PlaceholderCard
-            icon={Receipt}
-            title="Invoices"
-            description="Billing records"
-            message="No invoices have been created for this deal yet."
-            accent="bg-blue-500/10"
-            iconColor="text-blue-600 dark:text-blue-400"
-          />
-          <PlaceholderCard
-            icon={Wallet}
-            title="Invoice Status"
-            description="Payment tracking"
-            message="Invoice status will be tracked here."
-            accent="bg-amber-500/10"
-            iconColor="text-amber-600 dark:text-amber-400"
-          />
-        </TabPlaceholderGrid>
+        <DealInvoicesTab dealId={dealId} />
       </TabsContent>
 
       <TabsContent value="payments" className="mt-0">

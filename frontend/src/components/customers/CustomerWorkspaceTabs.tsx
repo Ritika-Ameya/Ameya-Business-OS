@@ -9,9 +9,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomerInvoicesTab } from "@/components/invoices/CustomerInvoicesTab";
 import { CustomerDealsTab } from "./CustomerDealsTab";
 import { CustomerEmptyState } from "./CustomerEmptyState";
 import { CustomerOverviewTab } from "./CustomerOverviewTab";
+import { CustomerPaymentsTab } from "./CustomerPaymentsTab";
+import { CustomerRenewalsTab } from "./CustomerRenewalsTab";
 import type { Customer } from "@/types/customer";
 
 interface CustomerWorkspaceTabsProps {
@@ -69,27 +72,15 @@ export function CustomerWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="invoices" className="mt-0">
-        <CustomerEmptyState
-          icon={Receipt}
-          title="No invoices available"
-          description="Invoices created for this customer will appear here."
-        />
+        <CustomerInvoicesTab customer={customer} />
       </TabsContent>
 
       <TabsContent value="payments" className="mt-0">
-        <CustomerEmptyState
-          icon={Wallet}
-          title="No payment history"
-          description="Payment records will be displayed here once recorded."
-        />
+        <CustomerPaymentsTab customer={customer} />
       </TabsContent>
 
       <TabsContent value="renewals" className="mt-0">
-        <CustomerEmptyState
-          icon={RefreshCw}
-          title="No renewals available"
-          description="Renewal schedules and history will appear here."
-        />
+        <CustomerRenewalsTab customer={customer} />
       </TabsContent>
 
       <TabsContent value="files" className="mt-0">
