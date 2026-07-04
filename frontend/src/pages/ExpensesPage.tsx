@@ -1,13 +1,23 @@
 import { Layers, Plus, ReceiptText } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { PageHeader } from "@/components/customers/PageHeader";
 import { ExpenseMasterTab } from "@/components/expenses/ExpenseMasterTab";
 import { ExpenseRegisterTab } from "@/components/expenses/ExpenseRegisterTab";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+type ExpensesNavigationState = {
+  tab?: string;
+  expenseId?: string;
+};
+
 export function ExpensesPage() {
-  const [activeTab, setActiveTab] = useState("register");
+  const location = useLocation();
+  const navigationState = location.state as ExpensesNavigationState | null;
+  const [activeTab, setActiveTab] = useState(
+    () => navigationState?.tab ?? "register"
+  );
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
 
   return (

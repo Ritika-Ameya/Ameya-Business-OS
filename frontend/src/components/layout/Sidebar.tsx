@@ -1,5 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { navItems } from "./navigation";
@@ -10,6 +10,8 @@ type SidebarProps = {
 };
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { pathname } = useLocation();
+
   return (
     <aside
       className={cn(
@@ -42,15 +44,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <NavLink
             key={item.href}
             to={item.href}
-            className={({ isActive }) =>
-              cn(
+            className={({ isActive }) => {
+              const active =
+                item.href === "/settings"
+                  ? pathname.startsWith("/settings")
+                  : isActive;
+
+              return cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                 collapsed && "justify-center px-2",
-                isActive
+                active
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )
-            }
+              );
+            }}
           >
             <item.icon className="size-4 shrink-0" />
             <span

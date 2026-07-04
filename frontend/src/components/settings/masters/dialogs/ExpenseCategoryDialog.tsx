@@ -1,0 +1,122 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import type { ExpenseCategoryFormData, SettingsExpenseCategory } from "@/types/settings";
+
+const emptyForm = (): ExpenseCategoryFormData => ({
+  name: "",
+  description: "",
+  status: "active",
+});
+
+function formFromCategory(category?: SettingsExpenseCategory): ExpenseCategoryFormData {
+  if (!category) return emptyForm();
+  return {
+    name: category.name,
+    description: category.description,
+    status: category.status,
+  };
+}
+
+interface ExpenseCategoryDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (data: ExpenseCategoryFormData) => void;
+  initialData?: SettingsExpenseCategory;
+}
+
+export function ExpenseCategoryDialog({
+  open,
+  onOpenChange,
+  onSave,
+  initialData,
+}: ExpenseCategoryDialogProps) {
+  const [form, setForm] = useState(() => formFromCategory(initialData));
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) setForm(formFromCategory(initialData));
+    onOpenChange(nextOpen);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave(form);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {initialData ? "Edit Expense Category" : "Add Expense Category"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="space-y-2">
+            <Label>Category Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, description: e.target.value }))
+              }
+              className="min-h-20 rounded-xl"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select
+              value={form.status}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  status: value as ExpenseCategoryFormData["status"],
+                }))
+              }
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button className="rounded-xl" onClick={handleSave}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

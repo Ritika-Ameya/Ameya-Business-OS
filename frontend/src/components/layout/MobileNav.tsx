@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { navItems } from "./navigation";
@@ -10,6 +10,8 @@ type MobileNavProps = {
 };
 
 export function MobileNav({ open, onClose }: MobileNavProps) {
+  const { pathname } = useLocation();
+
   return (
     <>
       <div
@@ -40,14 +42,19 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
               key={item.href}
               to={item.href}
               onClick={onClose}
-              className={({ isActive }) =>
-                cn(
+              className={({ isActive }) => {
+                const active =
+                  item.href === "/settings"
+                    ? pathname.startsWith("/settings")
+                    : isActive;
+
+                return cn(
                   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                  isActive
+                  active
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )
-              }
+                );
+              }}
             >
               <item.icon className="size-4" />
               {item.label}
