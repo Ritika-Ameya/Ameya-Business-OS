@@ -3,6 +3,7 @@ import type {
   Customer,
   CustomerFilters,
   OutstandingFilter,
+  RecordTypeFilter,
   RenewalFilter,
   StatusFilter,
 } from "@/features/customers/types/customer";
@@ -44,12 +45,16 @@ export function filterCustomers(
       (filters.activeDeals === "has-deals" && customer.activeDeals > 0) ||
       (filters.activeDeals === "none" && customer.activeDeals === 0);
 
+    const matchesRecordType =
+      filters.recordType === "all" || customer.recordType === filters.recordType;
+
     return (
       matchesSearch &&
       matchesStatus &&
       matchesOutstanding &&
       matchesRenewal &&
-      matchesDeals
+      matchesDeals &&
+      matchesRecordType
     );
   });
 }
@@ -79,6 +84,7 @@ export const defaultFilters: CustomerFilters = {
   outstanding: "all",
   renewal: "all",
   activeDeals: "all",
+  recordType: "all",
 };
 
 export const statusFilterLabels: Record<StatusFilter, string> = {
@@ -104,4 +110,10 @@ export const activeDealsFilterLabels: Record<ActiveDealsFilter, string> = {
   all: "All",
   "has-deals": "Has Deals",
   none: "No Deals",
+};
+
+export const recordTypeFilterLabels: Record<RecordTypeFilter, string> = {
+  all: "All",
+  opportunity: "Opportunity",
+  customer: "Customer",
 };

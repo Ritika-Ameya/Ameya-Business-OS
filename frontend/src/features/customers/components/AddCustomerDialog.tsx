@@ -11,7 +11,15 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { isValidEmail } from "@/features/customers/utils/customer-utils";
+import { recordTypeLabels } from "@/features/customers/utils/stage-utils";
 import { isValidGstin } from "@/features/settings/utils/app-config-utils";
 import type { Customer, CustomerFormData } from "@/features/customers/types/customer";
 
@@ -24,6 +32,7 @@ const emptyForm: CustomerFormData = {
   billingAddress: "",
   serviceAddress: "",
   notes: "",
+  recordType: "opportunity",
 };
 
 function formFromCustomer(customer?: Customer): CustomerFormData {
@@ -37,6 +46,7 @@ function formFromCustomer(customer?: Customer): CustomerFormData {
     billingAddress: customer.billingAddress ?? customer.address ?? "",
     serviceAddress: customer.serviceAddress ?? customer.billingAddress ?? customer.address ?? "",
     notes: customer.notes ?? "",
+    recordType: customer.recordType ?? "customer",
   };
 }
 
@@ -113,16 +123,38 @@ export function AddCustomerDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Customer" : "Add Customer"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Edit Opportunity / Customer" : "Add Opportunity / Customer"}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update customer details. Changes are saved locally."
-              : "Add a new customer to your revenue management system."}
+              ? "Update record details. Changes are saved locally."
+              : "Add a new opportunity or customer to your pipeline."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="record-type">Record Type</Label>
+              <Select
+                value={form.recordType}
+                onValueChange={(value) =>
+                  updateField("recordType", value)
+                }
+              >
+                <SelectTrigger id="record-type" className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="opportunity">
+                    {recordTypeLabels.opportunity}
+                  </SelectItem>
+                  <SelectItem value="customer">{recordTypeLabels.customer}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">
                 Customer Name <span className="text-destructive">*</span>

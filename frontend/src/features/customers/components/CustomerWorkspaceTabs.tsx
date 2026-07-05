@@ -1,5 +1,4 @@
 import {
-  Clock,
   FileText,
   Handshake,
   History,
@@ -15,6 +14,7 @@ import { CustomerEmptyState } from "./CustomerEmptyState";
 import { CustomerOverviewTab } from "./CustomerOverviewTab";
 import { CustomerPaymentsTab } from "./CustomerPaymentsTab";
 import { CustomerRenewalsTab } from "./CustomerRenewalsTab";
+import { CustomerTimelineTab } from "./CustomerTimelineTab";
 import type { Customer } from "@/features/customers/types/customer";
 
 interface CustomerWorkspaceTabsProps {
@@ -92,30 +92,7 @@ export function CustomerWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="timeline" className="mt-0">
-        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16">
-          <div className="mx-auto flex max-w-md flex-col items-center text-center">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
-              <Clock className="size-6 text-muted-foreground" />
-            </div>
-            <h3 className="text-base font-medium">Timeline</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              A complete history of deals, invoices, payments, and renewals will
-              appear here.
-            </p>
-            <div className="mt-8 w-full space-y-4">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="size-2.5 rounded-full bg-border" />
-                  <div className="w-px flex-1 bg-border" />
-                </div>
-                <div className="flex-1 rounded-xl border border-border/50 bg-card p-4 text-left opacity-50">
-                  <p className="text-xs text-muted-foreground">Waiting for activity</p>
-                  <p className="mt-1 text-sm">Your customer timeline will build over time.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CustomerTimelineTab customer={customer} />
       </TabsContent>
     </Tabs>
   );

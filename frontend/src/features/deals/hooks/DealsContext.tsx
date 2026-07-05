@@ -7,9 +7,16 @@ import {
 } from "react";
 import { seedDealComponents } from "@/features/deals/data/seed-deal-components";
 import { seedDeals } from "@/features/deals/data/seed-deals";
+import { seedSettingsStages } from "@/features/settings/data/seed-settings";
+import {
+  getDefaultStageForRecordType,
+  getStageById,
+} from "@/features/customers/utils/stage-utils";
 import { computeNextRenewal } from "@/features/deals/utils/deal-utils";
-import type { Deal, DealFormData } from "@/features/deals/types/deal";
+import type { RecordType } from "@/features/customers/types/customer";
+import type { Deal, DealFormData, DealTimelineEntry } from "@/features/deals/types/deal";
 import type { ComponentFormData, DealComponent } from "@/features/deals/types/deal-component";
+import type { SettingsStage } from "@/features/settings/types/settings";
 
 const DEALS_KEY = "ameya-deals";
 const COMPONENTS_KEY = "ameya-deal-components";
@@ -17,13 +24,25 @@ const COMPONENTS_KEY = "ameya-deal-components";
 interface CreateDealInput extends DealFormData {
   customerId: string;
   customerName: string;
+  customerRecordType?: RecordType;
+}
+
+export interface DealStageChangePayload {
+  stageId: string;
+  nextActionDate?: string;
+  notes?: string;
 }
 
 interface DealsContextValue {
   deals: Deal[];
   components: DealComponent[];
-  addDeal: (input: CreateDealInput) => Deal;
+  addDeal: (input: CreateDealInput, stages?: SettingsStage[]) => Deal;
   getDeal: (id: string) => Deal | undefined;
+  changeDealStage: (
+    id: string,
+    payload: DealStageChangePayload,
+    stages: SettingsStage[]
+  ) => void;
   addComponent: (dealId: string, data: ComponentFormData) => DealComponent;
   getComponentsByDeal: (dealId: string) => DealComponent[];
 }
@@ -51,6 +70,16 @@ function parseAmount(value: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function normalizeDeal(deal: Deal, stages = seedSettingsStages): Deal {
+  const defaultStage = getDefaultStageForRecordType(stages, "customer");
+
+  return {
+    ...deal,
+    timeline: deal.timeline ?? [],
+    currentStageId: deal.currentStageId ?? defaultStage?.id,
+  };
+}
+
 function formToComponent(
   dealId: string,
   data: ComponentFormData
@@ -67,41 +96,97 @@ function formToComponent(
   };
 }
 
+function createTimelineEntry(
+  stage: SettingsStage,
+  notes?: string,
+  nextActionDate?: string
+): DealTimelineEntry {
+  return {
+    id: `dtl-${crypto.randomUUID().slice(0, 8)}`,
+    stageId: stage.id,
+    stageName: stage.name,
+    notes: notes?.trim() || undefined,
+    nextActionDate,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export function DealsProvider({ children }: { children: ReactNode }) {
-  const [deals, setDeals] = useState<Deal[]>(() => loadJson(DEALS_KEY, seedDeals));
+  const [deals, setDeals] = useState<Deal[]>(() =>
+    loadJson(DEALS_KEY, seedDeals).map((deal) => normalizeDeal(deal))
+  );
   const [components, setComponents] = useState<DealComponent[]>(() =>
     loadJson(COMPONENTS_KEY, seedDealComponents)
   );
 
-  const addDeal = useCallback((input: CreateDealInput): Deal => {
-    const contractValue = Number.parseFloat(input.contractValue.replace(/,/g, ""));
+  const addDeal = useCallback(
+    (input: CreateDealInput, stages: SettingsStage[] = seedSettingsStages): Deal => {
+      const contractValue = Number.parseFloat(input.contractValue.replace(/,/g, ""));
+      const recordType = input.customerRecordType ?? "customer";
+      const defaultStage = getDefaultStageForRecordType(stages, recordType);
 
-    const deal: Deal = {
-      id: `deal-${crypto.randomUUID().slice(0, 8)}`,
-      title: input.title.trim(),
-      customerId: input.customerId,
-      customerName: input.customerName,
-      status: "draft",
-      startDate: input.startDate,
-      nextRenewal: computeNextRenewal(
-        input.startDate,
-        input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>
-      ),
-      componentsCount: 0,
-      dealType: input.dealType as NonNullable<Deal["dealType"]>,
-      contractValue,
-      renewalFrequency: input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>,
-      description: input.description.trim() || undefined,
-    };
+      const deal: Deal = {
+        id: `deal-${crypto.randomUUID().slice(0, 8)}`,
+        title: input.title.trim(),
+        customerId: input.customerId,
+        customerName: input.customerName,
+        status: "draft",
+        startDate: input.startDate,
+        nextRenewal: computeNextRenewal(
+          input.startDate,
+          input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>
+        ),
+        currentStageId: defaultStage?.id,
+        timeline: defaultStage ? [createTimelineEntry(defaultStage)] : [],
+        componentsCount: 0,
+        dealType: input.dealType as NonNullable<Deal["dealType"]>,
+        contractValue,
+        renewalFrequency: input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>,
+        description: input.description.trim() || undefined,
+      };
 
-    setDeals((prev) => {
-      const next = [deal, ...prev];
-      persistJson(DEALS_KEY, next);
-      return next;
-    });
+      setDeals((prev) => {
+        const next = [deal, ...prev];
+        persistJson(DEALS_KEY, next);
+        return next;
+      });
 
-    return deal;
-  }, []);
+      return deal;
+    },
+    []
+  );
+
+  const changeDealStage = useCallback(
+    (id: string, payload: DealStageChangePayload, stages: SettingsStage[]) => {
+      const stage = getStageById(stages, payload.stageId);
+      if (!stage) return;
+
+      setDeals((prev) => {
+        const next = prev.map((deal) => {
+          if (deal.id !== id) return deal;
+
+          const timelineEntry = createTimelineEntry(
+            stage,
+            payload.notes,
+            payload.nextActionDate
+          );
+
+          return {
+            ...deal,
+            currentStageId: stage.id,
+            nextActionDate:
+              payload.nextActionDate !== undefined
+                ? payload.nextActionDate
+                : deal.nextActionDate,
+            timeline: [timelineEntry, ...deal.timeline],
+          };
+        });
+        persistJson(DEALS_KEY, next);
+        return next;
+      });
+    },
+    []
+  );
 
   const addComponent = useCallback(
     (dealId: string, data: ComponentFormData): DealComponent => {
@@ -147,10 +232,11 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       components,
       addDeal,
       getDeal,
+      changeDealStage,
       addComponent,
       getComponentsByDeal,
     }),
-    [deals, components, addDeal, getDeal, addComponent, getComponentsByDeal]
+    [deals, components, addDeal, getDeal, changeDealStage, addComponent, getComponentsByDeal]
   );
 
   return <DealsContext.Provider value={value}>{children}</DealsContext.Provider>;

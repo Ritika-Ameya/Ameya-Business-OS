@@ -12,7 +12,9 @@ import type {
   SettingsExpenseCategory,
   SettingsPaymentMethod,
   SettingsRenewalType,
+  SettingsStage,
   SettingsVendor,
+  StageFormData,
   VendorFormData,
 } from "@/features/settings/types/settings";
 
@@ -26,6 +28,7 @@ export interface AppConfigState {
   renewalTypes: SettingsRenewalType[];
   paymentMethods: SettingsPaymentMethod[];
   dealTypes: SettingsDealType[];
+  stages: SettingsStage[];
 }
 
 export interface AppConfigActions {
@@ -44,6 +47,8 @@ export interface AppConfigActions {
   updatePaymentMethod: (id: string, data: PaymentMethodFormData) => void;
   addDealType: (data: DealTypeFormData) => SettingsDealType;
   updateDealType: (id: string, data: DealTypeFormData) => void;
+  addStage: (data: StageFormData) => SettingsStage;
+  updateStage: (id: string, data: StageFormData) => void;
 }
 
 export type AppConfigValue = AppConfigState & AppConfigActions;

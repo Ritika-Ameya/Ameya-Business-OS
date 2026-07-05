@@ -24,7 +24,7 @@ export function CustomerWorkspacePage() {
         <Button variant="ghost" size="sm" className="mb-4 -ml-2 rounded-xl" asChild>
           <Link to="/customers">
             <ArrowLeft />
-            Back to Customers
+            Back to Opportunities / Customers
           </Link>
         </Button>
       </div>

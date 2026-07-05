@@ -111,6 +111,37 @@ export interface DealTypeFormData {
   status: SettingsEntityStatus;
 }
 
+export type StageApplicableFor = "opportunity" | "customer" | "both";
+
+export type StageReminderOffset =
+  | "same-day"
+  | "1-day-before"
+  | "3-days-before"
+  | "7-days-before";
+
+export interface SettingsStage {
+  id: string;
+  name: string;
+  color: string;
+  sequence: number;
+  applicableFor: StageApplicableFor;
+  dateRequired: boolean;
+  notesRequired: boolean;
+  reminderOffset: StageReminderOffset;
+  status: SettingsEntityStatus;
+}
+
+export interface StageFormData {
+  name: string;
+  color: string;
+  sequence: number;
+  applicableFor: StageApplicableFor;
+  dateRequired: boolean;
+  notesRequired: boolean;
+  reminderOffset: StageReminderOffset;
+  status: SettingsEntityStatus;
+}
+
 export type SettingsSection = "company" | "masters" | "finance" | "preferences";
 
 export type MasterTab =
@@ -119,4 +150,5 @@ export type MasterTab =
   | "expense-categories"
   | "renewal-types"
   | "payment-methods"
-  | "deal-types";
+  | "deal-types"
+  | "stages";

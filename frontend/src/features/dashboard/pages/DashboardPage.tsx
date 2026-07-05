@@ -1,3 +1,4 @@
+import { FollowUpWidgets } from "@/features/dashboard/components/FollowUpWidgets";
 import { DashboardGreeting } from "@/features/dashboard/components/DashboardGreeting";
 import { DashboardKpiCards } from "@/features/dashboard/components/DashboardKpiCards";
 import { DashboardQuickActions } from "@/features/dashboard/components/DashboardQuickActions";
@@ -20,6 +21,10 @@ export function DashboardPage() {
 
       <section>
         <RevenueExpenseChart />
+      </section>
+
+      <section className="space-y-4">
+        <FollowUpWidgets />
       </section>
 
       <section className="space-y-4">
