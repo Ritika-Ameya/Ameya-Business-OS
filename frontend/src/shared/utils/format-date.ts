@@ -16,3 +16,8 @@ export function isRenewalThisMonth(date?: string): boolean {
     renewal.getFullYear() === now.getFullYear()
   );
 }
+
+export function isUpcomingRenewal(date?: string): boolean {
+  if (!date) return false;
+  return new Date(date) > new Date();
+}

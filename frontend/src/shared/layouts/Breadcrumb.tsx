@@ -1,12 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { seedInvoices } from "@/data/seed-invoices";
-import { useCustomers } from "@/hooks/use-customers";
-import { useDeals } from "@/hooks/use-deals";
-import { getInvoiceById } from "@/lib/invoice-utils";
-import { revenueTabLabels } from "@/lib/revenue-utils";
-import { masterTabLabels, settingsSectionLabels } from "@/lib/settings-utils";
-import type { MasterTab } from "@/types/settings";
+import { seedInvoices } from "@/features/revenue/data/seed-invoices";
+import { useCustomers } from "@/features/customers/hooks/use-customers";
+import { useDeals } from "@/features/deals/hooks/use-deals";
+import { getInvoiceById } from "@/features/revenue/utils/invoice-utils";
+import { revenueTabLabels } from "@/features/revenue/utils/revenue-utils";
+import { masterTabLabels, settingsSectionLabels } from "@/features/settings/utils/settings-utils";
+import type { MasterTab } from "@/features/settings/types/settings";
 import { navItems } from "./navigation";
 
 function segmentToTitle(segment: string): string {
