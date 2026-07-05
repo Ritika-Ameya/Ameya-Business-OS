@@ -9,7 +9,6 @@ export default defineConfig([
   globalIgnores(['dist']),
   {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['src/components/ui/**'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -18,6 +17,25 @@ export default defineConfig([
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+  {
+    files: ['src/shared/ui/**'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: [
+      'src/features/deals/pages/DealWorkspacePage.tsx',
+      'src/features/revenue/pages/InvoiceWorkspacePage.tsx',
+      'src/features/expenses/components/AddExpenseMasterDialog.tsx',
+      'src/features/expenses/components/AddExpenseTransactionDialog.tsx',
+      'src/features/expenses/components/ExpenseRegisterTab.tsx',
+    ],
+    rules: {
+      // Intentional URL/dialog sync — derived state would change tab or form behaviour.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])
