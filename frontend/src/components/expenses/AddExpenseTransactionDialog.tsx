@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InlineQuickCreate } from "@/components/expenses/InlineQuickCreate";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,18 +8,21 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/shared/ui/dialog";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { frequencyLabels, paymentMethodLabels, validateTransactionForm } from "@/lib/expense-utils";
+} from "@/shared/ui/select";
+import { Textarea } from "@/shared/ui/textarea";
+import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
+import { frequencyLabels, validateTransactionForm } from "@/lib/expense-utils";
+import { getActivePaymentMethods } from "@/lib/app-config-utils";
+import { useAppConfig } from "@/hooks/use-app-config";
 import type {
   ExpenseMasterTemplate,
   ExpenseTransaction,
@@ -95,20 +98,22 @@ export function AddExpenseTransactionDialog({
   onCreateMaster,
   initialData,
 }: AddExpenseTransactionDialogProps) {
-  const [form, setForm] = useState(() => formFromTransaction(initialData));
+  const { paymentMethods } = useAppConfig();
+  const activePaymentMethods = getActivePaymentMethods(paymentMethods);
+  const [form, setForm] = useState<ExpenseTransactionFormData>(() =>
+    formFromTransaction(initialData)
+  );
   const [errors, setErrors] = useState<
     Partial<Record<keyof ExpenseTransactionFormData, string>>
   >({});
 
   const isEditing = Boolean(initialData);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setForm(formFromTransaction(initialData));
-      setErrors({});
-    }
-    onOpenChange(nextOpen);
-  };
+  useEffect(() => {
+    if (!open) return;
+    setForm(formFromTransaction(initialData));
+    setErrors({});
+  }, [open, initialData]);
 
   const updateField = <K extends keyof ExpenseTransactionFormData>(
     field: K,
@@ -134,7 +139,8 @@ export function AddExpenseTransactionDialog({
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = (event: React.FormEvent) => {
+    event.preventDefault();
     const nextErrors = validateTransactionForm(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -143,8 +149,11 @@ export function AddExpenseTransactionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl"
+        {...preventNestedOverlayDismiss}
+      >
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Expense" : "Add Expense"}</DialogTitle>
           <DialogDescription>
@@ -152,7 +161,7 @@ export function AddExpenseTransactionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2 sm:grid-cols-2">
+        <form onSubmit={handleSave} className="grid gap-4 py-2 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="expense-date">Expense Date</Label>
             <Input
@@ -360,9 +369,9 @@ export function AddExpenseTransactionDialog({
                 <SelectValue placeholder="Select method" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(paymentMethodLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {activePaymentMethods.map((method) => (
+                  <SelectItem key={method.id} value={method.slug}>
+                    {method.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -474,16 +483,21 @@ export function AddExpenseTransactionDialog({
               </div>
             )}
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            {isEditing ? "Save Changes" : "Add Expense"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="sm:col-span-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="rounded-xl">
+              {isEditing ? "Save Changes" : "Add Expense"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

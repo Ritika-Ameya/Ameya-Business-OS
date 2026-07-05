@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Wallet,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { CustomerInvoicesTab } from "@/components/invoices/CustomerInvoicesTab";
 import { CustomerDealsTab } from "./CustomerDealsTab";
 import { CustomerEmptyState } from "./CustomerEmptyState";

@@ -1,14 +1,16 @@
-import { Edit, Eye, MoreHorizontal, User } from "lucide-react";
+import { Briefcase, Edit, Eye, MoreHorizontal, User } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -16,9 +18,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatDate } from "@/lib/deal-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Deal, DealStatus } from "@/types/deal";
 
 const statusStyles: Record<DealStatus, string> = {
@@ -30,22 +32,45 @@ const statusStyles: Record<DealStatus, string> = {
 
 interface DealTableProps {
   deals: Deal[];
+  isFiltered?: boolean;
+  isEmpty?: boolean;
+  onAdd?: () => void;
+  onResetFilters?: () => void;
 }
 
-export function DealTable({ deals }: DealTableProps) {
+export function DealTable({
+  deals,
+  isFiltered = false,
+  isEmpty = false,
+  onAdd,
+  onResetFilters,
+}: DealTableProps) {
   if (deals.length === 0) {
+    if (isEmpty) {
+      return (
+        <EmptyState
+          icon={Briefcase}
+          title="No deals yet"
+          description="Create a deal from a customer workspace to track components and renewals."
+          actionLabel="Go to Customers"
+          onAction={onAdd}
+        />
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No deals found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your search or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={Briefcase}
+        title="No deals found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -77,7 +102,7 @@ export function DealTable({ deals }: DealTableProps) {
                   to={`/customers/${deal.customerId}`}
                   className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <User className="size-3.5 shrink-0" />
+                  <User className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">{deal.customerName}</span>
                 </Link>
               </TableCell>
@@ -101,7 +126,7 @@ export function DealTable({ deals }: DealTableProps) {
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="icon-sm" asChild>
-                    <Link to={`/deals/${deal.id}`} aria-label="View deal">
+                    <Link to={`/deals/${deal.id}`} aria-label={`View ${deal.title}`}>
                       <Eye />
                     </Link>
                   </Button>
@@ -110,7 +135,11 @@ export function DealTable({ deals }: DealTableProps) {
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label="More actions">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`More actions for ${deal.title}`}
+                      >
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
@@ -131,6 +160,6 @@ export function DealTable({ deals }: DealTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

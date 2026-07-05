@@ -1,7 +1,9 @@
-import { Eye } from "lucide-react";
+import { Eye, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   Table,
   TableBody,
@@ -9,40 +11,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatDate } from "@/lib/deal-utils";
 import {
   companyRenewalStatusStyles,
+  renewalStatusLabels,
   type CompanyRenewalRow,
 } from "@/lib/revenue-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 interface RevenueRenewalsTableProps {
   renewals: CompanyRenewalRow[];
+  isFiltered?: boolean;
+  onResetFilters?: () => void;
 }
 
-const renewalStatusLabels = {
-  upcoming: "Upcoming",
-  overdue: "Overdue",
-  renewed: "Renewed",
-} as const;
-
-export function RevenueRenewalsTable({ renewals }: RevenueRenewalsTableProps) {
+export function RevenueRenewalsTable({
+  renewals,
+  isFiltered = false,
+  onResetFilters,
+}: RevenueRenewalsTableProps) {
   const navigate = useNavigate();
 
   if (renewals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No renewals found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your search or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={RefreshCw}
+        title="No renewals found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -61,7 +65,7 @@ export function RevenueRenewalsTable({ renewals }: RevenueRenewalsTableProps) {
               key={renewal.id}
               className="cursor-pointer"
               onClick={() =>
-                navigate(`/deals/${renewal.dealId}`, { state: { tab: "renewals" } })
+                navigate(`/deals/${renewal.dealId}?tab=renewals`)
               }
             >
               <TableCell className="pl-4 font-medium">{renewal.renewalLabel}</TableCell>
@@ -90,9 +94,7 @@ export function RevenueRenewalsTable({ renewals }: RevenueRenewalsTableProps) {
                   aria-label="View deal renewals"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/deals/${renewal.dealId}`, {
-                      state: { tab: "renewals" },
-                    });
+                    navigate(`/deals/${renewal.dealId}?tab=renewals`);
                   }}
                 >
                   <Eye />
@@ -102,6 +104,6 @@ export function RevenueRenewalsTable({ renewals }: RevenueRenewalsTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

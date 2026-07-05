@@ -1,14 +1,17 @@
+import { Users } from "lucide-react";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { Edit, Eye, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -16,9 +19,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatCurrency, formatDate } from "@/lib/customer-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/types/customer";
 
 const statusStyles: Record<CustomerStatus, string> = {
@@ -30,22 +33,46 @@ const statusStyles: Record<CustomerStatus, string> = {
 interface CustomerTableProps {
   customers: Customer[];
   onEdit: (customer: Customer) => void;
+  isFiltered?: boolean;
+  isEmpty?: boolean;
+  onAdd?: () => void;
+  onResetFilters?: () => void;
 }
 
-export function CustomerTable({ customers, onEdit }: CustomerTableProps) {
+export function CustomerTable({
+  customers,
+  onEdit,
+  isFiltered = false,
+  isEmpty = false,
+  onAdd,
+  onResetFilters,
+}: CustomerTableProps) {
   if (customers.length === 0) {
+    if (isEmpty) {
+      return (
+        <EmptyState
+          icon={Users}
+          title="No customers yet"
+          description="Add your first customer to start tracking deals, invoices, and renewals."
+          actionLabel="Add Customer"
+          onAction={onAdd}
+        />
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No customers found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your search or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={Users}
+        title="No customers found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -91,7 +118,7 @@ export function CustomerTable({ customers, onEdit }: CustomerTableProps) {
                   {formatCurrency(customer.outstanding)}
                 </span>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {customer.activeDeals}
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
@@ -106,43 +133,40 @@ export function CustomerTable({ customers, onEdit }: CustomerTableProps) {
                 </Badge>
               </TableCell>
               <TableCell className="pr-4 text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon-sm" asChild>
-                    <Link to={`/customers/${customer.id}`} aria-label="View customer">
-                      <Eye />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => onEdit(customer)}
-                    aria-label="Edit customer"
-                  >
-                    <Edit />
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label="More actions">
-                        <MoreHorizontal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link to={`/customers/${customer.id}`}>View workspace</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit(customer)}>
-                        Edit customer
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Create deal</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Actions for ${customer.name}`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to={`/customers/${customer.id}`}>
+                        <Eye />
+                        View workspace
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit(customer)}>
+                      <Edit />
+                      Edit customer
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to={`/customers/${customer.id}/deals/new`}>
+                        Create deal
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

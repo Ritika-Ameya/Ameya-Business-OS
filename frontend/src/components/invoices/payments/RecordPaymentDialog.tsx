@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,18 +7,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/shared/ui/dialog";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { paymentModeLabels } from "@/lib/payment-utils";
+} from "@/shared/ui/select";
+import { Textarea } from "@/shared/ui/textarea";
+import { useAppConfig } from "@/hooks/use-app-config";
+import { getActivePaymentMethods } from "@/lib/app-config-utils";
 import type { PaymentFormData, PaymentMode } from "@/types/payment";
 
 const emptyForm: PaymentFormData = {
@@ -40,6 +41,8 @@ export function RecordPaymentDialog({
   open,
   onOpenChange,
 }: RecordPaymentDialogProps) {
+  const { paymentMethods } = useAppConfig();
+  const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [form, setForm] = useState<PaymentFormData>(emptyForm);
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -113,9 +116,9 @@ export function RecordPaymentDialog({
                   <SelectValue placeholder="Select payment mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(paymentModeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {activePaymentMethods.map((method) => (
+                    <SelectItem key={method.id} value={method.slug}>
+                      {method.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

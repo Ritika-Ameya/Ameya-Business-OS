@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InlineQuickCreate } from "@/components/expenses/InlineQuickCreate";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,17 +8,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/shared/ui/dialog";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { frequencyLabels } from "@/lib/expense-utils";
+} from "@/shared/ui/select";
+import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
+import { frequencyLabels, validateMasterForm } from "@/lib/expense-utils";
 import type {
   EmployeeItem,
   ExpenseCategoryItem,
@@ -85,36 +86,59 @@ export function AddExpenseMasterDialog({
   initialData,
   presetName,
 }: AddExpenseMasterDialogProps) {
-  const [form, setForm] = useState(() => ({
-    ...formFromMaster(initialData),
-    name: presetName ?? formFromMaster(initialData).name,
-  }));
+  const [form, setForm] = useState<ExpenseMasterFormData>(() => emptyForm());
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof ExpenseMasterFormData, string>>
+  >({});
 
   const isEditing = Boolean(initialData);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setForm({ ...formFromMaster(initialData), name: presetName ?? formFromMaster(initialData).name });
+  useEffect(() => {
+    if (!open) return;
+
+    const base = formFromMaster(initialData);
+    if (!initialData && !base.categoryId && categories[0]) {
+      base.categoryId = categories[0].id;
     }
-    onOpenChange(nextOpen);
-  };
+
+    setForm({
+      ...base,
+      name: presetName ?? base.name,
+    });
+    setErrors({});
+  }, [open, initialData, presetName, categories]);
 
   const updateField = <K extends keyof ExpenseMasterFormData>(
     field: K,
     value: ExpenseMasterFormData[K]
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
-  const handleSave = () => {
-    if (!form.name.trim() || !form.categoryId || !form.defaultAmount.trim()) return;
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const nextErrors = validateMasterForm(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     onSave(form);
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg"
+        {...preventNestedOverlayDismiss}
+      >
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Template" : "Add Expense Template"}</DialogTitle>
           <DialogDescription>
@@ -122,7 +146,7 @@ export function AddExpenseMasterDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
+        <form onSubmit={handleSubmit} className="grid gap-4 py-2">
           <div className="space-y-2">
             <Label>Expense Name</Label>
             <Input
@@ -130,6 +154,7 @@ export function AddExpenseMasterDialog({
               onChange={(e) => updateField("name", e.target.value)}
               className="rounded-xl"
             />
+            {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -158,6 +183,9 @@ export function AddExpenseMasterDialog({
                 ))}
               </SelectContent>
             </Select>
+            {errors.categoryId && (
+              <p className="text-xs text-destructive">{errors.categoryId}</p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -224,6 +252,9 @@ export function AddExpenseMasterDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.vendorOrEmployee && (
+                <p className="text-xs text-destructive">{errors.vendorOrEmployee}</p>
+              )}
             </div>
           </div>
 
@@ -237,6 +268,9 @@ export function AddExpenseMasterDialog({
                 onChange={(e) => updateField("defaultAmount", e.target.value)}
                 className="rounded-xl"
               />
+              {errors.defaultAmount && (
+                <p className="text-xs text-destructive">{errors.defaultAmount}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Frequency</Label>
@@ -257,6 +291,9 @@ export function AddExpenseMasterDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.frequency && (
+                <p className="text-xs text-destructive">{errors.frequency}</p>
+              )}
             </div>
           </div>
 
@@ -269,6 +306,9 @@ export function AddExpenseMasterDialog({
                 onChange={(e) => updateField("startDate", e.target.value)}
                 className="rounded-xl"
               />
+              {errors.startDate && (
+                <p className="text-xs text-destructive">{errors.startDate}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>End Date (optional)</Label>
@@ -315,16 +355,21 @@ export function AddExpenseMasterDialog({
               </Select>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            {isEditing ? "Save Changes" : "Add Template"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="rounded-xl">
+              {isEditing ? "Save Changes" : "Add Template"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

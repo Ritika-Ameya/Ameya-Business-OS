@@ -1,9 +1,15 @@
 import { AlertCircle, CalendarClock, CheckCircle2, RefreshCw } from "lucide-react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { useMemo } from "react";
+import { StatCard } from "@/shared/components/PageHeader";
+import { useDeals } from "@/hooks/use-deals";
 import { getCompanyRenewals, getRenewalStats } from "@/lib/revenue-utils";
 
 export function RevenueRenewalsStats() {
-  const stats = getRenewalStats(getCompanyRenewals());
+  const { deals } = useDeals();
+  const stats = useMemo(
+    () => getRenewalStats(getCompanyRenewals(deals)),
+    [deals]
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

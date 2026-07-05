@@ -1,9 +1,9 @@
 import { Plus, Wallet } from "lucide-react";
 import { useState } from "react";
-import { PageHeader } from "@/components/customers/PageHeader";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { RecordPaymentDialog } from "@/components/invoices/payments/RecordPaymentDialog";
 import { PaymentTable } from "@/components/invoices/payments/PaymentTable";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { seedPayments } from "@/data/seed-payments";
 import { getPaymentsByInvoiceId } from "@/lib/payment-utils";
 

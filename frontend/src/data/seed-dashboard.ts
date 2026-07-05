@@ -1,13 +1,4 @@
-import type { DashboardActivity, RevenueExpensePoint } from "@/types/dashboard";
-
-export const seedRevenueExpenseChart: RevenueExpensePoint[] = [
-  { month: "Jan", revenue: 420000, expense: 280000 },
-  { month: "Feb", revenue: 385000, expense: 310000 },
-  { month: "Mar", revenue: 510000, expense: 295000 },
-  { month: "Apr", revenue: 475000, expense: 340000 },
-  { month: "May", revenue: 530000, expense: 315000 },
-  { month: "Jun", revenue: 485000, expense: 290000 },
-];
+import type { DashboardActivity } from "@/types/dashboard";
 
 export const seedDashboardActivity: DashboardActivity[] = [
   {

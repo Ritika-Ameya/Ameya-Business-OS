@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatPaymentCurrency,
   formatPaymentDate,
@@ -45,9 +45,7 @@ export function CustomerPaymentHistoryTable({
               key={payment.paymentId}
               className="cursor-pointer"
               onClick={() =>
-                navigate(`/invoices/${payment.invoiceId}`, {
-                  state: { tab: "payments" },
-                })
+                navigate(`/invoices/${payment.invoiceId}?tab=payments`)
               }
             >
               <TableCell className="pl-4 text-muted-foreground">

@@ -1,12 +1,6 @@
 export type PaymentStatus = "received" | "pending" | "failed";
 
-export type PaymentMode =
-  | "upi"
-  | "bank-transfer"
-  | "cheque"
-  | "cash"
-  | "credit-card"
-  | "other";
+export type PaymentMode = string;
 
 export interface Payment {
   id: string;

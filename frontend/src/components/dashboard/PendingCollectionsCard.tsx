@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { getPendingCollectionsTop5 } from "@/lib/dashboard-utils";
 
 export function PendingCollectionsCard() {
@@ -37,7 +37,7 @@ export function PendingCollectionsCard() {
 
       <div className="mt-auto border-t border-border/50 px-5 py-3">
         <Button variant="ghost" size="sm" className="w-full rounded-xl" asChild>
-          <Link to="/revenue" state={{ tab: "collections" }}>
+          <Link to="/revenue?tab=collections">
             View All
             <ArrowRight />
           </Link>

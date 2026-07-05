@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import { invoiceStatusLabels, invoiceStatusStyles } from "@/lib/invoice-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { InvoiceStatus } from "@/types/invoice";
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {

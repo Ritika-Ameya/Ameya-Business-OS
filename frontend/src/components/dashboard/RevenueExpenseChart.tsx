@@ -4,7 +4,7 @@ import {
   getDashboardExpenseStats,
   getMonthlyExpenseChartData,
 } from "@/lib/expense-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 export function RevenueExpenseChart() {
   const { transactions } = useExpenses();

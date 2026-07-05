@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/shared/ui/card";
 import {
   Table,
   TableBody,
@@ -12,9 +12,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { BillingTypeBadge } from "@/components/deals/components/ComponentBadges";
-import { seedDealComponents } from "@/data/seed-deal-components";
+import { useDeals } from "@/hooks/use-deals";
 import { formatComponentCurrency } from "@/lib/deal-component-utils";
 import type { Invoice } from "@/types/invoice";
 
@@ -23,7 +23,8 @@ interface InvoiceOverviewTabProps {
 }
 
 export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
-  const components = seedDealComponents.filter((component) =>
+  const { components: allComponents } = useDeals();
+  const components = allComponents.filter((component) =>
     invoice.componentIds.includes(component.id)
   );
 

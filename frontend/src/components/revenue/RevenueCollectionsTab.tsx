@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { RevenueCollectionsFilters } from "@/components/revenue/RevenueCollectionsFilters";
 import { RevenueCollectionsStats } from "@/components/revenue/RevenueCollectionsStats";
 import { RevenueCollectionsTable } from "@/components/revenue/RevenueCollectionsTable";
-import { StatsSkeleton, TableSkeleton } from "@/components/revenue/TableSkeleton";
+import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
 import {
   buildCollectionRows,
   defaultCollectionFilters,

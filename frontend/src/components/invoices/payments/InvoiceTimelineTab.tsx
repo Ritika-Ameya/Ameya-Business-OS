@@ -1,17 +1,19 @@
 import { Wallet } from "lucide-react";
+import { seedPayments } from "@/data/seed-payments";
+import { useAppConfig } from "@/hooks/use-app-config";
 import {
   formatPaymentCurrency,
   formatPaymentDate,
+  getPaymentModeLabel,
   getPaymentsByInvoiceId,
-  paymentModeLabels,
 } from "@/lib/payment-utils";
-import { seedPayments } from "@/data/seed-payments";
 
 interface InvoiceTimelineTabProps {
   invoiceId: string;
 }
 
 export function InvoiceTimelineTab({ invoiceId }: InvoiceTimelineTabProps) {
+  const { paymentMethods } = useAppConfig();
   const payments = getPaymentsByInvoiceId(seedPayments, invoiceId);
 
   const activities =
@@ -19,7 +21,7 @@ export function InvoiceTimelineTab({ invoiceId }: InvoiceTimelineTabProps) {
       ? payments.map((payment) => ({
           id: payment.id,
           title: "Payment recorded",
-          description: `${formatPaymentCurrency(payment.amount)} via ${paymentModeLabels[payment.mode]}`,
+          description: `${formatPaymentCurrency(payment.amount)} via ${getPaymentModeLabel(payment.mode, paymentMethods)}`,
           date: formatPaymentDate(payment.paymentDate),
         }))
       : [

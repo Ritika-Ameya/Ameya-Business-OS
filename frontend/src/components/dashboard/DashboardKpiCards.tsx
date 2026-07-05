@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDashboardKpis } from "@/lib/dashboard-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { DashboardKpi } from "@/types/dashboard";
 
 function TrendIndicator({ kpi }: { kpi: DashboardKpi }) {
@@ -54,7 +54,6 @@ export function DashboardKpiCards() {
           <Link
             key={kpi.id}
             to={kpi.href}
-            state={kpi.tab ? { tab: kpi.tab } : undefined}
             className="block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl"
           >
             <KpiCardContent kpi={kpi} />

@@ -1,7 +1,7 @@
 import { CalendarClock, IndianRupee, UserCheck, Users } from "lucide-react";
 import { computeCustomerStats, formatCurrency } from "@/lib/customer-utils";
 import type { Customer } from "@/types/customer";
-import { StatCard } from "./PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 
 interface CustomerStatsCardsProps {
   customers: Customer[];

@@ -1,12 +1,14 @@
-import { Edit, MoreHorizontal } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Edit, Layers, MoreHorizontal } from "lucide-react";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -14,14 +16,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatExpenseCurrency,
   formatExpenseDate,
   frequencyLabels,
   getCategoryName,
 } from "@/lib/expense-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { ExpenseCategoryItem, ExpenseMasterTemplate, ExpenseMasterStatus } from "@/types/expense";
 
 const statusStyles: Record<ExpenseMasterStatus, string> = {
@@ -33,34 +35,55 @@ interface ExpenseMasterTableProps {
   masters: ExpenseMasterTemplate[];
   categories: ExpenseCategoryItem[];
   onEdit: (master: ExpenseMasterTemplate) => void;
+  isFiltered?: boolean;
+  isEmpty?: boolean;
+  onAdd?: () => void;
+  onResetFilters?: () => void;
 }
 
 export function ExpenseMasterTable({
   masters,
   categories,
   onEdit,
+  isFiltered = false,
+  isEmpty = false,
+  onAdd,
+  onResetFilters,
 }: ExpenseMasterTableProps) {
   if (masters.length === 0) {
+    if (isEmpty) {
+      return (
+        <EmptyState
+          icon={Layers}
+          title="No expense templates"
+          description="Add recurring templates to auto-generate register entries."
+          actionLabel="Add Template"
+          onAction={onAdd}
+        />
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No expense templates</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Add recurring templates to auto-generate register entries.
-        </p>
-      </div>
+      <EmptyState
+        icon={Layers}
+        title="No templates found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Expense Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Vendor / Employee</TableHead>
+            <TableHead className="hidden sm:table-cell">Category</TableHead>
+            <TableHead className="hidden md:table-cell">Vendor / Employee</TableHead>
             <TableHead>Default Amount</TableHead>
-            <TableHead>Frequency</TableHead>
+            <TableHead className="hidden lg:table-cell">Frequency</TableHead>
             <TableHead className="hidden md:table-cell">Start Date</TableHead>
             <TableHead className="hidden lg:table-cell">End Date</TableHead>
             <TableHead className="hidden md:table-cell">Auto Generate</TableHead>
@@ -72,16 +95,16 @@ export function ExpenseMasterTable({
           {masters.map((master) => (
             <TableRow key={master.id}>
               <TableCell className="pl-4 font-medium">{master.name}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
                 {getCategoryName(categories, master.categoryId)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground md:table-cell">
                 {master.vendorOrEmployee}
               </TableCell>
               <TableCell className="font-medium">
                 {formatExpenseCurrency(master.defaultAmount)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {frequencyLabels[master.frequency]}
               </TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">
@@ -104,7 +127,11 @@ export function ExpenseMasterTable({
               <TableCell className="pr-4 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Template actions">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Actions for ${master.name}`}
+                    >
                       <MoreHorizontal />
                     </Button>
                   </DropdownMenuTrigger>
@@ -120,6 +147,6 @@ export function ExpenseMasterTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

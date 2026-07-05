@@ -1,4 +1,4 @@
-import { seedDashboardActivity, seedRevenueExpenseChart } from "@/data/seed-dashboard";
+import { seedDashboardActivity } from "@/data/seed-dashboard";
 import { seedInvoices } from "@/data/seed-invoices";
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/lib/invoice-utils";
 import {
@@ -13,7 +13,7 @@ export function getTimeOfDayGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good Morning";
   if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
+  return "Good Evening";  
 }
 
 export function formatTodayDate(): string {
@@ -80,8 +80,7 @@ export function getDashboardKpis(): DashboardKpi[] {
       value: formatInvoiceCurrency(revenueThisMonth || 245000),
       trend: "+12% vs last month",
       trendDirection: "up",
-      href: "/revenue",
-      tab: "invoices",
+      href: "/revenue?tab=invoices",
     },
     {
       id: "collections",
@@ -89,8 +88,7 @@ export function getDashboardKpis(): DashboardKpi[] {
       value: formatInvoiceCurrency(outstanding),
       trend: "3 invoices pending",
       trendDirection: "neutral",
-      href: "/revenue",
-      tab: "collections",
+      href: "/revenue?tab=collections",
     },
     {
       id: "renewals",
@@ -98,8 +96,7 @@ export function getDashboardKpis(): DashboardKpi[] {
       value: String(upcomingRenewals),
       trend: upcomingRenewals > 0 ? "Due this quarter" : "None scheduled",
       trendDirection: upcomingRenewals > 0 ? "down" : "neutral",
-      href: "/revenue",
-      tab: "renewals",
+      href: "/revenue?tab=renewals",
     },
     {
       id: "cash",
@@ -139,10 +136,6 @@ export function getRecentActivity() {
   return [...seedDashboardActivity].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-}
-
-export function getRevenueExpenseChartData() {
-  return seedRevenueExpenseChart;
 }
 
 export function formatActivityTime(timestamp: string): string {

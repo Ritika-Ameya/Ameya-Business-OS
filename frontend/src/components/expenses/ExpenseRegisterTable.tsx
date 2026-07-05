@@ -1,13 +1,15 @@
-import { Edit, MoreHorizontal, Paperclip, RefreshCw } from "lucide-react";
+import { Edit, MoreHorizontal, Paperclip, ReceiptText, RefreshCw } from "lucide-react";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { ExpenseStatusBadge } from "@/components/expenses/ExpenseStatusBadge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -15,46 +17,70 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatExpenseCurrency,
   formatExpenseDate,
   getCategoryName,
-  paymentMethodLabels,
 } from "@/lib/expense-utils";
+import { getPaymentMethodLabel } from "@/lib/app-config-utils";
+import { useAppConfig } from "@/hooks/use-app-config";
 import type { ExpenseCategoryItem, ExpenseTransaction } from "@/types/expense";
 
 interface ExpenseRegisterTableProps {
   transactions: ExpenseTransaction[];
   categories: ExpenseCategoryItem[];
   onEdit: (transaction: ExpenseTransaction) => void;
+  isFiltered?: boolean;
+  isEmpty?: boolean;
+  onAdd?: () => void;
+  onResetFilters?: () => void;
 }
 
 export function ExpenseRegisterTable({
   transactions,
   categories,
   onEdit,
+  isFiltered = false,
+  isEmpty = false,
+  onAdd,
+  onResetFilters,
 }: ExpenseRegisterTableProps) {
+  const { paymentMethods } = useAppConfig();
+
   if (transactions.length === 0) {
+    if (isEmpty) {
+      return (
+        <EmptyState
+          icon={ReceiptText}
+          title="No expenses yet"
+          description="Record your first expense to start tracking business spending."
+          actionLabel="Add Expense"
+          onAction={onAdd}
+        />
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No expenses found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting filters or add a new expense transaction.
-        </p>
-      </div>
+      <EmptyState
+        icon={ReceiptText}
+        title="No expenses found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Date</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead className="hidden sm:table-cell">Category</TableHead>
             <TableHead>Expense</TableHead>
-            <TableHead>Vendor / Employee</TableHead>
+            <TableHead className="hidden md:table-cell">Vendor / Employee</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden lg:table-cell">Payment Method</TableHead>
@@ -69,18 +95,18 @@ export function ExpenseRegisterTable({
               <TableCell className="pl-4 text-muted-foreground">
                 {formatExpenseDate(transaction.date)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
                 {getCategoryName(categories, transaction.categoryId)}
               </TableCell>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
                   {transaction.name}
                   {transaction.masterTemplateId && (
-                    <RefreshCw className="size-3.5 text-muted-foreground" />
+                    <RefreshCw className="size-3.5 text-muted-foreground" aria-hidden />
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground md:table-cell">
                 {transaction.vendorOrEmployee}
               </TableCell>
               <TableCell className="font-medium">
@@ -91,7 +117,7 @@ export function ExpenseRegisterTable({
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {transaction.paymentMethod
-                  ? paymentMethodLabels[transaction.paymentMethod]
+                  ? getPaymentMethodLabel(transaction.paymentMethod, paymentMethods)
                   : "—"}
               </TableCell>
               <TableCell className="hidden md:table-cell">
@@ -99,7 +125,9 @@ export function ExpenseRegisterTable({
               </TableCell>
               <TableCell className="hidden xl:table-cell">
                 {transaction.hasAttachment ? (
-                  <Paperclip className="size-4 text-muted-foreground" />
+                  <span title="Has attachment">
+                    <Paperclip className="size-4 text-muted-foreground" aria-hidden />
+                  </span>
                 ) : (
                   "—"
                 )}
@@ -107,7 +135,11 @@ export function ExpenseRegisterTable({
               <TableCell className="pr-4 text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Expense actions">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Actions for ${transaction.name}`}
+                    >
                       <MoreHorizontal />
                     </Button>
                   </DropdownMenuTrigger>
@@ -123,6 +155,6 @@ export function ExpenseRegisterTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

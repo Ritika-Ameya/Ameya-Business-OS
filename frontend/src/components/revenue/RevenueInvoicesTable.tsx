@@ -1,7 +1,9 @@
-import { Eye } from "lucide-react";
+import { Eye, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
+import { EmptyState } from "@/shared/components/EmptyState";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   Table,
   TableBody,
@@ -9,32 +11,39 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import {
   formatInvoiceCurrency,
   formatInvoiceDate,
 } from "@/lib/invoice-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type { Invoice } from "@/types/invoice";
 
 interface RevenueInvoicesTableProps {
   invoices: Invoice[];
+  isFiltered?: boolean;
+  onResetFilters?: () => void;
 }
 
-export function RevenueInvoicesTable({ invoices }: RevenueInvoicesTableProps) {
+export function RevenueInvoicesTable({
+  invoices,
+  isFiltered = false,
+  onResetFilters,
+}: RevenueInvoicesTableProps) {
   if (invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-        <p className="text-sm font-medium">No invoices found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Try adjusting your search or filters.
-        </p>
-      </div>
+      <EmptyState
+        icon={Receipt}
+        title="No invoices found"
+        description="Try a different search term or adjust your filters."
+        secondaryActionLabel={isFiltered ? "Reset filters" : undefined}
+        onSecondaryAction={isFiltered ? onResetFilters : undefined}
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -92,7 +101,10 @@ export function RevenueInvoicesTable({ invoices }: RevenueInvoicesTableProps) {
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <Button variant="ghost" size="icon-sm" asChild>
-                  <Link to={`/invoices/${invoice.id}`} aria-label="View invoice">
+                  <Link
+                    to={`/invoices/${invoice.id}`}
+                    aria-label={`View invoice ${invoice.invoiceNo}`}
+                  >
                     <Eye />
                   </Link>
                 </Button>
@@ -101,6 +113,6 @@ export function RevenueInvoicesTable({ invoices }: RevenueInvoicesTableProps) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

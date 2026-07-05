@@ -5,32 +5,34 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { legacyCategoryIdMap } from "@/data/seed-settings";
 import {
-  seedCategories,
-  seedEmployees,
   seedExpenseMasters,
   seedExpenseTransactions,
-  seedVendors,
 } from "@/data/seed-expenses";
+import { useAppConfig } from "@/hooks/use-app-config";
+import {
+  toEmployeeItems,
+  toExpenseCategoryItems,
+  toVendorItems,
+} from "@/lib/app-config-utils";
 import {
   generateRecurringTransactions,
   parseAmount,
 } from "@/lib/expense-utils";
 import type {
   EmployeeItem,
+  ExpenseCategoryItem,
   ExpenseMasterFormData,
   ExpenseMasterTemplate,
   ExpenseTransaction,
   ExpenseTransactionFormData,
-  ExpenseCategoryItem,
   VendorItem,
 } from "@/types/expense";
+import type { ExpenseCategoryFormData } from "@/types/settings";
 
 const TXN_KEY = "ameya-expense-transactions-v2";
 const MASTER_KEY = "ameya-expense-masters-v2";
-const CATEGORY_KEY = "ameya-expense-categories";
-const VENDOR_KEY = "ameya-expense-vendors";
-const EMPLOYEE_KEY = "ameya-expense-employees";
 
 interface UpdateTransactionOptions {
   updateTemplate?: boolean;
@@ -71,6 +73,23 @@ function loadJson<T>(key: string, fallback: T): T {
 
 function persistJson<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function migrateCategoryIds(transactions: ExpenseTransaction[]): ExpenseTransaction[] {
+  return transactions.map((transaction) => ({
+    ...transaction,
+    categoryId:
+      legacyCategoryIdMap[transaction.categoryId] ?? transaction.categoryId,
+  }));
+}
+
+function migrateMasterCategoryIds(
+  masters: ExpenseMasterTemplate[]
+): ExpenseMasterTemplate[] {
+  return masters.map((master) => ({
+    ...master,
+    categoryId: legacyCategoryIdMap[master.categoryId] ?? master.categoryId,
+  }));
 }
 
 function formToTransaction(
@@ -115,8 +134,8 @@ function formToMaster(data: ExpenseMasterFormData): Omit<ExpenseMasterTemplate, 
 }
 
 function loadInitialExpenseState() {
-  const masters = loadJson(MASTER_KEY, seedExpenseMasters);
-  const loaded = loadJson(TXN_KEY, seedExpenseTransactions);
+  const masters = migrateMasterCategoryIds(loadJson(MASTER_KEY, seedExpenseMasters));
+  const loaded = migrateCategoryIds(loadJson(TXN_KEY, seedExpenseTransactions));
   const generated = generateRecurringTransactions(masters, loaded);
   const transactions =
     generated.length > 0 ? [...generated, ...loaded] : loaded;
@@ -126,20 +145,25 @@ function loadInitialExpenseState() {
   return { masters, transactions };
 }
 
-export function ExpensesProvider({ children }: { children: ReactNode }) {
+function ExpensesProviderInner({ children }: { children: ReactNode }) {
+  const appConfig = useAppConfig();
   const initial = loadInitialExpenseState();
   const [transactions, setTransactions] = useState<ExpenseTransaction[]>(
     initial.transactions
   );
   const [masters, setMasters] = useState<ExpenseMasterTemplate[]>(initial.masters);
-  const [categories, setCategories] = useState<ExpenseCategoryItem[]>(() =>
-    loadJson(CATEGORY_KEY, seedCategories)
+
+  const categories = useMemo(
+    () => toExpenseCategoryItems(appConfig.expenseCategories),
+    [appConfig.expenseCategories]
   );
-  const [vendors, setVendors] = useState<VendorItem[]>(() =>
-    loadJson(VENDOR_KEY, seedVendors)
+  const vendors = useMemo(
+    () => toVendorItems(appConfig.vendors),
+    [appConfig.vendors]
   );
-  const [employees, setEmployees] = useState<EmployeeItem[]>(() =>
-    loadJson(EMPLOYEE_KEY, seedEmployees)
+  const employees = useMemo(
+    () => toEmployeeItems(appConfig.employees),
+    [appConfig.employees]
   );
 
   const appendGeneratedTransactions = useCallback(
@@ -153,45 +177,45 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const addCategory = useCallback((name: string): ExpenseCategoryItem => {
-    const category: ExpenseCategoryItem = {
-      id: `cat-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim(),
-      isCustom: true,
-    };
-    setCategories((prev) => {
-      const next = [...prev, category];
-      persistJson(CATEGORY_KEY, next);
-      return next;
-    });
-    return category;
-  }, []);
+  const addCategory = useCallback(
+    (name: string): ExpenseCategoryItem => {
+      const category = appConfig.addExpenseCategory({
+        name,
+        description: "",
+        status: "active",
+      } satisfies ExpenseCategoryFormData);
+      return { id: category.id, name: category.name, isCustom: true };
+    },
+    [appConfig]
+  );
 
-  const addVendor = useCallback((name: string): VendorItem => {
-    const vendor: VendorItem = {
-      id: `ven-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim(),
-    };
-    setVendors((prev) => {
-      const next = [...prev, vendor];
-      persistJson(VENDOR_KEY, next);
-      return next;
-    });
-    return vendor;
-  }, []);
+  const addVendor = useCallback(
+    (name: string): VendorItem => {
+      const vendor = appConfig.addVendor({
+        name,
+        category: "",
+        contactPerson: "",
+        phone: "",
+        email: "",
+        status: "active",
+      });
+      return { id: vendor.id, name: vendor.name };
+    },
+    [appConfig]
+  );
 
-  const addEmployee = useCallback((name: string): EmployeeItem => {
-    const employee: EmployeeItem = {
-      id: `emp-${crypto.randomUUID().slice(0, 8)}`,
-      name: name.trim(),
-    };
-    setEmployees((prev) => {
-      const next = [...prev, employee];
-      persistJson(EMPLOYEE_KEY, next);
-      return next;
-    });
-    return employee;
-  }, []);
+  const addEmployee = useCallback(
+    (name: string): EmployeeItem => {
+      const employee = appConfig.addEmployee({
+        name,
+        department: "",
+        designation: "",
+        status: "active",
+      });
+      return { id: employee.id, name: employee.name };
+    },
+    [appConfig]
+  );
 
   const addMaster = useCallback(
     (data: ExpenseMasterFormData): ExpenseMasterTemplate => {
@@ -199,12 +223,13 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         id: `master-${crypto.randomUUID().slice(0, 8)}`,
         ...formToMaster(data),
       };
+      let nextMasters: ExpenseMasterTemplate[] = [];
       setMasters((prev) => {
-        const next = [master, ...prev];
-        persistJson(MASTER_KEY, next);
-        setTransactions((txnPrev) => appendGeneratedTransactions(next, txnPrev));
-        return next;
+        nextMasters = [master, ...prev];
+        persistJson(MASTER_KEY, nextMasters);
+        return nextMasters;
       });
+      setTransactions((txnPrev) => appendGeneratedTransactions(nextMasters, txnPrev));
       return master;
     },
     [appendGeneratedTransactions]
@@ -212,14 +237,15 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
 
   const updateMaster = useCallback(
     (id: string, data: ExpenseMasterFormData) => {
+      let nextMasters: ExpenseMasterTemplate[] = [];
       setMasters((prev) => {
-        const next = prev.map((master) =>
+        nextMasters = prev.map((master) =>
           master.id === id ? { ...master, ...formToMaster(data) } : master
         );
-        persistJson(MASTER_KEY, next);
-        setTransactions((txnPrev) => appendGeneratedTransactions(next, txnPrev));
-        return next;
+        persistJson(MASTER_KEY, nextMasters);
+        return nextMasters;
       });
+      setTransactions((txnPrev) => appendGeneratedTransactions(nextMasters, txnPrev));
     },
     [appendGeneratedTransactions]
   );
@@ -329,4 +355,8 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
   return (
     <ExpensesContext.Provider value={value}>{children}</ExpensesContext.Provider>
   );
+}
+
+export function ExpensesProvider({ children }: { children: ReactNode }) {
+  return <ExpensesProviderInner>{children}</ExpensesProviderInner>;
 }

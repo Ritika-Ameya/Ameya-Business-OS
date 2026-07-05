@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Clock, FileText } from "lucide-react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import type { Invoice } from "@/types/invoice";
 
 interface InvoiceStatsCardsProps {

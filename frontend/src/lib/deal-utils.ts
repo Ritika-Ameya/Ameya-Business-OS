@@ -1,23 +1,7 @@
 import type { Deal, DealFilters, RenewalFrequency } from "@/types/deal";
+import { isRenewalThisMonth } from "@/shared/utils/format-date";
 
-export function formatDate(date?: string): string {
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
-}
-
-export function isRenewalThisMonth(date?: string): boolean {
-  if (!date) return false;
-  const renewal = new Date(date);
-  const now = new Date();
-  return (
-    renewal.getMonth() === now.getMonth() &&
-    renewal.getFullYear() === now.getFullYear()
-  );
-}
+export { formatDate, isRenewalThisMonth } from "@/shared/utils/format-date";
 
 export function isUpcomingRenewal(date?: string): boolean {
   if (!date) return false;
@@ -42,16 +26,6 @@ export const dealRenewalLabels: Record<DealFilters["renewal"], string> = {
   "this-month": "This Month",
   upcoming: "Upcoming",
   none: "No Renewal",
-};
-
-export const dealTypeLabels: Record<
-  NonNullable<Deal["dealType"]>,
-  string
-> = {
-  "annual-maintenance": "Annual Maintenance",
-  consulting: "Consulting",
-  project: "Project",
-  subscription: "Subscription",
 };
 
 export const renewalFrequencyLabels: Record<RenewalFrequency, string> = {
@@ -100,10 +74,6 @@ export function filterDeals(deals: Deal[], query: string, filters: DealFilters):
 
     return matchesSearch && matchesStatus && matchesRenewal;
   });
-}
-
-export function getDealById(deals: Deal[], id: string): Deal | undefined {
-  return deals.find((deal) => deal.id === id);
 }
 
 export function getDealsByCustomerId(deals: Deal[], customerId: string): Deal[] {

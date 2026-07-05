@@ -4,7 +4,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { CustomerHero } from "@/components/customers/CustomerHero";
 import { CustomerQuickActions } from "@/components/customers/CustomerQuickActions";
 import { CustomerWorkspaceTabs } from "@/components/customers/CustomerWorkspaceTabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/hooks/use-customers";
 
 export function CustomerWorkspacePage() {

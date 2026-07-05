@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/ui/badge";
 import {
   Table,
   TableBody,
@@ -7,14 +7,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/shared/ui/table";
 import { formatDate } from "@/lib/deal-utils";
 import {
   customerRenewalStatusLabels,
   customerRenewalStatusStyles,
   type CustomerRenewalItem,
 } from "@/lib/customer-workspace-utils";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 interface CustomerRenewalsTableProps {
   renewals: CustomerRenewalItem[];
@@ -38,7 +38,7 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
             <TableRow key={renewal.id}>
               <TableCell className="pl-4">
                 <Link
-                  to={`/deals/${renewal.dealId}`}
+                  to={`/deals/${renewal.dealId}?tab=renewals`}
                   className="font-medium transition-colors hover:text-primary"
                 >
                   {renewal.renewalLabel}

@@ -1,5 +1,5 @@
 import { AlertCircle, CalendarClock, CheckCircle2, IndianRupee } from "lucide-react";
-import { StatCard } from "@/components/customers/PageHeader";
+import { StatCard } from "@/shared/components/PageHeader";
 import { getCollectionStats } from "@/lib/revenue-utils";
 
 export function RevenueCollectionsStats() {

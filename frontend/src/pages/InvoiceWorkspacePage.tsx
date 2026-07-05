@@ -1,9 +1,16 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { InvoiceHero } from "@/components/invoices/InvoiceHero";
 import { InvoiceWorkspaceTabs } from "@/components/invoices/InvoiceWorkspaceTabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
+import { useDeals } from "@/hooks/use-deals";
 import { seedInvoices } from "@/data/seed-invoices";
 import { createPlaceholderInvoice, getInvoiceById } from "@/lib/invoice-utils";
 import type { GenerateInvoiceContext } from "@/types/invoice";
@@ -12,34 +19,49 @@ type InvoiceNavigationState = GenerateInvoiceContext & {
   tab?: string;
 };
 
+const invoiceTabs = new Set(["overview", "payments", "documents", "timeline"]);
+
+function parseInvoiceTab(value: string | null): string {
+  return value && invoiceTabs.has(value) ? value : "overview";
+}
+
 export function InvoiceWorkspacePage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const location = useLocation();
   const navigationState = location.state as InvoiceNavigationState | null;
-  const [activeTab, setActiveTab] = useState(
-    () => navigationState?.tab ?? "overview"
+  const [searchParams] = useSearchParams();
+  const { components } = useDeals();
+  const [activeTab, setActiveTab] = useState(() =>
+    parseInvoiceTab(searchParams.get("tab") ?? navigationState?.tab ?? null)
   );
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl && invoiceTabs.has(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   const seedInvoice = invoiceId ? getInvoiceById(seedInvoices, invoiceId) : undefined;
   const invoice =
     seedInvoice ??
     (invoiceId === "inv-new" && navigationState
-      ? createPlaceholderInvoice(navigationState)
+      ? createPlaceholderInvoice(navigationState, components)
       : undefined);
 
   if (!invoice) {
-    return <Navigate to="/invoices" replace />;
+    return <Navigate to="/revenue?tab=invoices" replace />;
   }
 
   const backPath =
     invoiceId === "inv-new" && navigationState?.dealId
       ? `/deals/${navigationState.dealId}`
-      : "/invoices";
+      : "/revenue?tab=invoices";
 
   const backLabel =
     invoiceId === "inv-new" && navigationState?.dealId
       ? "Back to Deal"
-      : "Back to Invoices";
+      : "Back to Revenue";
 
   return (
     <div className="space-y-8">

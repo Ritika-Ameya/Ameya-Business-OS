@@ -1,49 +1,13 @@
 import type {
-  EmployeeItem,
-  ExpenseCategoryItem,
   ExpenseMasterTemplate,
   ExpenseTransaction,
-  VendorItem,
 } from "@/types/expense";
-
-export const seedCategories: ExpenseCategoryItem[] = [
-  { id: "salary", name: "Salary" },
-  { id: "office-rent", name: "Office Rent" },
-  { id: "aws", name: "AWS" },
-  { id: "internet", name: "Internet" },
-  { id: "electricity", name: "Electricity" },
-  { id: "insurance", name: "Insurance" },
-  { id: "hosting", name: "Hosting" },
-  { id: "domain", name: "Domain" },
-  { id: "google-workspace", name: "Google Workspace" },
-  { id: "office-maintenance", name: "Office Maintenance" },
-  { id: "travel", name: "Travel" },
-  { id: "marketing", name: "Marketing" },
-  { id: "professional-fees", name: "Professional Fees" },
-  { id: "other", name: "Other" },
-];
-
-export const seedVendors: VendorItem[] = [
-  { id: "ven-001", name: "WeWork Bangalore" },
-  { id: "ven-002", name: "Amazon Web Services" },
-  { id: "ven-003", name: "Airtel Business" },
-  { id: "ven-004", name: "BESCOM" },
-  { id: "ven-005", name: "Google" },
-  { id: "ven-006", name: "GoDaddy" },
-  { id: "ven-007", name: "HDFC ERGO" },
-];
-
-export const seedEmployees: EmployeeItem[] = [
-  { id: "emp-001", name: "Jaya" },
-  { id: "emp-002", name: "Rahul Mehta" },
-  { id: "emp-003", name: "Priya Sharma" },
-];
 
 export const seedExpenseMasters: ExpenseMasterTemplate[] = [
   {
     id: "master-001",
     name: "Jaya Salary",
-    categoryId: "salary",
+    categoryId: "cat-001",
     vendorOrEmployee: "Jaya",
     payeeType: "employee",
     employeeId: "emp-001",
@@ -56,7 +20,7 @@ export const seedExpenseMasters: ExpenseMasterTemplate[] = [
   {
     id: "master-002",
     name: "Office Rent",
-    categoryId: "office-rent",
+    categoryId: "cat-002",
     vendorOrEmployee: "WeWork Bangalore",
     payeeType: "vendor",
     vendorId: "ven-001",
@@ -69,7 +33,7 @@ export const seedExpenseMasters: ExpenseMasterTemplate[] = [
   {
     id: "master-003",
     name: "AWS Infrastructure",
-    categoryId: "aws",
+    categoryId: "cat-003",
     vendorOrEmployee: "Amazon Web Services",
     payeeType: "vendor",
     vendorId: "ven-002",
@@ -82,7 +46,7 @@ export const seedExpenseMasters: ExpenseMasterTemplate[] = [
   {
     id: "master-004",
     name: "Business Insurance",
-    categoryId: "insurance",
+    categoryId: "cat-007",
     vendorOrEmployee: "HDFC ERGO",
     payeeType: "vendor",
     vendorId: "ven-007",
@@ -98,7 +62,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-001",
     date: "2026-07-01",
-    categoryId: "salary",
+    categoryId: "cat-001",
     name: "Jaya Salary",
     vendorOrEmployee: "Jaya",
     payeeType: "employee",
@@ -115,7 +79,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-002",
     date: "2026-07-01",
-    categoryId: "office-rent",
+    categoryId: "cat-002",
     name: "Office Rent",
     vendorOrEmployee: "WeWork Bangalore",
     payeeType: "vendor",
@@ -131,7 +95,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-003",
     date: "2026-06-28",
-    categoryId: "internet",
+    categoryId: "cat-005",
     name: "Internet",
     vendorOrEmployee: "Airtel Business",
     payeeType: "vendor",
@@ -146,7 +110,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-004",
     date: "2026-06-25",
-    categoryId: "electricity",
+    categoryId: "cat-006",
     name: "Electricity",
     vendorOrEmployee: "BESCOM",
     payeeType: "vendor",
@@ -161,7 +125,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-005",
     date: "2026-06-15",
-    categoryId: "aws",
+    categoryId: "cat-003",
     name: "AWS Infrastructure",
     vendorOrEmployee: "Amazon Web Services",
     payeeType: "vendor",
@@ -178,7 +142,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-006",
     date: "2026-06-01",
-    categoryId: "salary",
+    categoryId: "cat-001",
     name: "Jaya Salary",
     vendorOrEmployee: "Jaya",
     payeeType: "employee",
@@ -195,7 +159,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-007",
     date: "2026-05-20",
-    categoryId: "marketing",
+    categoryId: "cat-004",
     name: "LinkedIn Ads",
     vendorOrEmployee: "LinkedIn",
     payeeType: "vendor",
@@ -210,7 +174,7 @@ export const seedExpenseTransactions: ExpenseTransaction[] = [
   {
     id: "txn-008",
     date: "2026-04-01",
-    categoryId: "insurance",
+    categoryId: "cat-007",
     name: "Business Insurance",
     vendorOrEmployee: "HDFC ERGO",
     payeeType: "vendor",
