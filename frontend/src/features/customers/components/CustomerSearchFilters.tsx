@@ -11,6 +11,7 @@ import {
   activeDealsFilterLabels,
   defaultFilters,
   outstandingFilterLabels,
+  recordTypeFilterLabels,
   renewalFilterLabels,
   statusFilterLabels,
 } from "@/features/customers/utils/customer-utils";
@@ -33,7 +34,8 @@ export function CustomerSearchFilters({
     filters.status !== defaultFilters.status ||
     filters.outstanding !== defaultFilters.outstanding ||
     filters.renewal !== defaultFilters.renewal ||
-    filters.activeDeals !== defaultFilters.activeDeals;
+    filters.activeDeals !== defaultFilters.activeDeals ||
+    filters.recordType !== defaultFilters.recordType;
 
   const resetAll = () => {
     onQueryChange("");
@@ -53,6 +55,27 @@ export function CustomerSearchFilters({
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Filters
         </span>
+
+        <Select
+          value={filters.recordType}
+          onValueChange={(value) =>
+            onFiltersChange({
+              ...filters,
+              recordType: value as CustomerFilters["recordType"],
+            })
+          }
+        >
+          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(recordTypeFilterLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Select
           value={filters.status}

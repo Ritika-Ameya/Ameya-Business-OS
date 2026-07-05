@@ -1,9 +1,11 @@
 import { ArrowLeft } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { CreateDealWizard } from "@/features/deals/components/CreateDealWizard";
-import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import { Button } from "@/shared/ui/button";
+
 import type { DealFormData } from "@/features/deals/types/deal";
 
 export function CreateDealPage() {
@@ -11,6 +13,7 @@ export function CreateDealPage() {
   const navigate = useNavigate();
   const { getCustomer } = useCustomers();
   const { addDeal } = useDeals();
+  const { stages } = useAppConfig();
 
   const customer = customerId ? getCustomer(customerId) : undefined;
 
@@ -19,11 +22,15 @@ export function CreateDealPage() {
   }
 
   const handleSave = (data: DealFormData) => {
-    const deal = addDeal({
-      ...data,
-      customerId: customer.id,
-      customerName: customer.name,
-    });
+    const deal = addDeal(
+      {
+        ...data,
+        customerId: customer.id,
+        customerName: customer.name,
+        customerRecordType: customer.recordType,
+      },
+      stages
+    );
     navigate(`/deals/${deal.id}`);
   };
 

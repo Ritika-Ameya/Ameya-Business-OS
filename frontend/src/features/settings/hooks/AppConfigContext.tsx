@@ -15,6 +15,7 @@ import {
   seedSettingsExpenseCategories,
   seedSettingsPaymentMethods,
   seedSettingsRenewalTypes,
+  seedSettingsStages,
   seedSettingsVendors,
 } from "@/features/settings/data/seed-settings";
 import { slugifyName } from "@/features/settings/utils/app-config-utils";
@@ -33,7 +34,9 @@ import type {
   SettingsExpenseCategory,
   SettingsPaymentMethod,
   SettingsRenewalType,
+  SettingsStage,
   SettingsVendor,
+  StageFormData,
   VendorFormData,
 } from "@/features/settings/types/settings";
 
@@ -46,6 +49,7 @@ const CATEGORIES_KEY = "ameya-settings-expense-categories";
 const RENEWAL_TYPES_KEY = "ameya-settings-renewal-types";
 const PAYMENT_METHODS_KEY = "ameya-settings-payment-methods";
 const DEAL_TYPES_KEY = "ameya-settings-deal-types";
+const STAGES_KEY = "ameya-settings-stages";
 
 const LEGACY_EXPENSE_CATEGORY_KEY = "ameya-expense-categories";
 const LEGACY_EXPENSE_VENDOR_KEY = "ameya-expense-vendors";
@@ -109,6 +113,9 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   );
   const [dealTypes, setDealTypes] = useState<SettingsDealType[]>(() =>
     loadJson(DEAL_TYPES_KEY, seedSettingsDealTypes)
+  );
+  const [stages, setStages] = useState<SettingsStage[]>(() =>
+    loadJson(STAGES_KEY, seedSettingsStages)
   );
 
   useEffect(() => {
@@ -339,6 +346,50 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const addStage = useCallback((data: StageFormData): SettingsStage => {
+    const stage: SettingsStage = {
+      id: `stage-${crypto.randomUUID().slice(0, 8)}`,
+      name: data.name.trim(),
+      color: data.color,
+      sequence: data.sequence,
+      applicableFor: data.applicableFor,
+      dateRequired: data.dateRequired,
+      notesRequired: data.notesRequired,
+      reminderOffset: data.reminderOffset,
+      status: data.status,
+    };
+    setStages((prev) => {
+      const next = [...prev, stage].sort((a, b) => a.sequence - b.sequence);
+      persistJson(STAGES_KEY, next);
+      return next;
+    });
+    return stage;
+  }, []);
+
+  const updateStage = useCallback((id: string, data: StageFormData) => {
+    setStages((prev) => {
+      const next = prev
+        .map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                name: data.name.trim(),
+                color: data.color,
+                sequence: data.sequence,
+                applicableFor: data.applicableFor,
+                dateRequired: data.dateRequired,
+                notesRequired: data.notesRequired,
+                reminderOffset: data.reminderOffset,
+                status: data.status,
+              }
+            : item
+        )
+        .sort((a, b) => a.sequence - b.sequence);
+      persistJson(STAGES_KEY, next);
+      return next;
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       company,
@@ -350,6 +401,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       renewalTypes,
       paymentMethods,
       dealTypes,
+      stages,
       updateCompany,
       updateFinance,
       updatePreferences,
@@ -365,6 +417,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       updatePaymentMethod,
       addDealType,
       updateDealType,
+      addStage,
+      updateStage,
     }),
     [
       company,
@@ -376,6 +430,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       renewalTypes,
       paymentMethods,
       dealTypes,
+      stages,
       updateCompany,
       updateFinance,
       updatePreferences,
@@ -391,6 +446,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       updatePaymentMethod,
       addDealType,
       updateDealType,
+      addStage,
+      updateStage,
     ]
   );
 

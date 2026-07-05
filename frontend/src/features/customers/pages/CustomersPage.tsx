@@ -8,11 +8,13 @@ import { PageHeader } from "@/shared/components/PageHeader";
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { defaultFilters, filterCustomers } from "@/features/customers/utils/customer-utils";
 import type { Customer, CustomerFilters, CustomerFormData } from "@/features/customers/types/customer";
 
 export function CustomersPage() {
   const { customers, addCustomer, updateCustomer } = useCustomers();
+  const { stages } = useAppConfig();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -31,7 +33,8 @@ export function CustomersPage() {
     filters.status !== defaultFilters.status ||
     filters.outstanding !== defaultFilters.outstanding ||
     filters.renewal !== defaultFilters.renewal ||
-    filters.activeDeals !== defaultFilters.activeDeals;
+    filters.activeDeals !== defaultFilters.activeDeals ||
+    filters.recordType !== defaultFilters.recordType;
 
   const handleAdd = () => {
     setEditingCustomer(undefined);
@@ -48,7 +51,7 @@ export function CustomersPage() {
       updateCustomer(editingCustomer.id, data);
       return;
     }
-    addCustomer(data);
+    addCustomer(data, stages);
   };
 
   const resetFilters = () => {
@@ -59,12 +62,12 @@ export function CustomersPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
-        title="Customers"
-        subtitle="Manage all customers and their complete business relationship."
+        title="Opportunities / Customers"
+        subtitle="Manage opportunities and customers through their complete business lifecycle."
         action={
           <Button onClick={handleAdd} className="rounded-xl">
             <Plus />
-            Add Customer
+            Add Opportunity / Customer
           </Button>
         }
       />

@@ -3,15 +3,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AddCustomerDialog } from "@/features/customers/components/AddCustomerDialog";
 import { Button } from "@/shared/ui/button";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import type { CustomerFormData } from "@/features/customers/types/customer";
 
 export function DashboardQuickActions() {
   const { addCustomer } = useCustomers();
+  const { stages } = useAppConfig();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleSave = (data: CustomerFormData) => {
-    addCustomer(data);
+    addCustomer(data, stages);
     setDialogOpen(false);
   };
 
@@ -24,7 +26,7 @@ export function DashboardQuickActions() {
           onClick={() => setDialogOpen(true)}
         >
           <Plus />
-          Customer
+          Opportunity / Customer
         </Button>
         <Button variant="outline" className="rounded-xl" asChild>
           <Link to="/deals">

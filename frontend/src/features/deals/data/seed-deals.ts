@@ -9,6 +9,24 @@ export const seedDeals: Deal[] = [
     status: "active",
     startDate: "2025-04-01",
     nextRenewal: "2026-07-15",
+    currentStageId: "stage-007",
+    nextActionDate: "2026-07-08",
+    timeline: [
+      {
+        id: "dtl-001",
+        stageId: "stage-006",
+        stageName: "Onboarding",
+        notes: "Deal kickoff completed.",
+        timestamp: "2025-04-01T10:00:00.000Z",
+      },
+      {
+        id: "dtl-002",
+        stageId: "stage-007",
+        stageName: "Active Account",
+        nextActionDate: "2026-07-08",
+        timestamp: "2025-04-15T10:00:00.000Z",
+      },
+    ],
     componentsCount: 3,
   },
   {
@@ -19,6 +37,25 @@ export const seedDeals: Deal[] = [
     status: "active",
     startDate: "2025-09-12",
     nextRenewal: "2026-08-20",
+    currentStageId: "stage-004",
+    nextActionDate: "2026-07-07",
+    timeline: [
+      {
+        id: "dtl-003",
+        stageId: "stage-002",
+        stageName: "Qualified",
+        notes: "Scope agreed.",
+        timestamp: "2025-09-12T10:00:00.000Z",
+      },
+      {
+        id: "dtl-004",
+        stageId: "stage-004",
+        stageName: "Negotiation",
+        notes: "Awaiting sign-off on revised SOW.",
+        nextActionDate: "2026-07-07",
+        timestamp: "2026-06-20T10:00:00.000Z",
+      },
+    ],
     componentsCount: 2,
   },
   {
@@ -28,6 +65,25 @@ export const seedDeals: Deal[] = [
     customerName: "Vikram Desai",
     status: "draft",
     startDate: "2026-01-20",
+    currentStageId: "stage-003",
+    nextActionDate: "2026-07-05",
+    timeline: [
+      {
+        id: "dtl-005",
+        stageId: "stage-001",
+        stageName: "New Lead",
+        notes: "Initial discovery call.",
+        timestamp: "2026-01-20T10:00:00.000Z",
+      },
+      {
+        id: "dtl-006",
+        stageId: "stage-003",
+        stageName: "Proposal Sent",
+        notes: "Proposal shared for platform setup.",
+        nextActionDate: "2026-07-05",
+        timestamp: "2026-06-15T10:00:00.000Z",
+      },
+    ],
     componentsCount: 0,
   },
 ];
