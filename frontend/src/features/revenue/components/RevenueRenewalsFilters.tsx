@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   defaultRenewalFilters,
   getRevenueCustomers,
@@ -23,7 +24,8 @@ export function RevenueRenewalsFilters({
   filters,
   onFiltersChange,
 }: RevenueRenewalsFiltersProps) {
-  const customers = getRevenueCustomers();
+  const { invoices } = useRevenue();
+  const customers = getRevenueCustomers(invoices);
   const hasActiveFilters =
     filters.customer !== defaultRenewalFilters.customer ||
     filters.renewalType !== defaultRenewalFilters.renewalType ||

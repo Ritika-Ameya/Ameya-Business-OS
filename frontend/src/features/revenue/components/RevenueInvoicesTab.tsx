@@ -3,11 +3,12 @@ import { InvoiceSearchFilters } from "@/features/revenue/components/invoices/Inv
 import { InvoiceStatsCards } from "@/features/revenue/components/invoices/InvoiceStatsCards";
 import { RevenueInvoicesTable } from "@/features/revenue/components/RevenueInvoicesTable";
 import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { defaultInvoiceFilters, filterInvoices } from "@/features/revenue/utils/invoice-utils";
 import type { InvoiceFilters } from "@/features/revenue/types/invoice";
 
 export function RevenueInvoicesTab() {
+  const { invoices } = useRevenue();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<InvoiceFilters>(defaultInvoiceFilters);
   const [ready, setReady] = useState(false);
@@ -23,8 +24,8 @@ export function RevenueInvoicesTab() {
     !ready || query !== deferredQuery || filters !== deferredFilters;
 
   const filteredInvoices = useMemo(
-    () => filterInvoices(seedInvoices, deferredQuery, deferredFilters),
-    [deferredQuery, deferredFilters]
+    () => filterInvoices(invoices, deferredQuery, deferredFilters),
+    [invoices, deferredQuery, deferredFilters]
   );
 
   const hasActiveFilters =
@@ -40,9 +41,9 @@ export function RevenueInvoicesTab() {
 
   return (
     <div className="space-y-6">
-      {loading ? <StatsSkeleton /> : <InvoiceStatsCards invoices={seedInvoices} />}
+      {loading ? <StatsSkeleton /> : <InvoiceStatsCards invoices={invoices} />}
       <InvoiceSearchFilters
-        invoices={seedInvoices}
+        invoices={invoices}
         query={query}
         onQueryChange={setQuery}
         filters={filters}

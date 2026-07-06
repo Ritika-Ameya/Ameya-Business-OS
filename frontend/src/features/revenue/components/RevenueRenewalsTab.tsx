@@ -12,7 +12,7 @@ import {
 import type { RenewalFilters } from "@/features/revenue/types/revenue";
 
 export function RevenueRenewalsTab() {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const [filters, setFilters] = useState<RenewalFilters>(defaultRenewalFilters);
   const [ready, setReady] = useState(false);
   const deferredFilters = useDeferredValue(filters);
@@ -25,8 +25,8 @@ export function RevenueRenewalsTab() {
   const loading = !ready || filters !== deferredFilters;
 
   const filteredRenewals = useMemo(() => {
-    return filterCompanyRenewals(getCompanyRenewals(deals), deferredFilters);
-  }, [deals, deferredFilters]);
+    return filterCompanyRenewals(getCompanyRenewals(deals, components), deferredFilters);
+  }, [deals, components, deferredFilters]);
 
   return (
     <div className="space-y-6">

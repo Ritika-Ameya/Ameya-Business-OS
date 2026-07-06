@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import {
   getDashboardExpenseStats,
@@ -8,19 +10,36 @@ import { cn } from "@/shared/utils";
 
 export function RevenueExpenseChart() {
   const { transactions } = useExpenses();
+  const { payments } = useRevenue();
   const stats = getDashboardExpenseStats(transactions);
   const expenseData = getMonthlyExpenseChartData(transactions);
 
+  const chartData = useMemo(() => {
+    const now = new Date();
+    return expenseData.map((point, index) => {
+      const monthOffset = 5 - index;
+      const date = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+      const from = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const to = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+      const revenue = payments
+        .filter((payment) => {
+          const paymentDate = new Date(payment.paymentDate);
+          return paymentDate >= from && paymentDate <= to;
+        })
+        .reduce((sum, payment) => sum + payment.amount, 0);
+
+      return {
+        month: point.month,
+        revenue,
+        expense: point.expense,
+      };
+    });
+  }, [expenseData, payments]);
+
   const maxValue = Math.max(
-    ...expenseData.map((point) => point.expense),
+    ...chartData.map((point) => Math.max(point.revenue, point.expense)),
     1
   );
-
-  const revenuePlaceholder = expenseData.map((point, index) => ({
-    month: point.month,
-    revenue: [420000, 385000, 510000, 475000, 530000, 485000][index] ?? 450000,
-    expense: point.expense,
-  }));
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
@@ -52,7 +71,7 @@ export function RevenueExpenseChart() {
       </div>
 
       <div className="flex h-48 items-end justify-between gap-2 sm:gap-4">
-        {revenuePlaceholder.map((point) => {
+        {chartData.map((point) => {
           const scale = Math.max(point.revenue, point.expense, maxValue);
           const revenueHeight = (point.revenue / scale) * 100;
           const expenseHeight = (point.expense / scale) * 100;

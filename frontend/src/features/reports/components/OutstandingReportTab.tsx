@@ -7,7 +7,7 @@ import {
 import { useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { OutstandingReportTable } from "@/features/reports/components/OutstandingReportTable";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   computeOutstandingReportStats,
   filterOutstandingForReport,
@@ -20,12 +20,13 @@ interface OutstandingReportTabProps {
 }
 
 export function OutstandingReportTab({ filters }: OutstandingReportTabProps) {
+  const { invoices: allInvoices, payments } = useRevenue();
   const invoices = useMemo(
-    () => filterOutstandingForReport(seedInvoices, filters),
-    [filters]
+    () => filterOutstandingForReport(allInvoices, filters),
+    [allInvoices, filters]
   );
 
-  const rows = useMemo(() => getOutstandingRows(invoices), [invoices]);
+  const rows = useMemo(() => getOutstandingRows(invoices, payments), [invoices, payments]);
   const stats = useMemo(
     () => computeOutstandingReportStats(invoices),
     [invoices]

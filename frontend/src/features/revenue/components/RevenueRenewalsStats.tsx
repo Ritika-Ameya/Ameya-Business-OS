@@ -5,10 +5,10 @@ import { useDeals } from "@/features/deals/hooks/use-deals";
 import { getCompanyRenewals, getRenewalStats } from "@/features/revenue/utils/revenue-utils";
 
 export function RevenueRenewalsStats() {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const stats = useMemo(
-    () => getRenewalStats(getCompanyRenewals(deals)),
-    [deals]
+    () => getRenewalStats(getCompanyRenewals(deals, components)),
+    [deals, components]
   );
 
   return (

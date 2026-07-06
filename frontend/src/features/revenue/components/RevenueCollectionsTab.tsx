@@ -3,6 +3,7 @@ import { RevenueCollectionsFilters } from "@/features/revenue/components/Revenue
 import { RevenueCollectionsStats } from "@/features/revenue/components/RevenueCollectionsStats";
 import { RevenueCollectionsTable } from "@/features/revenue/components/RevenueCollectionsTable";
 import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   buildCollectionRows,
   defaultCollectionFilters,
@@ -12,6 +13,7 @@ import {
 import type { CollectionFilters } from "@/features/revenue/types/revenue";
 
 export function RevenueCollectionsTab() {
+  const { invoices, payments } = useRevenue();
   const [filters, setFilters] = useState<CollectionFilters>(defaultCollectionFilters);
   const [ready, setReady] = useState(false);
   const deferredFilters = useDeferredValue(filters);
@@ -24,9 +26,9 @@ export function RevenueCollectionsTab() {
   const loading = !ready || filters !== deferredFilters;
 
   const collectionRows = useMemo(() => {
-    const rows = buildCollectionRows(getCollectionInvoices());
+    const rows = buildCollectionRows(getCollectionInvoices(invoices), payments);
     return filterCollectionRows(rows, deferredFilters);
-  }, [deferredFilters]);
+  }, [invoices, payments, deferredFilters]);
 
   return (
     <div className="space-y-6">

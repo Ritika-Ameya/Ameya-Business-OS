@@ -4,10 +4,10 @@ import {
   LayoutGrid,
   Wallet,
 } from "lucide-react";
-import { InvoiceEmptyState } from "@/features/revenue/components/invoices/InvoiceEmptyState";
+import { ActivityTimeline } from "@/shared/components/ActivityTimeline";
+import { DocumentsTab } from "@/shared/components/DocumentsTab";
 import { InvoiceOverviewTab } from "@/features/revenue/components/invoices/InvoiceOverviewTab";
 import { InvoicePaymentsTab } from "@/features/revenue/components/invoices/payments/InvoicePaymentsTab";
-import { InvoiceTimelineTab } from "@/features/revenue/components/invoices/payments/InvoiceTimelineTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import type { Invoice } from "@/features/revenue/types/invoice";
 
@@ -53,19 +53,22 @@ export function InvoiceWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="payments" className="mt-0">
-        <InvoicePaymentsTab invoiceId={invoice.id} />
+        <InvoicePaymentsTab invoice={invoice} />
       </TabsContent>
 
       <TabsContent value="documents" className="mt-0">
-        <InvoiceEmptyState
-          icon={FileText}
-          title="No documents uploaded"
-          description="Invoice PDFs and related documents will be stored here."
+        <DocumentsTab
+          entityType="invoice"
+          entityId={invoice.id}
+          customerId={invoice.customerId}
+          dealId={invoice.dealId}
+          title="Invoice Documents"
+          description="Upload invoice PDFs and supporting documents."
         />
       </TabsContent>
 
       <TabsContent value="timeline" className="mt-0">
-        <InvoiceTimelineTab invoiceId={invoice.id} />
+        <ActivityTimeline entityType="invoice" entityId={invoice.id} />
       </TabsContent>
     </Tabs>
   );

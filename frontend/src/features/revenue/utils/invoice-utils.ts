@@ -1,5 +1,6 @@
 import type { DealComponent } from "@/features/deals/types/deal-component";
-import type { GenerateInvoiceContext, Invoice, InvoiceFilters } from "@/features/revenue/types/invoice";
+import type { FinanceSettings } from "@/features/settings/types/settings";
+import type { Invoice, InvoiceFilters } from "@/features/revenue/types/invoice";
 
 export { formatCurrency as formatInvoiceCurrency } from "@/shared/utils/format-currency";
 export { formatDate as formatInvoiceDate } from "@/shared/utils/format-date";
@@ -94,32 +95,105 @@ export function getInvoicesByDealId(invoices: Invoice[], dealId: string): Invoic
   return invoices.filter((invoice) => invoice.dealId === dealId);
 }
 
-export function createPlaceholderInvoice(
-  context: GenerateInvoiceContext,
-  allComponents: DealComponent[] = []
+export function getComponentLineTotal(component: DealComponent): number {
+  const quantity = component.quantity ?? 1;
+  const unitPrice = component.amount;
+  const subtotal = unitPrice * quantity;
+  const discount = component.discount ?? 0;
+  return subtotal - (subtotal * discount) / 100;
+}
+
+export interface InvoiceSummary {
+  subtotal: number;
+  gstAmount: number;
+  grandTotal: number;
+  gstPercent: number;
+}
+
+export function calculateInvoiceSummary(
+  components: DealComponent[],
+  componentIds: string[],
+  gstPercent: number
+): InvoiceSummary {
+  const selected = components.filter((component) => componentIds.includes(component.id));
+  const subtotal = selected.reduce((sum, component) => sum + getComponentLineTotal(component), 0);
+  const gstAmount = (subtotal * gstPercent) / 100;
+  const grandTotal = subtotal + gstAmount;
+
+  return { subtotal, gstAmount, grandTotal, gstPercent };
+}
+
+export function generateInvoiceNumber(finance: FinanceSettings): string {
+  const year = new Date().getFullYear();
+  const sequence = finance.nextInvoiceNumber.padStart(3, "0");
+  return `${finance.invoicePrefix}-${year}-${sequence}`;
+}
+
+export function getNextInvoiceNumberValue(current: string): string {
+  const parsed = Number.parseInt(current, 10);
+  return String(Number.isNaN(parsed) ? 1 : parsed + 1);
+}
+
+export function deriveInvoiceStatus(
+  amount: number,
+  received: number,
+  dueDate: string,
+  currentStatus?: Invoice["status"]
+): Invoice["status"] {
+  if (currentStatus === "draft" && received === 0) return "draft";
+  if (received >= amount) return "paid";
+  if (received > 0) {
+    const overdue = getDaysOverdueForInvoice(dueDate) > 0;
+    return overdue ? "overdue" : "partial";
+  }
+  const overdue = getDaysOverdueForInvoice(dueDate) > 0;
+  if (overdue) return "overdue";
+  return currentStatus === "draft" ? "sent" : currentStatus ?? "sent";
+}
+
+function getDaysOverdueForInvoice(dueDate: string): number {
+  const due = new Date(dueDate);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+export interface CreateInvoiceInput {
+  customerId: string;
+  customerName: string;
+  dealId: string;
+  dealTitle: string;
+  componentIds: string[];
+  invoiceDate: string;
+  dueDate: string;
+  gstPercent: number;
+  notes?: string;
+}
+
+export function buildInvoiceFromInput(
+  input: CreateInvoiceInput,
+  components: DealComponent[],
+  finance: FinanceSettings
 ): Invoice {
-  const componentIds = context.componentIds ?? [];
-  const selected = allComponents.filter((component) =>
-    componentIds.includes(component.id)
-  );
-  const subtotal = selected.reduce((sum, component) => sum + component.amount, 0);
-  const gstPercent = 18;
+  const summary = calculateInvoiceSummary(components, input.componentIds, input.gstPercent);
 
   return {
-    id: "inv-new",
-    invoiceNo: "INV-NEW",
-    customerId: context.customerId,
-    customerName: context.customerName,
-    dealId: context.dealId,
-    dealTitle: context.dealTitle,
-    amount: subtotal,
+    id: `inv-${crypto.randomUUID().slice(0, 8)}`,
+    invoiceNo: generateInvoiceNumber(finance),
+    customerId: input.customerId,
+    customerName: input.customerName,
+    dealId: input.dealId,
+    dealTitle: input.dealTitle,
+    amount: summary.grandTotal,
     received: 0,
-    outstanding: subtotal,
-    invoiceDate: new Date().toISOString().split("T")[0],
-    dueDate: new Date().toISOString().split("T")[0],
-    status: "draft",
-    gstPercent,
-    componentIds,
+    outstanding: summary.grandTotal,
+    invoiceDate: input.invoiceDate,
+    dueDate: input.dueDate,
+    status: "sent",
+    gstPercent: input.gstPercent,
+    componentIds: input.componentIds,
+    notes: input.notes,
   };
 }
 

@@ -5,7 +5,9 @@ import {
   RefreshCw,
   Wallet,
 } from "lucide-react";
-import { formatActivityTime, getRecentActivity } from "@/features/dashboard/utils/dashboard-utils";
+import { formatActivityTime } from "@/features/dashboard/utils/dashboard-utils";
+import { useRecentActivities } from "@/shared/hooks/use-activities";
+import type { ActivityAction } from "@/shared/types/activity";
 import { cn } from "@/shared/utils";
 import type { DashboardActivityType } from "@/features/dashboard/types/dashboard";
 
@@ -40,8 +42,16 @@ const activityConfig: Record<
   },
 };
 
+function mapActionToType(action: ActivityAction): DashboardActivityType {
+  if (action === "invoice_generated") return "invoice_generated";
+  if (action === "payment_recorded") return "payment_recorded";
+  if (action === "deal_created") return "deal_created";
+  if (action === "renewal_updated") return "renewal_completed";
+  return "expense_added";
+}
+
 export function RecentActivityFeed() {
-  const activities = getRecentActivity();
+  const activities = useRecentActivities();
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
@@ -51,7 +61,7 @@ export function RecentActivityFeed() {
 
       <div className="divide-y divide-border/50">
         {activities.map((activity) => {
-          const config = activityConfig[activity.type];
+          const config = activityConfig[mapActionToType(activity.action)];
           const Icon = config.icon;
 
           return (
@@ -71,7 +81,9 @@ export function RecentActivityFeed() {
                     {formatActivityTime(activity.timestamp)}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">{activity.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {activity.description ?? ""}
+                </p>
               </div>
             </div>
           );

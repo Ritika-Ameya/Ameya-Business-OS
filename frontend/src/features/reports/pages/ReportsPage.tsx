@@ -9,7 +9,7 @@ import { ReportExportActions } from "@/features/reports/components/ReportExportA
 import { ReportFiltersBar } from "@/features/reports/components/ReportFiltersBar";
 import { RevenueReportTab } from "@/features/reports/components/RevenueReportTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { useDeals } from "@/features/deals/hooks/use-deals";
@@ -32,16 +32,17 @@ export function ReportsPage() {
   const appConfig = useAppConfig();
   const { customers } = useCustomers();
   const { deals } = useDeals();
+  const { invoices } = useRevenue();
   const categories = toExpenseCategoryItems(appConfig.expenseCategories);
   const vendors = toVendorItems(appConfig.vendors);
   const employees = toEmployeeItems(appConfig.employees);
   const reportCustomers = useMemo(
-    () => getReportCustomers(customers, seedInvoices),
-    [customers]
+    () => getReportCustomers(customers, invoices),
+    [customers, invoices]
   );
   const reportDeals = useMemo(
-    () => getReportDeals(deals, seedInvoices),
-    [deals]
+    () => getReportDeals(deals, invoices),
+    [deals, invoices]
   );
 
   const [searchParams, setSearchParams] = useSearchParams();

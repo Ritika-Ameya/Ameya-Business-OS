@@ -20,12 +20,12 @@ interface RenewalReportTabProps {
 }
 
 export function RenewalReportTab({ filters }: RenewalReportTabProps) {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
 
   const renewals = useMemo(() => {
-    const all = getAllRenewals(deals);
+    const all = getAllRenewals(deals, components);
     return filterRenewalsForReport(all, filters);
-  }, [deals, filters]);
+  }, [deals, components, filters]);
 
   const stats = useMemo(
     () => computeRenewalReportStats(renewals, deals),

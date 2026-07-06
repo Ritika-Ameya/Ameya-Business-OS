@@ -2,9 +2,15 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { getPendingCollectionsTop5 } from "@/features/dashboard/utils/dashboard-utils";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { useMemo } from "react";
 
 export function PendingCollectionsCard() {
-  const items = getPendingCollectionsTop5();
+  const { invoices, payments } = useRevenue();
+  const items = useMemo(
+    () => getPendingCollectionsTop5(invoices, payments),
+    [invoices, payments]
+  );
 
   return (
     <div className="flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm">

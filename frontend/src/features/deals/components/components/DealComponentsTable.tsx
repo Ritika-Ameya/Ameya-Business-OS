@@ -1,4 +1,4 @@
-import { Edit, Eye, MoreHorizontal } from "lucide-react";
+import { Copy, Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
@@ -28,9 +28,19 @@ import type { DealComponent } from "@/features/deals/types/deal-component";
 
 interface DealComponentsTableProps {
   components: DealComponent[];
+  onView: (component: DealComponent) => void;
+  onEdit: (component: DealComponent) => void;
+  onRemove: (component: DealComponent) => void;
+  onDuplicate: (component: DealComponent) => void;
 }
 
-export function DealComponentsTable({ components }: DealComponentsTableProps) {
+export function DealComponentsTable({
+  components,
+  onView,
+  onEdit,
+  onRemove,
+  onDuplicate,
+}: DealComponentsTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70">
       <Table>
@@ -66,7 +76,10 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
                 <BillingTypeBadge type={component.billingType} />
               </TableCell>
               <TableCell className="font-medium">
-                {formatComponentCurrency(component.amount)}
+                {formatComponentCurrency(
+                  component.amount * (component.quantity ?? 1) *
+                    (1 - (component.discount ?? 0) / 100)
+                )}
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {formatComponentDate(component.renewalDate)}
@@ -76,10 +89,20 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon-sm" aria-label="View component">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="View component"
+                    onClick={() => onView(component)}
+                  >
                     <Eye />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit component" disabled>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit component"
+                    onClick={() => onEdit(component)}
+                  >
                     <Edit />
                   </Button>
                   <DropdownMenu>
@@ -89,10 +112,26 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem disabled>View details</DropdownMenuItem>
-                      <DropdownMenuItem disabled>Edit component</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onView(component)}>
+                        <Eye />
+                        View details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(component)}>
+                        <Edit />
+                        Edit component
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDuplicate(component)}>
+                        <Copy />
+                        Duplicate component
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Remove component</DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => onRemove(component)}
+                      >
+                        <Trash2 />
+                        Remove component
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
