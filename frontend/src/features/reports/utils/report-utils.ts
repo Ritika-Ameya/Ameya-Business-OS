@@ -1,8 +1,8 @@
 import type { ReportFilters } from "@/features/reports/types/reports";
 
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import type { Customer } from "@/features/customers/types/customer";
 import type { Deal } from "@/features/deals/types/deal";
+import type { DealComponent } from "@/features/deals/types/deal-component";
 import {
   computeRegisterStats,
   formatExpenseCurrency,
@@ -20,6 +20,7 @@ import {
 } from "@/features/revenue/utils/revenue-utils";
 import type { ExpenseCategoryItem, ExpenseTransaction } from "@/features/expenses/types/expense";
 import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Payment } from "@/features/revenue/types/payment";
 
 export const reportQuickDatePresets = [
   "today",
@@ -55,7 +56,7 @@ export const defaultReportFilters = (): ReportFilters => ({
   search: "",
 });
 
-export function getReportDeals(deals: Deal[], invoices: Invoice[] = seedInvoices) {
+export function getReportDeals(deals: Deal[], invoices: Invoice[]) {
   const map = new Map<string, string>();
   for (const deal of deals) {
     map.set(deal.id, deal.title);
@@ -70,7 +71,7 @@ export function getReportDeals(deals: Deal[], invoices: Invoice[] = seedInvoices
 
 export function getReportCustomers(
   customers: Customer[],
-  invoices: Invoice[] = seedInvoices
+  invoices: Invoice[]
 ) {
   const map = new Map<string, string>();
   for (const customer of customers) {
@@ -294,13 +295,13 @@ export function computeRenewalReportStats(
   };
 }
 
-export function getOutstandingRows(invoices: Invoice[]) {
-  return buildCollectionRows(invoices).map(({ invoice }) => ({
+export function getOutstandingRows(invoices: Invoice[], payments: Payment[]) {
+  return buildCollectionRows(invoices, payments).map(({ invoice }) => ({
     invoice,
     daysOverdue: getDaysOverdue(invoice.dueDate),
   }));
 }
 
-export function getAllRenewals(deals: Deal[]): CompanyRenewalRow[] {
-  return getCompanyRenewals(deals);
+export function getAllRenewals(deals: Deal[], components: DealComponent[] = []): CompanyRenewalRow[] {
+  return getCompanyRenewals(deals, components);
 }

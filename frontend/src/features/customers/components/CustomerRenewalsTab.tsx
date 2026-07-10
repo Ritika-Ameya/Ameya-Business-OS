@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import { CustomerRenewalsTable } from "@/features/customers/components/CustomerRenewalsTable";
+import { useDeals } from "@/features/deals/hooks/use-deals";
 import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -8,7 +9,8 @@ interface CustomerRenewalsTabProps {
 }
 
 export function CustomerRenewalsTab({ customer }: CustomerRenewalsTabProps) {
-  const renewals = getCustomerRenewals(customer.id);
+  const { deals } = useDeals();
+  const renewals = getCustomerRenewals(customer.id, deals);
 
   if (renewals.length === 0) {
     return (

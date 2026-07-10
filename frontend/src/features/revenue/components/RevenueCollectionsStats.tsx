@@ -1,9 +1,15 @@
+import { useMemo } from "react";
 import { AlertCircle, CalendarClock, CheckCircle2, IndianRupee } from "lucide-react";
 import { StatCard } from "@/shared/components/PageHeader";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCollectionStats } from "@/features/revenue/utils/revenue-utils";
 
 export function RevenueCollectionsStats() {
-  const stats = getCollectionStats();
+  const { invoices, payments } = useRevenue();
+  const stats = useMemo(
+    () => getCollectionStats(invoices, payments),
+    [invoices, payments]
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

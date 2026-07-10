@@ -1,6 +1,6 @@
 import { seedDeals } from "@/features/deals/data/seed-deals";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
-import { seedPayments } from "@/features/revenue/data/seed-payments";
+import type { DealComponent } from "@/features/deals/types/deal-component";
+import type { Payment } from "@/features/revenue/types/payment";
 import { formatInvoiceCurrency, getUniqueCustomers } from "@/features/revenue/utils/invoice-utils";
 import type { Deal, RenewalFrequency } from "@/features/deals/types/deal";
 import type { Invoice } from "@/features/revenue/types/invoice";
@@ -72,8 +72,8 @@ export const companyRenewalStatusStyles: Record<CompanyRenewalStatus, string> = 
   renewed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
 };
 
-export function getCollectionInvoices(): Invoice[] {
-  return seedInvoices.filter(
+export function getCollectionInvoices(invoices: Invoice[]): Invoice[] {
+  return invoices.filter(
     (invoice) =>
       invoice.outstanding > 0 ||
       invoice.status === "partial" ||
@@ -91,21 +91,24 @@ export function getDaysOverdue(dueDate: string): number {
   return diff > 0 ? diff : 0;
 }
 
-export function getLastPaymentDate(invoiceId: string): string | undefined {
-  const payments = seedPayments
+export function getLastPaymentDate(invoiceId: string, payments: Payment[]): string | undefined {
+  const invoicePayments = payments
     .filter((payment) => payment.invoiceId === invoiceId)
     .sort(
       (a, b) =>
         new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
     );
-  return payments[0]?.paymentDate;
+  return invoicePayments[0]?.paymentDate;
 }
 
-export function buildCollectionRows(invoices: Invoice[]): CollectionRow[] {
+export function buildCollectionRows(
+  invoices: Invoice[],
+  payments: Payment[]
+): CollectionRow[] {
   return invoices.map((invoice) => ({
     invoice,
     daysOverdue: getDaysOverdue(invoice.dueDate),
-    lastPaymentDate: getLastPaymentDate(invoice.id),
+    lastPaymentDate: getLastPaymentDate(invoice.id, payments),
   }));
 }
 
@@ -139,8 +142,8 @@ export function filterCollectionRows(
   });
 }
 
-export function getCollectionStats() {
-  const collectionInvoices = getCollectionInvoices();
+export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
+  const collectionInvoices = getCollectionInvoices(invoices);
   const outstandingAmount = collectionInvoices.reduce(
     (sum, invoice) => sum + invoice.outstanding,
     0
@@ -149,7 +152,7 @@ export function getCollectionStats() {
   const overdueCount = collectionInvoices.filter((i) => i.status === "overdue").length;
 
   const now = new Date();
-  const collectedThisMonth = seedPayments
+  const collectedThisMonth = payments
     .filter((payment) => {
       const date = new Date(payment.paymentDate);
       return (
@@ -178,11 +181,14 @@ function mapRenewalType(frequency?: RenewalFrequency): CompanyRenewalRow["renewa
   }
 }
 
-export function getCompanyRenewals(deals: Deal[] = seedDeals): CompanyRenewalRow[] {
+export function getCompanyRenewals(
+  deals: Deal[] = seedDeals,
+  components: DealComponent[] = []
+): CompanyRenewalRow[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  return deals
+  const dealRows = deals
     .filter((deal) => deal.nextRenewal && deal.renewalFrequency !== "none")
     .map((deal) => {
       const renewalDate = new Date(deal.nextRenewal!);
@@ -204,8 +210,32 @@ export function getCompanyRenewals(deals: Deal[] = seedDeals): CompanyRenewalRow
         status,
         renewalType: mapRenewalType(deal.renewalFrequency),
       };
-    })
-    .sort(
+    });
+
+  const componentRows = components
+    .filter((component) => component.renewalDate)
+    .map((component) => {
+      const deal = deals.find((item) => item.id === component.dealId);
+      const renewalDate = new Date(component.renewalDate!);
+      renewalDate.setHours(0, 0, 0, 0);
+      const status: CompanyRenewalStatus =
+        renewalDate < now ? "overdue" : "upcoming";
+
+      return {
+        id: `renewal-comp-${component.id}`,
+        dealId: component.dealId,
+        customerId: deal?.customerId ?? "",
+        customerName: deal?.customerName ?? "—",
+        renewalLabel: `${component.name} Renewal`,
+        dealTitle: deal?.title ?? "—",
+        renewalDate: component.renewalDate!,
+        amount: formatInvoiceCurrency(component.amount),
+        status,
+        renewalType: mapRenewalType(component.billingType === "monthly" ? "monthly" : component.billingType === "quarterly" ? "quarterly" : "annual"),
+      };
+    });
+
+  return [...dealRows, ...componentRows].sort(
       (a, b) =>
         new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime()
     );
@@ -263,8 +293,8 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]) {
   };
 }
 
-export function getRevenueCustomers() {
-  return getUniqueCustomers(seedInvoices);
+export function getRevenueCustomers(invoices: Invoice[]) {
+  return getUniqueCustomers(invoices);
 }
 
 export const revenueTabLabels: Record<string, string> = {

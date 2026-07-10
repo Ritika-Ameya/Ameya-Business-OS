@@ -1,6 +1,9 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useMemo } from "react";
 import { getDashboardKpis } from "@/features/dashboard/utils/dashboard-utils";
+import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { cn } from "@/shared/utils";
 import type { DashboardKpi } from "@/features/dashboard/types/dashboard";
 
@@ -45,7 +48,12 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
 }
 
 export function DashboardKpiCards() {
-  const kpis = getDashboardKpis();
+  const { invoices } = useRevenue();
+  const { deals, components } = useDeals();
+  const kpis = useMemo(
+    () => getDashboardKpis(invoices, deals, components),
+    [invoices, deals, components]
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

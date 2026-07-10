@@ -24,7 +24,12 @@ import {
   componentStatusLabels,
   validateComponentForm,
 } from "@/features/deals/utils/deal-component-utils";
-import type { BillingType, ComponentFormData, ComponentStatus } from "@/features/deals/types/deal-component";
+import type {
+  BillingType,
+  ComponentFormData,
+  ComponentStatus,
+  DealComponent,
+} from "@/features/deals/types/deal-component";
 
 const emptyForm: ComponentFormData = {
   name: "",
@@ -40,26 +45,51 @@ const emptyForm: ComponentFormData = {
   status: "pending",
 };
 
+function formFromComponent(component: DealComponent): ComponentFormData {
+  return {
+    name: component.name,
+    category: component.category,
+    description: component.description,
+    amount: String(component.amount),
+    gstPercent: component.gstPercent ? String(component.gstPercent) : "",
+    quantity: String(component.quantity ?? 1),
+    discount: component.discount ? String(component.discount) : "",
+    billingType: component.billingType,
+    renewalApplicable: Boolean(component.renewalDate),
+    renewalDate: component.renewalDate ?? "",
+    status: component.status,
+  };
+}
+
 interface AddComponentDialogProps {
   dealId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialComponent?: DealComponent;
+  readOnly?: boolean;
 }
 
 export function AddComponentDialog({
   dealId,
   open,
   onOpenChange,
+  initialComponent,
+  readOnly = false,
 }: AddComponentDialogProps) {
-  const { addComponent } = useDeals();
-  const [form, setForm] = useState<ComponentFormData>(emptyForm);
+  const { addComponent, updateComponent } = useDeals();
+  const [form, setForm] = useState<ComponentFormData>(() =>
+    initialComponent ? formFromComponent(initialComponent) : emptyForm
+  );
   const [errors, setErrors] = useState<Partial<Record<keyof ComponentFormData, string>>>(
     {}
   );
 
+  const isEditing = Boolean(initialComponent) && !readOnly;
+  const isViewing = Boolean(initialComponent) && readOnly;
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setForm(emptyForm);
+      setForm(initialComponent ? formFromComponent(initialComponent) : emptyForm);
       setErrors({});
     }
     onOpenChange(nextOpen);
@@ -67,6 +97,7 @@ export function AddComponentDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (readOnly) return;
 
     const validationErrors = validateComponentForm(form);
     if (Object.keys(validationErrors).length > 0) {
@@ -74,7 +105,11 @@ export function AddComponentDialog({
       return;
     }
 
-    addComponent(dealId, form);
+    if (initialComponent) {
+      updateComponent(initialComponent.id, form);
+    } else {
+      addComponent(dealId, form);
+    }
     onOpenChange(false);
     setForm(emptyForm);
     setErrors({});
@@ -98,13 +133,20 @@ export function AddComponentDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Component</DialogTitle>
+          <DialogTitle>
+            {isViewing ? "View Component" : isEditing ? "Edit Component" : "Add Component"}
+          </DialogTitle>
           <DialogDescription>
-            Add a billable component to this deal.
+            {isViewing
+              ? "Component details for this deal."
+              : isEditing
+                ? "Update this billable component."
+                : "Add a billable component to this deal."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <fieldset disabled={readOnly} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="component-name">
@@ -270,6 +312,7 @@ export function AddComponentDialog({
               </Select>
             </div>
           </div>
+          </fieldset>
 
           <DialogFooter className="pt-2">
             <Button
@@ -277,9 +320,11 @@ export function AddComponentDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {readOnly ? "Close" : "Cancel"}
             </Button>
-            <Button type="submit">Save Component</Button>
+            {!readOnly && (
+              <Button type="submit">{isEditing ? "Save Changes" : "Save Component"}</Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

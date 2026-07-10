@@ -13,6 +13,7 @@ import {
   getStageById,
 } from "@/features/customers/utils/stage-utils";
 import { computeNextRenewal } from "@/features/deals/utils/deal-utils";
+import { addActivity } from "@/shared/utils/activity-store";
 import type { RecordType } from "@/features/customers/types/customer";
 import type { Deal, DealFormData, DealTimelineEntry } from "@/features/deals/types/deal";
 import type { ComponentFormData, DealComponent } from "@/features/deals/types/deal-component";
@@ -37,6 +38,9 @@ interface DealsContextValue {
   deals: Deal[];
   components: DealComponent[];
   addDeal: (input: CreateDealInput, stages?: SettingsStage[]) => Deal;
+  updateDeal: (id: string, data: DealFormData) => void;
+  updateDealNotes: (id: string, notes: string) => void;
+  deleteDeal: (id: string) => void;
   getDeal: (id: string) => Deal | undefined;
   changeDealStage: (
     id: string,
@@ -44,6 +48,9 @@ interface DealsContextValue {
     stages: SettingsStage[]
   ) => void;
   addComponent: (dealId: string, data: ComponentFormData) => DealComponent;
+  updateComponent: (componentId: string, data: ComponentFormData) => void;
+  removeComponent: (componentId: string) => void;
+  duplicateComponent: (componentId: string) => DealComponent | undefined;
   getComponentsByDeal: (dealId: string) => DealComponent[];
 }
 
@@ -90,6 +97,9 @@ function formToComponent(
     category: data.category.trim(),
     description: data.description.trim(),
     amount: parseAmount(data.amount),
+    quantity: Number.parseInt(data.quantity, 10) || 1,
+    gstPercent: parseAmount(data.gstPercent) || undefined,
+    discount: parseAmount(data.discount) || undefined,
     billingType: data.billingType,
     status: data.status,
     renewalDate: data.renewalApplicable ? data.renewalDate || undefined : undefined,
@@ -111,12 +121,34 @@ function createTimelineEntry(
   };
 }
 
+function syncDealComponentCount(deals: Deal[], components: DealComponent[]): Deal[] {
+  return deals.map((deal) => ({
+    ...deal,
+    componentsCount: components.filter((component) => component.dealId === deal.id).length,
+  }));
+}
+
 export function DealsProvider({ children }: { children: ReactNode }) {
-  const [deals, setDeals] = useState<Deal[]>(() =>
-    loadJson(DEALS_KEY, seedDeals).map((deal) => normalizeDeal(deal))
-  );
   const [components, setComponents] = useState<DealComponent[]>(() =>
     loadJson(COMPONENTS_KEY, seedDealComponents)
+  );
+  const [deals, setDeals] = useState<Deal[]>(() => {
+    const loaded = loadJson(DEALS_KEY, seedDeals).map((deal) => normalizeDeal(deal));
+    const loadedComponents = loadJson(COMPONENTS_KEY, seedDealComponents);
+    return syncDealComponentCount(loaded, loadedComponents);
+  });
+
+  const persistComponents = useCallback(
+    (next: DealComponent[]) => {
+      setComponents(next);
+      persistJson(COMPONENTS_KEY, next);
+      setDeals((prev) => {
+        const synced = syncDealComponentCount(prev, next);
+        persistJson(DEALS_KEY, synced);
+        return synced;
+      });
+    },
+    []
   );
 
   const addDeal = useCallback(
@@ -151,10 +183,102 @@ export function DealsProvider({ children }: { children: ReactNode }) {
         return next;
       });
 
+      addActivity({
+        entityType: "deal",
+        entityId: deal.id,
+        action: "deal_created",
+        title: "Deal created",
+        description: deal.title,
+        customerId: deal.customerId,
+        dealId: deal.id,
+      });
+
+      addActivity({
+        entityType: "customer",
+        entityId: deal.customerId,
+        action: "deal_created",
+        title: "Deal created",
+        description: deal.title,
+        relatedRecord: deal.title,
+        customerId: deal.customerId,
+        dealId: deal.id,
+      });
+
       return deal;
     },
     []
   );
+
+  const updateDeal = useCallback((id: string, data: DealFormData) => {
+    const contractValue = Number.parseFloat(data.contractValue.replace(/,/g, ""));
+
+    setDeals((prev) => {
+      const next = prev.map((deal) =>
+        deal.id === id
+          ? {
+              ...deal,
+              title: data.title.trim(),
+              dealType: data.dealType as NonNullable<Deal["dealType"]>,
+              contractValue,
+              startDate: data.startDate,
+              nextRenewal: computeNextRenewal(
+                data.startDate,
+                data.renewalFrequency as NonNullable<Deal["renewalFrequency"]>
+              ),
+              renewalFrequency: data.renewalFrequency as NonNullable<Deal["renewalFrequency"]>,
+              description: data.description.trim() || undefined,
+            }
+          : deal
+      );
+      persistJson(DEALS_KEY, next);
+      return next;
+    });
+
+    const deal = deals.find((item) => item.id === id);
+    if (deal) {
+      addActivity({
+        entityType: "deal",
+        entityId: id,
+        action: "deal_updated",
+        title: "Deal updated",
+        description: data.title.trim(),
+        customerId: deal.customerId,
+        dealId: id,
+      });
+    }
+  }, [deals]);
+
+  const updateDealNotes = useCallback((id: string, notes: string) => {
+    setDeals((prev) => {
+      const next = prev.map((deal) =>
+        deal.id === id ? { ...deal, notes: notes.trim() || undefined } : deal
+      );
+      persistJson(DEALS_KEY, next);
+      return next;
+    });
+
+    const deal = deals.find((item) => item.id === id);
+    if (deal && notes.trim()) {
+      addActivity({
+        entityType: "deal",
+        entityId: id,
+        action: "notes_added",
+        title: "Notes updated",
+        notes: notes.trim(),
+        customerId: deal.customerId,
+        dealId: id,
+      });
+    }
+  }, [deals]);
+
+  const deleteDeal = useCallback((id: string) => {
+    setDeals((prev) => {
+      const next = prev.filter((deal) => deal.id !== id);
+      persistJson(DEALS_KEY, next);
+      return next;
+    });
+    persistComponents(components.filter((component) => component.dealId !== id));
+  }, [components, persistComponents]);
 
   const changeDealStage = useCallback(
     (id: string, payload: DealStageChangePayload, stages: SettingsStage[]) => {
@@ -184,8 +308,34 @@ export function DealsProvider({ children }: { children: ReactNode }) {
         persistJson(DEALS_KEY, next);
         return next;
       });
+
+      const deal = deals.find((item) => item.id === id);
+      if (deal) {
+        addActivity({
+          entityType: "deal",
+          entityId: id,
+          action: "stage_changed",
+          title: `Stage changed to ${stage.name}`,
+          notes: payload.notes,
+          relatedRecord: stage.name,
+          customerId: deal.customerId,
+          dealId: id,
+        });
+
+        if (payload.nextActionDate) {
+          addActivity({
+            entityType: "deal",
+            entityId: id,
+            action: "follow_up_set",
+            title: "Follow-up date set",
+            description: payload.nextActionDate,
+            customerId: deal.customerId,
+            dealId: id,
+          });
+        }
+      }
     },
-    []
+    [deals]
   );
 
   const addComponent = useCallback(
@@ -195,25 +345,111 @@ export function DealsProvider({ children }: { children: ReactNode }) {
         ...formToComponent(dealId, data),
       };
 
-      setComponents((prev) => {
-        const next = [component, ...prev];
-        persistJson(COMPONENTS_KEY, next);
-        return next;
-      });
+      const next = [component, ...components];
+      persistComponents(next);
 
-      setDeals((prev) => {
-        const next = prev.map((deal) =>
-          deal.id === dealId
-            ? { ...deal, componentsCount: deal.componentsCount + 1 }
-            : deal
-        );
-        persistJson(DEALS_KEY, next);
-        return next;
-      });
+      const deal = deals.find((item) => item.id === dealId);
+      if (deal) {
+        addActivity({
+          entityType: "deal",
+          entityId: dealId,
+          action: "component_added",
+          title: "Component added",
+          description: component.name,
+          relatedRecord: component.name,
+          customerId: deal.customerId,
+          dealId,
+        });
+      }
 
       return component;
     },
-    []
+    [components, deals, persistComponents]
+  );
+
+  const updateComponent = useCallback(
+    (componentId: string, data: ComponentFormData) => {
+      const existing = components.find((item) => item.id === componentId);
+      if (!existing) return;
+
+      const next = components.map((component) =>
+        component.id === componentId
+          ? { ...component, ...formToComponent(existing.dealId, data) }
+          : component
+      );
+      persistComponents(next);
+
+      const deal = deals.find((item) => item.id === existing.dealId);
+      if (deal) {
+        addActivity({
+          entityType: "deal",
+          entityId: existing.dealId,
+          action: "component_updated",
+          title: "Component updated",
+          description: data.name.trim(),
+          relatedRecord: data.name.trim(),
+          customerId: deal.customerId,
+          dealId: existing.dealId,
+        });
+      }
+    },
+    [components, deals, persistComponents]
+  );
+
+  const removeComponent = useCallback(
+    (componentId: string) => {
+      const existing = components.find((item) => item.id === componentId);
+      if (!existing) return;
+
+      persistComponents(components.filter((component) => component.id !== componentId));
+
+      const deal = deals.find((item) => item.id === existing.dealId);
+      if (deal) {
+        addActivity({
+          entityType: "deal",
+          entityId: existing.dealId,
+          action: "component_removed",
+          title: "Component removed",
+          description: existing.name,
+          relatedRecord: existing.name,
+          customerId: deal.customerId,
+          dealId: existing.dealId,
+        });
+      }
+    },
+    [components, deals, persistComponents]
+  );
+
+  const duplicateComponent = useCallback(
+    (componentId: string): DealComponent | undefined => {
+      const existing = components.find((item) => item.id === componentId);
+      if (!existing) return undefined;
+
+      const duplicate: DealComponent = {
+        ...existing,
+        id: `comp-${crypto.randomUUID().slice(0, 8)}`,
+        name: `${existing.name} (Copy)`,
+      };
+
+      persistComponents([duplicate, ...components]);
+
+      const deal = deals.find((item) => item.id === existing.dealId);
+      if (deal) {
+        addActivity({
+          entityType: "deal",
+          entityId: existing.dealId,
+          action: "component_added",
+          title: "Component duplicated",
+          description: duplicate.name,
+          relatedRecord: duplicate.name,
+          customerId: deal.customerId,
+          dealId: existing.dealId,
+        });
+      }
+
+      return duplicate;
+    },
+    [components, deals, persistComponents]
   );
 
   const getDeal = useCallback(
@@ -231,12 +467,32 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       deals,
       components,
       addDeal,
+      updateDeal,
+      updateDealNotes,
+      deleteDeal,
       getDeal,
       changeDealStage,
       addComponent,
+      updateComponent,
+      removeComponent,
+      duplicateComponent,
       getComponentsByDeal,
     }),
-    [deals, components, addDeal, getDeal, changeDealStage, addComponent, getComponentsByDeal]
+    [
+      deals,
+      components,
+      addDeal,
+      updateDeal,
+      updateDealNotes,
+      deleteDeal,
+      getDeal,
+      changeDealStage,
+      addComponent,
+      updateComponent,
+      removeComponent,
+      duplicateComponent,
+      getComponentsByDeal,
+    ]
   );
 
   return <DealsContext.Provider value={value}>{children}</DealsContext.Provider>;

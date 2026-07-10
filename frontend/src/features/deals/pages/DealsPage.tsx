@@ -4,18 +4,21 @@ import { Link, useNavigate } from "react-router-dom";
 import { DealSearchFilters } from "@/features/deals/components/DealSearchFilters";
 import { DealStatsCards } from "@/features/deals/components/DealStatsCards";
 import { DealTable } from "@/features/deals/components/DealTable";
+import { EditDealDialog } from "@/features/deals/components/EditDealDialog";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { defaultDealFilters, filterDeals } from "@/features/deals/utils/deal-utils";
-import type { DealFilters } from "@/features/deals/types/deal";
+import type { Deal, DealFilters } from "@/features/deals/types/deal";
 
 export function DealsPage() {
   const navigate = useNavigate();
-  const { deals } = useDeals();
+  const { deals, updateDeal, deleteDeal } = useDeals();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<DealFilters>(defaultDealFilters);
+  const [editingDeal, setEditingDeal] = useState<Deal | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const deferredQuery = useDeferredValue(query);
   const isSearching = query !== deferredQuery;
@@ -33,6 +36,17 @@ export function DealsPage() {
   const resetFilters = () => {
     setQuery("");
     setFilters(defaultDealFilters);
+  };
+
+  const handleEdit = (deal: Deal) => {
+    setEditingDeal(deal);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (deal: Deal) => {
+    if (window.confirm(`Delete deal "${deal.title}"? This cannot be undone.`)) {
+      deleteDeal(deal.id);
+    }
   };
 
   return (
@@ -68,6 +82,18 @@ export function DealsPage() {
           isEmpty={deals.length === 0}
           onAdd={() => navigate("/customers")}
           onResetFilters={resetFilters}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {editingDeal && (
+        <EditDealDialog
+          key={`${editingDeal.id}-${dialogOpen}`}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          deal={editingDeal}
+          onSave={(data) => updateDeal(editingDeal.id, data)}
         />
       )}
     </div>

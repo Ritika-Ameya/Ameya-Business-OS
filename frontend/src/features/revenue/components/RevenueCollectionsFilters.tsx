@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   collectionStatusLabels,
   defaultCollectionFilters,
@@ -22,7 +23,8 @@ export function RevenueCollectionsFilters({
   filters,
   onFiltersChange,
 }: RevenueCollectionsFiltersProps) {
-  const customers = getRevenueCustomers();
+  const { invoices } = useRevenue();
+  const customers = getRevenueCustomers(invoices);
   const hasActiveFilters =
     filters.customer !== defaultCollectionFilters.customer ||
     filters.status !== defaultCollectionFilters.status ||

@@ -14,6 +14,9 @@ export interface DealComponent {
   category: string;
   description: string;
   amount: number;
+  quantity?: number;
+  gstPercent?: number;
+  discount?: number;
   billingType: BillingType;
   status: ComponentStatus;
   renewalDate?: string;

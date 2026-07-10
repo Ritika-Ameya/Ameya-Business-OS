@@ -2,9 +2,15 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { getUpcomingRenewalsTop5 } from "@/features/dashboard/utils/dashboard-utils";
+import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useMemo } from "react";
 
 export function UpcomingRenewalsCard() {
-  const items = getUpcomingRenewalsTop5();
+  const { deals, components } = useDeals();
+  const items = useMemo(
+    () => getUpcomingRenewalsTop5(deals, components),
+    [deals, components]
+  );
 
   return (
     <div className="flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm">

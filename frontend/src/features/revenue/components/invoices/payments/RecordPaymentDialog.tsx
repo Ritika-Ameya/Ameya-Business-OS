@@ -20,42 +20,73 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
+import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import type { PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
 
-const emptyForm: PaymentFormData = {
-  paymentDate: "",
-  amount: "",
+const emptyForm = (outstanding?: number): PaymentFormData => ({
+  paymentDate: new Date().toISOString().split("T")[0],
+  amount: outstanding ? String(outstanding) : "",
   mode: "upi",
   referenceNumber: "",
   receivedBy: "",
   transactionId: "",
   notes: "",
-};
+});
 
 interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  invoiceId: string;
+  outstanding: number;
+  onRecord: (data: PaymentFormData) => boolean;
 }
 
 export function RecordPaymentDialog({
   open,
   onOpenChange,
+  invoiceId,
+  outstanding,
+  onRecord,
 }: RecordPaymentDialogProps) {
   const { paymentMethods } = useAppConfig();
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
-  const [form, setForm] = useState<PaymentFormData>(emptyForm);
+  const [form, setForm] = useState<PaymentFormData>(() => emptyForm(outstanding));
+  const [error, setError] = useState<string | null>(null);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setForm(emptyForm);
+      setForm(emptyForm(outstanding));
+      setError(null);
     }
     onOpenChange(nextOpen);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const amount = Number.parseFloat(form.amount.replace(/,/g, ""));
+    if (!form.paymentDate) {
+      setError("Payment date is required");
+      return;
+    }
+    if (!amount || amount <= 0) {
+      setError("Enter a valid amount");
+      return;
+    }
+    if (amount > outstanding) {
+      setError(`Amount cannot exceed outstanding ${formatInvoiceCurrency(outstanding)}`);
+      return;
+    }
+
+    const success = onRecord(form);
+    if (!success) {
+      setError("Unable to record payment. Please check the amount.");
+      return;
+    }
+
     onOpenChange(false);
-    setForm(emptyForm);
+    setForm(emptyForm(outstanding));
+    setError(null);
   };
 
   const updateField = <K extends keyof PaymentFormData>(
@@ -63,6 +94,7 @@ export function RecordPaymentDialog({
     value: PaymentFormData[K]
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (error) setError(null);
   };
 
   return (
@@ -71,7 +103,8 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
           <DialogDescription>
-            Record a payment received against this invoice. UI preview only.
+            Record a payment for invoice {invoiceId}. Outstanding:{" "}
+            {formatInvoiceCurrency(outstanding)}
           </DialogDescription>
         </DialogHeader>
 
@@ -100,6 +133,7 @@ export function RecordPaymentDialog({
                 value={form.amount}
                 onChange={(e) => updateField("amount", e.target.value)}
                 placeholder="0"
+                max={outstanding}
                 className="rounded-xl"
               />
             </div>
@@ -169,27 +203,16 @@ export function RecordPaymentDialog({
                 className="resize-none rounded-xl"
               />
             </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="attachment">Attachment</Label>
-              <Input
-                id="attachment"
-                type="file"
-                disabled
-                className="rounded-xl"
-              />
-              <p className="text-xs text-muted-foreground">
-                File upload placeholder — not functional in UI preview.
-              </p>
-            </div>
           </div>
 
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+
           <DialogFooter className="pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit">Record Payment</Button>

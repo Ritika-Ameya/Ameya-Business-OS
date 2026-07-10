@@ -29,6 +29,7 @@ export interface Deal {
   contractValue?: number;
   renewalFrequency?: RenewalFrequency;
   description?: string;
+  notes?: string;
 }
 
 export interface DealFormData {

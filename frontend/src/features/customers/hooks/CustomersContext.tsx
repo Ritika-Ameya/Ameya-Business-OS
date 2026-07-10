@@ -12,6 +12,7 @@ import {
   getStageById,
   resolveRecordTypeFromStage,
 } from "@/features/customers/utils/stage-utils";
+import { addActivity } from "@/shared/utils/activity-store";
 import type {
   Customer,
   CustomerFormData,
@@ -141,6 +142,27 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
         return next;
       });
 
+      addActivity({
+        entityType: "customer",
+        entityId: customer.id,
+        action: "record_created",
+        title: `${resolvedRecordType === "opportunity" ? "Opportunity" : "Customer"} created`,
+        description: customer.company || customer.name,
+        notes: data.notes.trim() || undefined,
+        customerId: customer.id,
+      });
+
+      if (defaultStage) {
+        addActivity({
+          entityType: "customer",
+          entityId: customer.id,
+          action: "stage_changed",
+          title: `Stage set to ${defaultStage.name}`,
+          relatedRecord: defaultStage.name,
+          customerId: customer.id,
+        });
+      }
+
       return customer;
     },
     []
@@ -195,6 +217,27 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
         persistCustomers(next);
         return next;
       });
+
+      addActivity({
+        entityType: "customer",
+        entityId: id,
+        action: "stage_changed",
+        title: `Stage changed to ${stage.name}`,
+        notes: payload.notes,
+        relatedRecord: stage.name,
+        customerId: id,
+      });
+
+      if (payload.nextActionDate) {
+        addActivity({
+          entityType: "customer",
+          entityId: id,
+          action: "follow_up_set",
+          title: "Follow-up date set",
+          description: payload.nextActionDate,
+          customerId: id,
+        });
+      }
     },
     []
   );

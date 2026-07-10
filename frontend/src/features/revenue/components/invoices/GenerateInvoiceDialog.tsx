@@ -28,21 +28,31 @@ import {
   type InvoiceAddressType,
 } from "@/features/settings/utils/app-config-utils";
 import { formatComponentCurrency } from "@/features/deals/utils/deal-component-utils";
+import { calculateInvoiceSummary } from "@/features/revenue/utils/invoice-utils";
 import { cn } from "@/shared/utils";
 import type { GenerateInvoiceContext } from "@/features/revenue/types/invoice";
+
+export interface GenerateInvoiceFormData {
+  componentIds: string[];
+  invoiceDate: string;
+  dueDate: string;
+  gstPercent: number;
+  notes: string;
+  addressType: InvoiceAddressType;
+}
 
 interface GenerateInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context?: GenerateInvoiceContext;
-  onGenerate?: (componentIds: string[]) => void;
+  onGenerate?: (data: GenerateInvoiceFormData) => void;
 }
 
-const PLACEHOLDER_SUMMARY = {
-  subtotal: "₹1,25,000",
-  gst: "₹22,500",
-  grandTotal: "₹1,47,500",
-};
+function defaultDueDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 15);
+  return date.toISOString().split("T")[0];
+}
 
 export function GenerateInvoiceDialog({
   open,
@@ -57,15 +67,21 @@ export function GenerateInvoiceDialog({
   const [selectedCustomerId, setSelectedCustomerId] = useState(
     () => context?.customerId ?? customers[0]?.id ?? ""
   );
+  const [selectedDealId, setSelectedDealId] = useState(
+    () => context?.dealId ?? deals[0]?.id ?? ""
+  );
+  const [invoiceDate, setInvoiceDate] = useState(() =>
+    new Date().toISOString().split("T")[0]
+  );
+  const [dueDate, setDueDate] = useState(defaultDueDate);
+  const [gstPercent, setGstPercent] = useState(() =>
+    Number.parseFloat(getDefaultTaxPercentage(finance)) || 18
+  );
+  const [notes, setNotes] = useState("");
   const [addressType, setAddressType] = useState<InvoiceAddressType>("billing");
   const isLocked = Boolean(context);
-  const defaultTax = getDefaultTaxPercentage(finance);
-
-  const dealComponents = context
-    ? getComponentsByDeal(context.dealId)
-    : deals[0]
-      ? getComponentsByDeal(deals[0].id)
-      : [];
+  const activeDealId = context?.dealId ?? selectedDealId;
+  const dealComponents = getComponentsByDeal(activeDealId);
 
   const selectedCustomer = useMemo(
     () =>
@@ -79,10 +95,24 @@ export function GenerateInvoiceDialog({
     ? resolveCustomerAddress(selectedCustomer, addressType)
     : "";
 
+  const summary = useMemo(
+    () => calculateInvoiceSummary(dealComponents, selectedComponents, gstPercent),
+    [dealComponents, selectedComponents, gstPercent]
+  );
+
+  const customerDeals = useMemo(
+    () => deals.filter((deal) => deal.customerId === (context?.customerId ?? selectedCustomerId)),
+    [deals, context?.customerId, selectedCustomerId]
+  );
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setSelectedComponents([]);
       setAddressType("billing");
+      setInvoiceDate(new Date().toISOString().split("T")[0]);
+      setDueDate(defaultDueDate());
+      setGstPercent(Number.parseFloat(getDefaultTaxPercentage(finance)) || 18);
+      setNotes("");
     }
     onOpenChange(nextOpen);
   };
@@ -95,8 +125,16 @@ export function GenerateInvoiceDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedComponents.length === 0) return;
+    onGenerate?.({
+      componentIds: selectedComponents,
+      invoiceDate,
+      dueDate,
+      gstPercent,
+      notes: notes.trim(),
+      addressType,
+    });
     onOpenChange(false);
-    onGenerate?.(selectedComponents);
     setSelectedComponents([]);
   };
 
@@ -106,7 +144,7 @@ export function GenerateInvoiceDialog({
         <DialogHeader>
           <DialogTitle>Generate Invoice</DialogTitle>
           <DialogDescription>
-            Create a new invoice from selected deal components. UI preview only.
+            Create an invoice from selected deal components.
           </DialogDescription>
         </DialogHeader>
 
@@ -126,7 +164,12 @@ export function GenerateInvoiceDialog({
                   ) : (
                     <Select
                       value={selectedCustomerId}
-                      onValueChange={setSelectedCustomerId}
+                      onValueChange={(value) => {
+                        setSelectedCustomerId(value);
+                        const firstDeal = deals.find((deal) => deal.customerId === value);
+                        setSelectedDealId(firstDeal?.id ?? "");
+                        setSelectedComponents([]);
+                      }}
                     >
                       <SelectTrigger id="customer" className="w-full rounded-xl">
                         <SelectValue placeholder="Select customer" />
@@ -152,12 +195,18 @@ export function GenerateInvoiceDialog({
                       className="rounded-xl bg-muted/50"
                     />
                   ) : (
-                    <Select defaultValue={deals[0]?.id}>
+                    <Select
+                      value={selectedDealId}
+                      onValueChange={(value) => {
+                        setSelectedDealId(value);
+                        setSelectedComponents([]);
+                      }}
+                    >
                       <SelectTrigger id="deal" className="w-full rounded-xl">
                         <SelectValue placeholder="Select deal" />
                       </SelectTrigger>
                       <SelectContent>
-                        {deals.map((deal) => (
+                        {customerDeals.map((deal) => (
                           <SelectItem key={deal.id} value={deal.id}>
                             {deal.title}
                           </SelectItem>
@@ -205,41 +254,46 @@ export function GenerateInvoiceDialog({
                     </p>
                   ) : (
                     dealComponents.map((component) => {
-                    const isSelected = selectedComponents.includes(component.id);
-                    return (
-                      <button
-                        key={component.id}
-                        type="button"
-                        onClick={() => toggleComponent(component.id)}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
-                          isSelected
-                            ? "border-primary bg-primary/5"
-                            : "border-transparent hover:bg-muted/50"
-                        )}
-                      >
-                        <div
+                      const isSelected = selectedComponents.includes(component.id);
+                      const lineTotal =
+                        component.amount * (component.quantity ?? 1) *
+                        (1 - (component.discount ?? 0) / 100);
+                      return (
+                        <button
+                          key={component.id}
+                          type="button"
+                          onClick={() => toggleComponent(component.id)}
                           className={cn(
-                            "flex size-5 shrink-0 items-center justify-center rounded border",
+                            "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
                             isSelected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border"
+                              ? "border-primary bg-primary/5"
+                              : "border-transparent hover:bg-muted/50"
                           )}
                         >
-                          {isSelected && <Check className="size-3" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium">{component.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {component.category}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-sm font-medium">
-                          {formatComponentCurrency(component.amount)}
-                        </span>
-                      </button>
-                    );
-                  })
+                          <div
+                            className={cn(
+                              "flex size-5 shrink-0 items-center justify-center rounded border",
+                              isSelected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border"
+                            )}
+                          >
+                            {isSelected && <Check className="size-3" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{component.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {component.category}
+                              {(component.quantity ?? 1) > 1 &&
+                                ` · Qty ${component.quantity}`}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-medium">
+                            {formatComponentCurrency(lineTotal)}
+                          </span>
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -247,11 +301,23 @@ export function GenerateInvoiceDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="invoice-date">Invoice Date</Label>
-                  <Input id="invoice-date" type="date" className="rounded-xl" />
+                  <Input
+                    id="invoice-date"
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="rounded-xl"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="due-date">Due Date</Label>
-                  <Input id="due-date" type="date" className="rounded-xl" />
+                  <Input
+                    id="due-date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="rounded-xl"
+                  />
                 </div>
               </div>
 
@@ -260,7 +326,8 @@ export function GenerateInvoiceDialog({
                 <Input
                   id="gst"
                   type="number"
-                  defaultValue={defaultTax}
+                  value={gstPercent}
+                  onChange={(e) => setGstPercent(Number(e.target.value) || 0)}
                   className="rounded-xl"
                 />
               </div>
@@ -269,6 +336,8 @@ export function GenerateInvoiceDialog({
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                   placeholder="Additional notes for this invoice..."
                   rows={3}
                   className="resize-none rounded-xl"
@@ -280,22 +349,26 @@ export function GenerateInvoiceDialog({
               <div className="rounded-2xl border border-border/70 bg-muted/20 p-5">
                 <h3 className="text-sm font-semibold">Invoice Summary</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Placeholder values only
+                  Calculated from selected components
                 </p>
                 <div className="mt-5 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">{PLACEHOLDER_SUMMARY.subtotal}</span>
+                    <span className="font-medium">
+                      {formatComponentCurrency(summary.subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">GST ({defaultTax}%)</span>
-                    <span className="font-medium">{PLACEHOLDER_SUMMARY.gst}</span>
+                    <span className="text-muted-foreground">GST ({summary.gstPercent}%)</span>
+                    <span className="font-medium">
+                      {formatComponentCurrency(summary.gstAmount)}
+                    </span>
                   </div>
                   <div className="border-t border-border/70 pt-3">
                     <div className="flex justify-between">
                       <span className="font-medium">Grand Total</span>
                       <span className="text-lg font-semibold">
-                        {PLACEHOLDER_SUMMARY.grandTotal}
+                        {formatComponentCurrency(summary.grandTotal)}
                       </span>
                     </div>
                   </div>
@@ -310,14 +383,12 @@ export function GenerateInvoiceDialog({
           </div>
 
           <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Generate Invoice</Button>
+            <Button type="submit" disabled={selectedComponents.length === 0}>
+              Generate Invoice
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

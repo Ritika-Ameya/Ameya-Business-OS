@@ -7,7 +7,7 @@ import {
 import { useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { RevenueReportTable } from "@/features/reports/components/RevenueReportTable";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   computeRevenueReportStats,
   filterInvoicesForReport,
@@ -19,9 +19,10 @@ interface RevenueReportTabProps {
 }
 
 export function RevenueReportTab({ filters }: RevenueReportTabProps) {
+  const { invoices: allInvoices } = useRevenue();
   const invoices = useMemo(
-    () => filterInvoicesForReport(seedInvoices, filters),
-    [filters]
+    () => filterInvoicesForReport(allInvoices, filters),
+    [allInvoices, filters]
   );
   const stats = useMemo(() => computeRevenueReportStats(invoices), [invoices]);
 

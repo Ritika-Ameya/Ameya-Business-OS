@@ -1,5 +1,6 @@
 import { Wallet } from "lucide-react";
 import { CustomerPaymentHistoryTable } from "@/features/customers/components/CustomerPaymentHistoryTable";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCustomerPaymentHistory } from "@/features/customers/utils/customer-workspace-utils";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -8,8 +9,8 @@ interface CustomerPaymentsTabProps {
 }
 
 export function CustomerPaymentsTab({ customer }: CustomerPaymentsTabProps) {
-  const payments = getCustomerPaymentHistory(customer.id);
-
+  const { invoices, payments: allPayments } = useRevenue();
+  const payments = getCustomerPaymentHistory(customer.id, invoices, allPayments);
   if (payments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">

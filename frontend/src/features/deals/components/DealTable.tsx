@@ -1,4 +1,4 @@
-import { Briefcase, Edit, Eye, MoreHorizontal, User } from "lucide-react";
+import { Briefcase, Edit, Eye, MoreHorizontal, Trash2, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
@@ -36,6 +36,8 @@ interface DealTableProps {
   isEmpty?: boolean;
   onAdd?: () => void;
   onResetFilters?: () => void;
+  onEdit?: (deal: Deal) => void;
+  onDelete?: (deal: Deal) => void;
 }
 
 export function DealTable({
@@ -44,6 +46,8 @@ export function DealTable({
   isEmpty = false,
   onAdd,
   onResetFilters,
+  onEdit,
+  onDelete,
 }: DealTableProps) {
   if (deals.length === 0) {
     if (isEmpty) {
@@ -130,7 +134,12 @@ export function DealTable({
                       <Eye />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit deal" disabled>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit deal"
+                    onClick={() => onEdit?.(deal)}
+                  >
                     <Edit />
                   </Button>
                   <DropdownMenu>
@@ -151,7 +160,16 @@ export function DealTable({
                         <Link to={`/customers/${deal.customerId}`}>View customer</Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Edit deal</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit?.(deal)}>
+                        Edit deal
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => onDelete?.(deal)}
+                      >
+                        <Trash2 />
+                        Delete deal
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
