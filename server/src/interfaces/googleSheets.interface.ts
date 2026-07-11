@@ -1,10 +1,7 @@
-export interface GoogleSheetsConfig {
-  projectId: string;
-  clientEmail: string;
-  privateKey: string;
-  sheetId: string;
-}
+import type { GoogleServiceAccountConfig } from './googleCommon.interface';
 
-export interface GoogleSheetsClientInterface {
-  isConfigured(): boolean;
+export type { GoogleSheetsClientInterface } from './googleClients.interface';
+
+export interface GoogleSheetsConfig extends GoogleServiceAccountConfig {
+  sheetId: string;
 }

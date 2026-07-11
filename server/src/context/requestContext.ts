@@ -15,7 +15,7 @@ export const createRequestContext = (
   metadata,
 });
 
-export const getRequestContext = (req: Request): RequestContext | undefined => {
+export const getRequestContext = (req: Request): RequestContext => {
   return req.context;
 };
 

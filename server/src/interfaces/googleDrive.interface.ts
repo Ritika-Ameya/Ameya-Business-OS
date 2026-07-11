@@ -1,10 +1,7 @@
-export interface GoogleDriveConfig {
-  projectId: string;
-  clientEmail: string;
-  privateKey: string;
-  folderId: string;
-}
+import type { GoogleServiceAccountConfig } from './googleCommon.interface';
 
-export interface GoogleDriveClientInterface {
-  isConfigured(): boolean;
+export type { GoogleDriveClientInterface } from './googleClients.interface';
+
+export interface GoogleDriveConfig extends GoogleServiceAccountConfig {
+  folderId: string;
 }

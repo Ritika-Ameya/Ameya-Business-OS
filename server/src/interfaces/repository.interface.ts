@@ -1,7 +1,6 @@
-import type { QueryOptions } from '../types';
-import type { PaginatedResult } from '../types';
+import type { PaginatedResult, QueryOptions } from '../types';
 
-export interface IRepository<TEntity, TId = string> {
+export interface IRepository<TEntity extends Record<string, unknown> & { id: TId }, TId = string> {
   findAll(options?: QueryOptions): Promise<TEntity[]>;
   findById(id: TId): Promise<TEntity | null>;
   create(data: Omit<TEntity, 'id'>): Promise<TEntity>;

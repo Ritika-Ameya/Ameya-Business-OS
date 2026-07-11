@@ -4,6 +4,7 @@ import { env } from '../config';
 import { AppError } from '../utils/AppError';
 import { createLogger } from '../utils/logger.util';
 import { mapErrorToResponse } from '../utils/errorMapper.util';
+import { getResponseMeta } from '../utils/responseMeta.util';
 
 const errorLogger = createLogger('ErrorHandler');
 
@@ -13,10 +14,6 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ): void => {
-  const meta = req.context
-    ? { requestId: req.context.requestId, timestamp: req.context.timestamp }
-    : undefined;
-
   const isOperational = err instanceof AppError && err.isOperational;
 
   if (env.NODE_ENV === 'development') {
@@ -25,5 +22,5 @@ export const errorHandler = (
     errorLogger.error('Unhandled error', err);
   }
 
-  mapErrorToResponse(err, res, meta);
+  mapErrorToResponse(err, res, getResponseMeta(req));
 };

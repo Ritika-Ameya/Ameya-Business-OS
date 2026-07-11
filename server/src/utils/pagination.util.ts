@@ -1,8 +1,7 @@
+import { DEFAULT_LIMIT, DEFAULT_PAGE, MAX_LIMIT } from '../constants';
 import type { PaginatedResult, PaginationMeta, PaginationParams } from '../types';
 
-export const DEFAULT_PAGE = 1;
-export const DEFAULT_LIMIT = 20;
-export const MAX_LIMIT = 100;
+export { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT };
 
 export const parsePagination = (
   query: Record<string, unknown>,

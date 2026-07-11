@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY, DEFAULT_LOCALE } from '../constants';
+
 export const round = (value: number, decimals = 2): number => {
   const factor = Math.pow(10, decimals);
   return Math.round(value * factor) / factor;
@@ -18,8 +20,8 @@ export const parseNumber = (value: string | number, fallback = 0): number => {
 
 export const formatCurrency = (
   amount: number,
-  currency = 'INR',
-  locale = 'en-IN',
+  currency: string = DEFAULT_CURRENCY,
+  locale: string = DEFAULT_LOCALE,
 ): string => {
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
 };

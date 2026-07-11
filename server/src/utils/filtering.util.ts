@@ -1,3 +1,4 @@
+import { RESERVED_QUERY_KEYS } from '../constants';
 import type { FilterCondition, FilterOperator } from '../types';
 
 const FILTER_OPERATOR_SUFFIXES: Record<string, FilterOperator> = {
@@ -12,16 +13,6 @@ const FILTER_OPERATOR_SUFFIXES: Record<string, FilterOperator> = {
   like: 'like',
   ilike: 'ilike',
 };
-
-const RESERVED_QUERY_KEYS = new Set([
-  'page',
-  'limit',
-  'sort',
-  'sortBy',
-  'sortOrder',
-  'order',
-  'orderBy',
-]);
 
 const parseFilterValue = (value: unknown): string | number | boolean | string[] => {
   if (Array.isArray(value)) {

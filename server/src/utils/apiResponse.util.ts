@@ -1,18 +1,18 @@
 import type { Response } from 'express';
 
 import { HTTP_STATUS, MESSAGES } from '../constants';
-import type {
-  ApiErrorResponse,
-  ApiSuccessResponse,
-  PaginatedData,
-  ResponseMetadata,
-} from '../types';
+import type { ApiErrorResponse, ApiSuccessResponse, PaginatedResult, ResponseMetadata } from '../types';
 
 const buildMeta = (meta?: ResponseMetadata): ResponseMetadata | undefined => {
   if (!meta || Object.keys(meta).length === 0) {
     return undefined;
   }
   return meta;
+};
+
+const withMeta = (meta?: ResponseMetadata): { meta?: ResponseMetadata } => {
+  const built = buildMeta(meta);
+  return built ? { meta: built } : {};
 };
 
 export class ApiResponse {
@@ -27,7 +27,7 @@ export class ApiResponse {
       success: true,
       message,
       data,
-      ...(buildMeta(meta) && { meta: buildMeta(meta) }),
+      ...withMeta(meta),
     });
   }
 
@@ -59,10 +59,10 @@ export class ApiResponse {
 
   static paginated<T>(
     res: Response,
-    data: PaginatedData<T>,
+    data: PaginatedResult<T>,
     message: string = MESSAGES.SUCCESS,
     meta?: ResponseMetadata,
-  ): Response<ApiSuccessResponse<PaginatedData<T>>> {
+  ): Response<ApiSuccessResponse<PaginatedResult<T>>> {
     return ApiResponse.success(res, data, message, HTTP_STATUS.OK, meta);
   }
 
@@ -77,13 +77,7 @@ export class ApiResponse {
       success: false,
       message,
       errors,
-      ...(buildMeta(meta) && { meta: buildMeta(meta) }),
+      ...withMeta(meta),
     });
   }
 }
-
-/** @deprecated Use ApiResponse.success instead */
-export const sendSuccess = ApiResponse.success;
-
-/** @deprecated Use ApiResponse.error instead */
-export const sendError = ApiResponse.error;

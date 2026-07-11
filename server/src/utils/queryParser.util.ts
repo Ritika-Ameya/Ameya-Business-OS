@@ -1,9 +1,7 @@
 import type { ParsedQuery, PaginatedResult, QueryOptions } from '../types';
-import { applyFilters } from './filtering.util';
+import { applyFilters, parseFilters } from './filtering.util';
 import { paginateArray, parsePagination } from './pagination.util';
-import { applySort } from './sorting.util';
-import { parseFilters } from './filtering.util';
-import { parseSort } from './sorting.util';
+import { applySort, parseSort } from './sorting.util';
 
 export const parseQueryParams = (
   query: Record<string, unknown>,

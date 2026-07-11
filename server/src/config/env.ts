@@ -10,6 +10,12 @@ const envSchema = z.object({
   GOOGLE_PRIVATE_KEY: z.string().min(1, 'GOOGLE_PRIVATE_KEY is required'),
   GOOGLE_SHEET_ID: z.string().min(1, 'GOOGLE_SHEET_ID is required'),
   GOOGLE_DRIVE_FOLDER_ID: z.string().min(1, 'GOOGLE_DRIVE_FOLDER_ID is required'),
+  GOOGLE_REQUEST_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30_000),
+  GOOGLE_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(3),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

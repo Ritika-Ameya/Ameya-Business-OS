@@ -1,22 +1,21 @@
 import type { IRepository } from '../interfaces';
+import { DEFAULT_LIMIT, DEFAULT_PAGE } from '../constants';
 import type { PaginatedResult, QueryOptions } from '../types';
+import { NotFoundError } from '../utils/AppError';
 import { applyFilters } from '../utils/filtering.util';
+import { createLogger, type Logger } from '../utils/logger.util';
 import { paginateArray } from '../utils/pagination.util';
 import { applySort } from '../utils/sorting.util';
-import { NotFoundError } from '../utils/AppError';
-import { createLogger, type Logger } from '../utils/logger.util';
 
-export abstract class BaseRepository<TEntity extends { id: TId }, TId = string>
-  implements IRepository<TEntity, TId>
+export abstract class BaseRepository<
+  TEntity extends Record<string, unknown> & { id: TId },
+  TId = string,
+> implements IRepository<TEntity, TId>
 {
   protected readonly logger: Logger;
 
   constructor(protected readonly repositoryName: string) {
     this.logger = createLogger(repositoryName);
-  }
-
-  protected getRepositoryName(): string {
-    return this.repositoryName;
   }
 
   abstract findAll(options?: QueryOptions): Promise<TEntity[]>;
@@ -25,6 +24,10 @@ export abstract class BaseRepository<TEntity extends { id: TId }, TId = string>
   abstract update(id: TId, data: Partial<TEntity>): Promise<TEntity | null>;
   abstract delete(id: TId): Promise<boolean>;
 
+  /**
+   * Default implementation loads all records. Override in concrete repositories
+   * for efficient counting against the persistence layer.
+   */
   async count(options?: QueryOptions): Promise<number> {
     const items = await this.findAll(options);
     return items.length;
@@ -34,22 +37,26 @@ export abstract class BaseRepository<TEntity extends { id: TId }, TId = string>
     let items = await this.findAll(options);
 
     if (options?.filters) {
-      items = applyFilters(items as Record<string, unknown>[], options.filters) as TEntity[];
+      items = applyFilters(items, options.filters);
     }
 
     if (options?.sort) {
-      items = applySort(items as Record<string, unknown>[], options.sort) as TEntity[];
+      items = applySort(items, options.sort);
     }
 
-    const pagination = options?.pagination ?? { page: 1, limit: 20, offset: 0 };
+    const pagination = options?.pagination ?? {
+      page: DEFAULT_PAGE,
+      limit: DEFAULT_LIMIT,
+      offset: 0,
+    };
+
     return paginateArray(items, pagination);
   }
 
   async findByIdOrThrow(id: TId, resourceName?: string): Promise<TEntity> {
     const entity = await this.findById(id);
     if (!entity) {
-      const name = resourceName ?? this.repositoryName;
-      throw new NotFoundError(`${name} not found`);
+      throw new NotFoundError(`${resourceName ?? this.repositoryName} not found`);
     }
     return entity;
   }
@@ -57,8 +64,7 @@ export abstract class BaseRepository<TEntity extends { id: TId }, TId = string>
   async updateOrThrow(id: TId, data: Partial<TEntity>, resourceName?: string): Promise<TEntity> {
     const entity = await this.update(id, data);
     if (!entity) {
-      const name = resourceName ?? this.repositoryName;
-      throw new NotFoundError(`${name} not found`);
+      throw new NotFoundError(`${resourceName ?? this.repositoryName} not found`);
     }
     return entity;
   }
@@ -66,8 +72,7 @@ export abstract class BaseRepository<TEntity extends { id: TId }, TId = string>
   async deleteOrThrow(id: TId, resourceName?: string): Promise<void> {
     const deleted = await this.delete(id);
     if (!deleted) {
-      const name = resourceName ?? this.repositoryName;
-      throw new NotFoundError(`${name} not found`);
+      throw new NotFoundError(`${resourceName ?? this.repositoryName} not found`);
     }
   }
 }

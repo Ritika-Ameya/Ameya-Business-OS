@@ -2,15 +2,7 @@ import type { Response } from 'express';
 
 import { HTTP_STATUS, MESSAGES } from '../constants';
 import type { ApiErrorResponse, ResponseMetadata } from '../types';
-import {
-  AppError,
-  ConflictError,
-  ForbiddenError,
-  InternalServerError,
-  NotFoundError,
-  UnauthorizedError,
-  ValidationError,
-} from './AppError';
+import { AppError } from './AppError';
 import { ApiResponse } from './apiResponse.util';
 
 export const mapErrorToResponse = (
@@ -18,30 +10,6 @@ export const mapErrorToResponse = (
   res: Response,
   meta?: ResponseMetadata,
 ): Response<ApiErrorResponse> => {
-  if (err instanceof ValidationError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
-  if (err instanceof NotFoundError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
-  if (err instanceof ConflictError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
-  if (err instanceof UnauthorizedError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
-  if (err instanceof ForbiddenError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
-  if (err instanceof InternalServerError) {
-    return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
-  }
-
   if (err instanceof AppError) {
     return ApiResponse.error(res, err.message, err.errors, err.statusCode, meta);
   }

@@ -11,6 +11,7 @@ const server = app.listen(env.PORT, () => {
   logger.info(`${env.NODE_ENV} environment`);
   logger.info(`Listening on port ${env.PORT}`);
   logger.info(`Health check: http://localhost:${env.PORT}/api/health`);
+  logger.info(`Infrastructure health: http://localhost:${env.PORT}/api/health/infrastructure`);
 });
 
 const shutdown = (signal: string): void => {

@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE } from '../constants';
+
 export const now = (): Date => new Date();
 
 export const toISOString = (date: Date = new Date()): string => date.toISOString();
@@ -29,6 +31,6 @@ export const endOfDay = (date: Date = new Date()): Date => {
   return result;
 };
 
-export const formatDate = (date: Date, locale = 'en-IN'): string => {
+export const formatDate = (date: Date, locale: string = DEFAULT_LOCALE): string => {
   return date.toLocaleDateString(locale);
 };

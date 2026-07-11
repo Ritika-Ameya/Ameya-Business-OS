@@ -42,20 +42,7 @@ export const applySort = <T extends Record<string, unknown>>(
   const { field, order } = sort;
   const multiplier = order === 'desc' ? -1 : 1;
 
-  return [...items].sort((a, b) => {
-    const aVal = a[field];
-    const bVal = b[field];
-
-    if (aVal === bVal) return 0;
-    if (aVal === undefined || aVal === null) return 1;
-    if (bVal === undefined || bVal === null) return -1;
-
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return (aVal - bVal) * multiplier;
-    }
-
-    return String(aVal).localeCompare(String(bVal)) * multiplier;
-  });
+  return [...items].sort((a, b) => compareSortValues(a[field], b[field], multiplier));
 };
 
 export const applyMultiSort = <T extends Record<string, unknown>>(
@@ -66,10 +53,22 @@ export const applyMultiSort = <T extends Record<string, unknown>>(
 
   return [...items].sort((a, b) => {
     for (const sort of sorts) {
-      const sorted = applySort([a, b], sort);
-      if (sorted[0] !== a) return 1;
-      if (sorted[0] !== b && sorted[1] === a) return -1;
+      const multiplier = sort.order === 'desc' ? -1 : 1;
+      const comparison = compareSortValues(a[sort.field], b[sort.field], multiplier);
+      if (comparison !== 0) return comparison;
     }
     return 0;
   });
+};
+
+const compareSortValues = (aVal: unknown, bVal: unknown, multiplier: number): number => {
+  if (aVal === bVal) return 0;
+  if (aVal === undefined || aVal === null) return 1;
+  if (bVal === undefined || bVal === null) return -1;
+
+  if (typeof aVal === 'number' && typeof bVal === 'number') {
+    return (aVal - bVal) * multiplier;
+  }
+
+  return String(aVal).localeCompare(String(bVal)) * multiplier;
 };

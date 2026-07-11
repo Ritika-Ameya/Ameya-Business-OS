@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
-import { DEFAULT_LIMIT, DEFAULT_PAGE, MAX_LIMIT } from '../utils/pagination.util';
+import { DEFAULT_LIMIT, DEFAULT_PAGE, MAX_LIMIT } from '../constants';
 
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(DEFAULT_PAGE),
   limit: z.coerce.number().int().positive().max(MAX_LIMIT).default(DEFAULT_LIMIT),
 });
 
+/** Field names must stay aligned with SORT_QUERY_KEYS in constants/query.constants.ts */
 export const sortQuerySchema = z.object({
   sort: z.string().optional(),
   sortBy: z.string().optional(),

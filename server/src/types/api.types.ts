@@ -1,3 +1,5 @@
+import type { ZodType } from 'zod';
+
 export interface ResponseMetadata {
   requestId?: string;
   timestamp?: string;
@@ -28,14 +30,7 @@ export interface HealthCheckResponse {
 }
 
 export interface ValidationSchema {
-  body?: unknown;
-  query?: unknown;
-  params?: unknown;
-}
-
-import type { PaginationMeta } from './pagination.types';
-
-export interface PaginatedData<T> {
-  items: T[];
-  pagination: PaginationMeta;
+  body?: ZodType;
+  query?: ZodType;
+  params?: ZodType;
 }
