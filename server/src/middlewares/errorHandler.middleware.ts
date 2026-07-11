@@ -1,24 +1,29 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import { HTTP_STATUS } from '../constants';
 import { env } from '../config';
-import { sendError } from '../utils/apiResponse.util';
 import { AppError } from '../utils/AppError';
+import { createLogger } from '../utils/logger.util';
+import { mapErrorToResponse } from '../utils/errorMapper.util';
+
+const errorLogger = createLogger('ErrorHandler');
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void => {
-  if (err instanceof AppError) {
-    sendError(res, err.message, err.errors, err.statusCode);
-    return;
-  }
+  const meta = req.context
+    ? { requestId: req.context.requestId, timestamp: req.context.timestamp }
+    : undefined;
+
+  const isOperational = err instanceof AppError && err.isOperational;
 
   if (env.NODE_ENV === 'development') {
-    console.error('[Error]', err);
+    errorLogger.error(err.message, err);
+  } else if (!isOperational) {
+    errorLogger.error('Unhandled error', err);
   }
 
-  sendError(res, 'Internal server error', [], HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  mapErrorToResponse(err, res, meta);
 };

@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError, type ZodType } from 'zod';
 
-import { HTTP_STATUS } from '../constants';
 import type { ValidationSchema } from '../types';
-import { AppError } from '../utils/AppError';
+import { ValidationError } from '../utils/AppError';
+import { formatZodErrors } from '../utils/errorMapper.util';
 
 export const validate =
   (schema: ValidationSchema) =>
@@ -24,8 +24,7 @@ export const validate =
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const errors = error.issues.map((issue) => issue.message);
-        next(new AppError('Validation failed', HTTP_STATUS.BAD_REQUEST, errors));
+        next(new ValidationError('Validation failed', formatZodErrors(error.issues)));
         return;
       }
 

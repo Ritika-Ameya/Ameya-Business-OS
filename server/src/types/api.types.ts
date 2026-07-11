@@ -1,16 +1,24 @@
+export interface ResponseMetadata {
+  requestId?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
 export interface ApiSuccessResponse<T = unknown> {
   success: true;
   message: string;
   data: T;
+  meta?: ResponseMetadata;
 }
 
 export interface ApiErrorResponse {
   success: false;
   message: string;
   errors: string[];
+  meta?: ResponseMetadata;
 }
 
-export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
+export type ApiResponseBody<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 export interface HealthCheckResponse {
   success: true;
@@ -23,4 +31,11 @@ export interface ValidationSchema {
   body?: unknown;
   query?: unknown;
   params?: unknown;
+}
+
+import type { PaginationMeta } from './pagination.types';
+
+export interface PaginatedData<T> {
+  items: T[];
+  pagination: PaginationMeta;
 }
