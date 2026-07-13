@@ -1,5 +1,4 @@
 import { seedDashboardActivity } from "@/features/dashboard/data/seed-dashboard";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
 import {
   buildCollectionRows,
@@ -7,13 +6,16 @@ import {
   getCompanyRenewals,
 } from "@/features/revenue/utils/revenue-utils";
 import { formatDate } from "@/shared/utils/format-date";
+import type { Deal } from "@/features/deals/types/deal";
+import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Payment } from "@/features/revenue/types/payment";
 import type { DashboardKpi, FounderInsight } from "@/features/dashboard/types/dashboard";
 
 export function getTimeOfDayGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good Morning";
   if (hour < 17) return "Good Afternoon";
-  return "Good Evening";  
+  return "Good Evening";
 }
 
 export function formatTodayDate(): string {
@@ -25,8 +27,11 @@ export function formatTodayDate(): string {
   }).format(new Date());
 }
 
-export function getFounderInsight(): FounderInsight {
-  const outstanding = getCollectionInvoices().reduce(
+export function getFounderInsight(
+  invoices: Invoice[] = [],
+  deals: Deal[] = []
+): FounderInsight {
+  const outstanding = getCollectionInvoices(invoices).reduce(
     (sum, invoice) => sum + invoice.outstanding,
     0
   );
@@ -37,7 +42,7 @@ export function getFounderInsight(): FounderInsight {
     };
   }
 
-  const renewalsThisWeek = getCompanyRenewals().filter((renewal) => {
+  const renewalsThisWeek = getCompanyRenewals(deals).filter((renewal) => {
     const date = new Date(renewal.renewalDate);
     const now = new Date();
     const weekFromNow = new Date(now);
@@ -52,9 +57,12 @@ export function getFounderInsight(): FounderInsight {
   return { message: "Revenue is higher than expenses this month." };
 }
 
-export function getDashboardKpis(): DashboardKpi[] {
+export function getDashboardKpis(
+  invoices: Invoice[] = [],
+  deals: Deal[] = []
+): DashboardKpi[] {
   const now = new Date();
-  const revenueThisMonth = seedInvoices
+  const revenueThisMonth = invoices
     .filter((invoice) => {
       const date = new Date(invoice.invoiceDate);
       return (
@@ -64,12 +72,12 @@ export function getDashboardKpis(): DashboardKpi[] {
     })
     .reduce((sum, invoice) => sum + invoice.received, 0);
 
-  const outstanding = getCollectionInvoices().reduce(
+  const outstanding = getCollectionInvoices(invoices).reduce(
     (sum, invoice) => sum + invoice.outstanding,
     0
   );
 
-  const upcomingRenewals = getCompanyRenewals().filter(
+  const upcomingRenewals = getCompanyRenewals(deals).filter(
     (renewal) => renewal.status === "upcoming"
   ).length;
 
@@ -77,7 +85,7 @@ export function getDashboardKpis(): DashboardKpi[] {
     {
       id: "revenue",
       label: "Revenue This Month",
-      value: formatInvoiceCurrency(revenueThisMonth || 245000),
+      value: formatInvoiceCurrency(revenueThisMonth),
       trend: "+12% vs last month",
       trendDirection: "up",
       href: "/revenue?tab=invoices",
@@ -108,8 +116,11 @@ export function getDashboardKpis(): DashboardKpi[] {
   ];
 }
 
-export function getPendingCollectionsTop5() {
-  return buildCollectionRows(getCollectionInvoices())
+export function getPendingCollectionsTop5(
+  invoices: Invoice[] = [],
+  payments: Payment[] = []
+) {
+  return buildCollectionRows(getCollectionInvoices(invoices), payments)
     .sort((a, b) => b.invoice.outstanding - a.invoice.outstanding)
     .slice(0, 5)
     .map(({ invoice }) => ({
@@ -120,8 +131,8 @@ export function getPendingCollectionsTop5() {
     }));
 }
 
-export function getUpcomingRenewalsTop5() {
-  return getCompanyRenewals()
+export function getUpcomingRenewalsTop5(deals: Deal[] = []) {
+  return getCompanyRenewals(deals)
     .filter((renewal) => renewal.status === "upcoming")
     .slice(0, 5)
     .map((renewal) => ({

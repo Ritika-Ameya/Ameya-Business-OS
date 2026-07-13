@@ -19,6 +19,8 @@ import {
 } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import type { PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
 
@@ -35,27 +37,62 @@ const emptyForm: PaymentFormData = {
 interface RecordPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  invoiceId: string;
+  maxAmount?: number;
 }
 
 export function RecordPaymentDialog({
   open,
   onOpenChange,
+  invoiceId,
+  maxAmount,
 }: RecordPaymentDialogProps) {
   const { paymentMethods } = useAppConfig();
+  const { recordPayment } = useRevenue();
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [form, setForm] = useState<PaymentFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setForm(emptyForm);
+      setForm({
+        ...emptyForm,
+        paymentDate: new Date().toISOString().split("T")[0]!,
+        mode: (activePaymentMethods[0]?.slug as PaymentMode) || "upi",
+      });
+      setError(null);
     }
     onOpenChange(nextOpen);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onOpenChange(false);
-    setForm(emptyForm);
+    if (!form.paymentDate || !form.amount || !form.mode) {
+      setError("Payment date, amount, and mode are required.");
+      return;
+    }
+    const amount = Number.parseFloat(form.amount.replace(/,/g, ""));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a valid payment amount.");
+      return;
+    }
+    if (maxAmount != null && amount > maxAmount + 0.001) {
+      setError("Payment cannot exceed outstanding balance.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await recordPayment(invoiceId, form);
+      onOpenChange(false);
+      setForm(emptyForm);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateField = <K extends keyof PaymentFormData>(
@@ -71,11 +108,14 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
           <DialogDescription>
-            Record a payment received against this invoice. UI preview only.
+            Record a payment received against this invoice.
+            {maxAmount != null
+              ? ` Outstanding: ₹${maxAmount.toLocaleString("en-IN")}.`
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="payment-date">
@@ -87,6 +127,7 @@ export function RecordPaymentDialog({
                 value={form.paymentDate}
                 onChange={(e) => updateField("paymentDate", e.target.value)}
                 className="rounded-xl"
+                required
               />
             </div>
 
@@ -101,6 +142,9 @@ export function RecordPaymentDialog({
                 onChange={(e) => updateField("amount", e.target.value)}
                 placeholder="0"
                 className="rounded-xl"
+                required
+                min={0}
+                step="0.01"
               />
             </div>
 
@@ -179,20 +223,29 @@ export function RecordPaymentDialog({
                 className="rounded-xl"
               />
               <p className="text-xs text-muted-foreground">
-                File upload placeholder — not functional in UI preview.
+                File upload placeholder — metadata only in documents tab.
               </p>
             </div>
           </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
           <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit">Record Payment</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Recording…" : "Record Payment"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

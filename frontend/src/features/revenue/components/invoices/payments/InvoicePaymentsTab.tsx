@@ -4,16 +4,18 @@ import { PageHeader } from "@/shared/components/PageHeader";
 import { RecordPaymentDialog } from "@/features/revenue/components/invoices/payments/RecordPaymentDialog";
 import { PaymentTable } from "@/features/revenue/components/invoices/payments/PaymentTable";
 import { Button } from "@/shared/ui/button";
-import { seedPayments } from "@/features/revenue/data/seed-payments";
-import { getPaymentsByInvoiceId } from "@/features/revenue/utils/payment-utils";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 
 interface InvoicePaymentsTabProps {
   invoiceId: string;
 }
 
 export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
+  const { getInvoice, getPaymentsByInvoiceId, loading } = useRevenue();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const payments = getPaymentsByInvoiceId(seedPayments, invoiceId);
+
+  const invoice = getInvoice(invoiceId);
+  const payments = getPaymentsByInvoiceId(invoiceId);
 
   return (
     <div className="space-y-8">
@@ -28,7 +30,9 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
         }
       />
 
-      {payments.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading payments…</p>
+      ) : payments.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
           <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
             <Wallet className="size-6 text-muted-foreground" />
@@ -46,7 +50,12 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
         <PaymentTable payments={payments} />
       )}
 
-      <RecordPaymentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <RecordPaymentDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        invoiceId={invoiceId}
+        maxAmount={invoice?.outstanding}
+      />
     </div>
   );
 }

@@ -1,9 +1,8 @@
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
-import { seedPayments } from "@/features/revenue/data/seed-payments";
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
 import type { Deal } from "@/features/deals/types/deal";
-import type { PaymentMode, PaymentStatus } from "@/features/revenue/types/payment";
+import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Payment, PaymentMode, PaymentStatus } from "@/features/revenue/types/payment";
 
 export interface CustomerPaymentHistoryItem {
   paymentId: string;
@@ -29,12 +28,14 @@ export interface CustomerRenewalItem {
 }
 
 export function getCustomerPaymentHistory(
-  customerId: string
+  customerId: string,
+  invoices: Invoice[],
+  payments: Payment[]
 ): CustomerPaymentHistoryItem[] {
-  const customerInvoices = getInvoicesByCustomerId(seedInvoices, customerId);
+  const customerInvoices = getInvoicesByCustomerId(invoices, customerId);
   const invoiceMap = new Map(customerInvoices.map((invoice) => [invoice.id, invoice]));
 
-  return seedPayments
+  return payments
     .filter((payment) => invoiceMap.has(payment.invoiceId))
     .map((payment) => {
       const invoice = invoiceMap.get(payment.invoiceId)!;

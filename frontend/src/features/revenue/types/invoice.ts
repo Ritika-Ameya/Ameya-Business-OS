@@ -1,5 +1,13 @@
 export type InvoiceStatus = "paid" | "partial" | "overdue" | "draft" | "sent";
 
+export interface InvoiceTimelineEntry {
+  id: string;
+  action?: string;
+  stageName: string;
+  notes?: string;
+  timestamp: string;
+}
+
 export interface Invoice {
   id: string;
   invoiceNo: string;
@@ -16,6 +24,7 @@ export interface Invoice {
   gstPercent: number;
   componentIds: string[];
   notes?: string;
+  timeline?: InvoiceTimelineEntry[];
 }
 
 export type InvoiceStatusFilter = "all" | InvoiceStatus;

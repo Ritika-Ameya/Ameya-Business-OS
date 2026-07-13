@@ -1,5 +1,4 @@
-import type { DealComponent } from "@/features/deals/types/deal-component";
-import type { GenerateInvoiceContext, Invoice, InvoiceFilters } from "@/features/revenue/types/invoice";
+import type { Invoice, InvoiceFilters } from "@/features/revenue/types/invoice";
 
 export { formatCurrency as formatInvoiceCurrency } from "@/shared/utils/format-currency";
 export { formatDate as formatInvoiceDate } from "@/shared/utils/format-date";
@@ -92,35 +91,6 @@ export function getInvoicesByCustomerId(
 
 export function getInvoicesByDealId(invoices: Invoice[], dealId: string): Invoice[] {
   return invoices.filter((invoice) => invoice.dealId === dealId);
-}
-
-export function createPlaceholderInvoice(
-  context: GenerateInvoiceContext,
-  allComponents: DealComponent[] = []
-): Invoice {
-  const componentIds = context.componentIds ?? [];
-  const selected = allComponents.filter((component) =>
-    componentIds.includes(component.id)
-  );
-  const subtotal = selected.reduce((sum, component) => sum + component.amount, 0);
-  const gstPercent = 18;
-
-  return {
-    id: "inv-new",
-    invoiceNo: "INV-NEW",
-    customerId: context.customerId,
-    customerName: context.customerName,
-    dealId: context.dealId,
-    dealTitle: context.dealTitle,
-    amount: subtotal,
-    received: 0,
-    outstanding: subtotal,
-    invoiceDate: new Date().toISOString().split("T")[0],
-    dueDate: new Date().toISOString().split("T")[0],
-    status: "draft",
-    gstPercent,
-    componentIds,
-  };
 }
 
 export function getUniqueCustomers(invoices: Invoice[]) {

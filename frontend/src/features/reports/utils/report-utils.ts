@@ -1,6 +1,5 @@
 import type { ReportFilters } from "@/features/reports/types/reports";
 
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import type { Customer } from "@/features/customers/types/customer";
 import type { Deal } from "@/features/deals/types/deal";
 import {
@@ -55,7 +54,7 @@ export const defaultReportFilters = (): ReportFilters => ({
   search: "",
 });
 
-export function getReportDeals(deals: Deal[], invoices: Invoice[] = seedInvoices) {
+export function getReportDeals(deals: Deal[], invoices: Invoice[] = []) {
   const map = new Map<string, string>();
   for (const deal of deals) {
     map.set(deal.id, deal.title);
@@ -70,7 +69,7 @@ export function getReportDeals(deals: Deal[], invoices: Invoice[] = seedInvoices
 
 export function getReportCustomers(
   customers: Customer[],
-  invoices: Invoice[] = seedInvoices
+  invoices: Invoice[] = []
 ) {
   const map = new Map<string, string>();
   for (const customer of customers) {
@@ -295,7 +294,7 @@ export function computeRenewalReportStats(
 }
 
 export function getOutstandingRows(invoices: Invoice[]) {
-  return buildCollectionRows(invoices).map(({ invoice }) => ({
+  return buildCollectionRows(invoices, []).map(({ invoice }) => ({
     invoice,
     daysOverdue: getDaysOverdue(invoice.dueDate),
   }));

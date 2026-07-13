@@ -115,14 +115,22 @@ export const INVOICES_CONTRACT: PersistenceContract = {
   columns: withBaseColumns([
     'invoiceNumber',
     'customerId',
+    'customerName',
     'dealId',
+    'dealTitle',
     'status',
     'issueDate',
     'dueDate',
     'subtotal',
+    'taxPercent',
     'tax',
     'total',
     'currency',
+    'received',
+    'outstanding',
+    'componentIds',
+    'notes',
+    'timeline',
   ]),
 };
 
@@ -138,6 +146,9 @@ export const PAYMENTS_CONTRACT: PersistenceContract = {
     'status',
     'paidAt',
     'reference',
+    'receivedBy',
+    'transactionId',
+    'notes',
   ]),
 };
 
