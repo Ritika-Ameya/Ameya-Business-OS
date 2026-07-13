@@ -3,6 +3,7 @@ export const MESSAGES = {
   CREATED: 'Resource created successfully',
   UPDATED: 'Resource updated successfully',
   DELETED: 'Resource deleted successfully',
+  RESTORED: 'Resource restored successfully',
   NOT_FOUND: 'Resource not found',
   VALIDATION_FAILED: 'Validation failed',
   UNAUTHORIZED: 'Unauthorized access',

@@ -13,7 +13,7 @@ import { defaultFilters, filterCustomers } from "@/features/customers/utils/cust
 import type { Customer, CustomerFilters, CustomerFormData } from "@/features/customers/types/customer";
 
 export function CustomersPage() {
-  const { customers, addCustomer, updateCustomer } = useCustomers();
+  const { customers, loading, error, addCustomer, updateCustomer } = useCustomers();
   const { stages } = useAppConfig();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
@@ -46,12 +46,12 @@ export function CustomersPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = (data: CustomerFormData) => {
+  const handleSave = async (data: CustomerFormData) => {
     if (editingCustomer) {
-      updateCustomer(editingCustomer.id, data);
+      await updateCustomer(editingCustomer.id, data);
       return;
     }
-    addCustomer(data, stages);
+    await addCustomer(data, stages);
   };
 
   const resetFilters = () => {
@@ -72,6 +72,12 @@ export function CustomersPage() {
         }
       />
 
+      {error && (
+        <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
       <CustomerStatsCards customers={customers} />
 
       <CustomerSearchFilters
@@ -81,7 +87,7 @@ export function CustomersPage() {
         onFiltersChange={setFilters}
       />
 
-      {isSearching ? (
+      {loading || isSearching ? (
         <TableSkeleton rows={6} />
       ) : (
         <CustomerTable

@@ -1,8 +1,8 @@
-import { seedDeals } from "@/features/deals/data/seed-deals";
 import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import { seedPayments } from "@/features/revenue/data/seed-payments";
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
+import type { Deal } from "@/features/deals/types/deal";
 import type { PaymentMode, PaymentStatus } from "@/features/revenue/types/payment";
 
 export interface CustomerPaymentHistoryItem {
@@ -55,8 +55,11 @@ export function getCustomerPaymentHistory(
     );
 }
 
-export function getCustomerRenewals(customerId: string): CustomerRenewalItem[] {
-  const customerDeals = getDealsByCustomerId(seedDeals, customerId);
+export function getCustomerRenewals(
+  customerId: string,
+  deals: Deal[]
+): CustomerRenewalItem[] {
+  const customerDeals = getDealsByCustomerId(deals, customerId);
   const now = new Date();
 
   return customerDeals

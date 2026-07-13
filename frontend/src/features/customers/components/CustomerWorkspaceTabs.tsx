@@ -10,7 +10,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { CustomerInvoicesTab } from "@/features/revenue/components/invoices/CustomerInvoicesTab";
 import { CustomerDealsTab } from "./CustomerDealsTab";
-import { CustomerEmptyState } from "./CustomerEmptyState";
+import { CustomerFilesTab } from "./CustomerFilesTab";
 import { CustomerOverviewTab } from "./CustomerOverviewTab";
 import { CustomerPaymentsTab } from "./CustomerPaymentsTab";
 import { CustomerRenewalsTab } from "./CustomerRenewalsTab";
@@ -84,11 +84,7 @@ export function CustomerWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="files" className="mt-0">
-        <CustomerEmptyState
-          icon={FileText}
-          title="No documents uploaded"
-          description="Upload contracts, agreements, and other documents for this customer."
-        />
+        <CustomerFilesTab customer={customer} />
       </TabsContent>
 
       <TabsContent value="timeline" className="mt-0">

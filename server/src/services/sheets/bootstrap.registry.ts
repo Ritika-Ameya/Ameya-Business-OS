@@ -14,6 +14,7 @@ import {
   STAGE_MASTER_CONTRACT,
   STATE_CONTRACT,
 } from '../../modules/masters/contracts/master.contracts';
+import { CUSTOMERS_CONTRACT, DOCUMENTS_CONTRACT } from '../../types/persistence.contracts';
 
 /**
  * Canonical master worksheet contracts used by Bootstrap + HeaderManager.
@@ -33,6 +34,17 @@ export const BOOTSTRAP_MASTER_CONTRACTS: readonly PersistenceContract[] = [
   INVOICE_CONFIGURATION_CONTRACT,
   BRANDING_CONTRACT,
   NOTIFICATION_CONFIGURATION_CONTRACT,
+] as const;
+
+/** Business worksheets provisioned alongside masters (Customers sheet is singular for Opp+Customer). */
+export const BOOTSTRAP_BUSINESS_CONTRACTS: readonly PersistenceContract[] = [
+  CUSTOMERS_CONTRACT,
+  DOCUMENTS_CONTRACT,
+] as const;
+
+export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [
+  ...BOOTSTRAP_MASTER_CONTRACTS,
+  ...BOOTSTRAP_BUSINESS_CONTRACTS,
 ] as const;
 
 export const BOOTSTRAP_REQUIRED_TAB_NAMES: readonly string[] =

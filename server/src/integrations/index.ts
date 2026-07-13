@@ -6,6 +6,7 @@ import { createGoogleDriveService } from '../services/googleDrive.service';
 import { createGoogleSheetsService } from '../services/googleSheets.service';
 import { InfrastructureHealthService } from '../services/infrastructureHealth.service';
 import { BootstrapService } from '../services/sheets/bootstrap.service';
+import { BOOTSTRAP_CONTRACTS } from '../services/sheets/bootstrap.registry';
 
 export const googleSheetsClient = createGoogleSheetsClient();
 export const googleDriveClient = createGoogleDriveClient();
@@ -13,7 +14,7 @@ export const googleDriveClient = createGoogleDriveClient();
 export const googleSheetsService = createGoogleSheetsService(googleSheetsClient);
 export const googleDriveService = createGoogleDriveService(googleDriveClient);
 
-export const bootstrapService = new BootstrapService(googleSheetsService);
+export const bootstrapService = new BootstrapService(googleSheetsService, BOOTSTRAP_CONTRACTS);
 
 export const infrastructureHealthService = new InfrastructureHealthService(
   googleAuthService,
