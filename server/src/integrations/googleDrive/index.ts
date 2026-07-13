@@ -1,11 +1,10 @@
 import { env } from '../../config';
+import { getGoogleServiceAccountConfig } from '../google/googleAccount.config';
 import { GoogleDriveClient } from './googleDrive.client';
 
 export const createGoogleDriveClient = (): GoogleDriveClient => {
   return new GoogleDriveClient({
-    projectId: env.GOOGLE_PROJECT_ID,
-    clientEmail: env.GOOGLE_CLIENT_EMAIL,
-    privateKey: env.GOOGLE_PRIVATE_KEY,
+    ...getGoogleServiceAccountConfig(),
     folderId: env.GOOGLE_DRIVE_FOLDER_ID,
   });
 };

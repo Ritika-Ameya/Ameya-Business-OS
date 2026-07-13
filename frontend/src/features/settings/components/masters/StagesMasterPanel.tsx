@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { StageDialog } from "@/features/settings/components/masters/dialogs/StageDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -28,7 +29,7 @@ import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsStage } from "@/features/settings/types/settings";
 
 export function StagesMasterPanel() {
-  const { stages, addStage, updateStage } = useAppConfig();
+  const { stages, addStage, updateStage, deleteStage, saving } = useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SettingsStage | undefined>();
@@ -140,6 +141,18 @@ export function StagesMasterPanel() {
                           <Edit />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${item.name}"?`)) {
+                              void deleteStage(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -157,10 +170,11 @@ export function StagesMasterPanel() {
         title={editing ? "Edit Stage" : "Add Stage"}
         nextSequence={nextSequence}
         initialData={editing}
-        onSave={(data) => {
-          if (editing) updateStage(editing.id, data);
-          else addStage(data);
+        onSave={async (data) => {
+          if (editing) await updateStage(editing.id, data);
+          else await addStage(data);
         }}
+        saving={saving}
       />
     </div>
   );

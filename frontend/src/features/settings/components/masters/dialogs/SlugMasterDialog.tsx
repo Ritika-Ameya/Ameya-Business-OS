@@ -29,8 +29,9 @@ interface SlugMasterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: SlugMasterForm) => void;
+  onSave: (data: SlugMasterForm) => void | Promise<void>;
   initialData?: SlugMasterForm;
+  saving?: boolean;
 }
 
 const emptyForm = (): SlugMasterForm => ({
@@ -45,6 +46,7 @@ export function SlugMasterDialog({
   title,
   onSave,
   initialData,
+  saving = false,
 }: SlugMasterDialogProps) {
   const [form, setForm] = useState<SlugMasterForm>(() => initialData ?? emptyForm());
 
@@ -53,9 +55,9 @@ export function SlugMasterDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    onSave({
+    await onSave({
       ...form,
       slug: form.slug.trim() || slugifyName(form.name),
     });
@@ -117,8 +119,8 @@ export function SlugMasterDialog({
           <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

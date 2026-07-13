@@ -37,8 +37,9 @@ function formFromCategory(category?: SettingsExpenseCategory): ExpenseCategoryFo
 interface ExpenseCategoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: ExpenseCategoryFormData) => void;
+  onSave: (data: ExpenseCategoryFormData) => void | Promise<void>;
   initialData?: SettingsExpenseCategory;
+  saving?: boolean;
 }
 
 export function ExpenseCategoryDialog({
@@ -46,6 +47,7 @@ export function ExpenseCategoryDialog({
   onOpenChange,
   onSave,
   initialData,
+  saving = false,
 }: ExpenseCategoryDialogProps) {
   const [form, setForm] = useState(() => formFromCategory(initialData));
 
@@ -54,9 +56,9 @@ export function ExpenseCategoryDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    onSave(form);
+    await onSave(form);
     onOpenChange(false);
   };
 
@@ -112,8 +114,8 @@ export function ExpenseCategoryDialog({
           <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

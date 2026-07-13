@@ -66,7 +66,7 @@ interface AddExpenseMasterDialogProps {
   categories: ExpenseCategoryItem[];
   vendors: VendorItem[];
   employees: EmployeeItem[];
-  onCreateCategory: (name: string) => ExpenseCategoryItem;
+  onCreateCategory: (name: string) => Promise<ExpenseCategoryItem>;
   onCreateVendor: (name: string) => VendorItem;
   onCreateEmployee: (name: string) => EmployeeItem;
   initialData?: ExpenseMasterTemplate;
@@ -163,8 +163,9 @@ export function AddExpenseMasterDialog({
               <InlineQuickCreate
                 label="Category"
                 onCreate={(name) => {
-                  const category = onCreateCategory(name);
-                  updateField("categoryId", category.id);
+                  void onCreateCategory(name).then((category) => {
+                    updateField("categoryId", category.id);
+                  });
                 }}
               />
             </div>

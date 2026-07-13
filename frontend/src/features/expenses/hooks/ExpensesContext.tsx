@@ -52,7 +52,7 @@ interface ExpensesContextValue {
   ) => void;
   addMaster: (data: ExpenseMasterFormData) => ExpenseMasterTemplate;
   updateMaster: (id: string, data: ExpenseMasterFormData) => void;
-  addCategory: (name: string) => ExpenseCategoryItem;
+  addCategory: (name: string) => Promise<ExpenseCategoryItem>;
   addVendor: (name: string) => VendorItem;
   addEmployee: (name: string) => EmployeeItem;
 }
@@ -178,8 +178,8 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
   );
 
   const addCategory = useCallback(
-    (name: string): ExpenseCategoryItem => {
-      const category = appConfig.addExpenseCategory({
+    async (name: string): Promise<ExpenseCategoryItem> => {
+      const category = await appConfig.addExpenseCategory({
         name,
         description: "",
         status: "active",

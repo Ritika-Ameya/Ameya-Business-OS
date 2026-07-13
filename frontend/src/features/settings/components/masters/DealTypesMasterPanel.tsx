@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SlugMasterDialog } from "@/features/settings/components/masters/dialogs/SlugMasterDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -23,7 +24,7 @@ import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsDealType } from "@/features/settings/types/settings";
 
 export function DealTypesMasterPanel() {
-  const { dealTypes, addDealType, updateDealType } = useAppConfig();
+  const { dealTypes, addDealType, updateDealType, deleteDealType, saving } = useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SettingsDealType | undefined>();
@@ -91,6 +92,18 @@ export function DealTypesMasterPanel() {
                           <Edit />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${item.name}"?`)) {
+                              void deleteDealType(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -106,14 +119,15 @@ export function DealTypesMasterPanel() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? "Edit Deal Type" : "Add Deal Type"}
+        saving={saving}
         initialData={
           editing
             ? { name: editing.name, slug: editing.slug, status: editing.status }
             : undefined
         }
-        onSave={(data) => {
-          if (editing) updateDealType(editing.id, data);
-          else addDealType(data);
+        onSave={async (data) => {
+          if (editing) await updateDealType(editing.id, data);
+          else await addDealType(data);
         }}
       />
     </div>

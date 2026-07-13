@@ -4,19 +4,25 @@ import { Input } from "@/shared/ui/input";
 
 interface InlineQuickCreateProps {
   label: string;
-  onCreate: (name: string) => void;
+  onCreate: (name: string) => void | Promise<void>;
 }
 
 export function InlineQuickCreate({ label, onCreate }: InlineQuickCreateProps) {
   const [expanded, setExpanded] = useState(false);
   const [value, setValue] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const trimmed = value.trim();
-    if (!trimmed) return;
-    onCreate(trimmed);
-    setValue("");
-    setExpanded(false);
+    if (!trimmed || creating) return;
+    setCreating(true);
+    try {
+      await onCreate(trimmed);
+      setValue("");
+      setExpanded(false);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleCancel = () => {
@@ -46,10 +52,11 @@ export function InlineQuickCreate({ label, onCreate }: InlineQuickCreateProps) {
         placeholder={`New ${label.toLowerCase()}`}
         className="h-8 min-w-[140px] rounded-lg text-xs"
         autoFocus
+        disabled={creating}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
-            handleCreate();
+            void handleCreate();
           }
           if (e.key === "Escape") {
             handleCancel();
@@ -60,9 +67,10 @@ export function InlineQuickCreate({ label, onCreate }: InlineQuickCreateProps) {
         type="button"
         size="xs"
         className="h-8 rounded-lg px-2 text-xs"
-        onClick={handleCreate}
+        onClick={() => void handleCreate()}
+        disabled={creating}
       >
-        Add
+        {creating ? "Adding..." : "Add"}
       </Button>
       <Button
         type="button"
@@ -70,6 +78,7 @@ export function InlineQuickCreate({ label, onCreate }: InlineQuickCreateProps) {
         size="xs"
         className="h-8 rounded-lg px-2 text-xs"
         onClick={handleCancel}
+        disabled={creating}
       >
         Cancel
       </Button>

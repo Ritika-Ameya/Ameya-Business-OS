@@ -12,6 +12,78 @@ export interface CompanySettings {
   financialYear: string;
 }
 
+export interface SettingsOpportunitySource {
+  id: string;
+  name: string;
+  description: string;
+  status: SettingsEntityStatus;
+}
+
+export interface SettingsIndustry {
+  id: string;
+  name: string;
+  description: string;
+  status: SettingsEntityStatus;
+}
+
+export interface SettingsCountry {
+  id: string;
+  name: string;
+  code: string;
+  status: SettingsEntityStatus;
+}
+
+export interface SettingsState {
+  id: string;
+  name: string;
+  code: string;
+  countryId: string;
+  status: SettingsEntityStatus;
+}
+
+export interface BrandingSettings {
+  logoUrl: string;
+  faviconUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  tagline: string;
+}
+
+export interface OpportunitySourceFormData {
+  name: string;
+  description: string;
+  status: SettingsEntityStatus;
+}
+
+export interface IndustryFormData {
+  name: string;
+  description: string;
+  status: SettingsEntityStatus;
+}
+
+export interface CountryFormData {
+  name: string;
+  code: string;
+  status: SettingsEntityStatus;
+}
+
+export interface StateFormData {
+  name: string;
+  code: string;
+  countryId: string;
+  status: SettingsEntityStatus;
+}
+
+export interface BrandingFormData {
+  logoUrl: string;
+  faviconUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  tagline: string;
+}
+
 export interface SettingsEmployee {
   id: string;
   name: string;
@@ -142,13 +214,17 @@ export interface StageFormData {
   status: SettingsEntityStatus;
 }
 
-export type SettingsSection = "company" | "masters" | "finance" | "preferences";
+export type SettingsSection = "company" | "masters" | "finance" | "branding" | "preferences";
 
 export type MasterTab =
-  | "employees"
-  | "vendors"
+  | "opportunity-sources"
+  | "industries"
+  | "stages"
+  | "deal-types"
+  | "payment-methods"
   | "expense-categories"
   | "renewal-types"
-  | "payment-methods"
-  | "deal-types"
-  | "stages";
+  | "countries"
+  | "states"
+  | "employees"
+  | "vendors";

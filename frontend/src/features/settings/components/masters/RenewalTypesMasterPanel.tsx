@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SimpleMasterDialog } from "@/features/settings/components/masters/dialogs/SimpleMasterDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -23,7 +24,8 @@ import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsRenewalType } from "@/features/settings/types/settings";
 
 export function RenewalTypesMasterPanel() {
-  const { renewalTypes, addRenewalType, updateRenewalType } = useAppConfig();
+  const { renewalTypes, addRenewalType, updateRenewalType, deleteRenewalType, saving } =
+    useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SettingsRenewalType | undefined>();
@@ -39,7 +41,7 @@ export function RenewalTypesMasterPanel() {
         <SettingsSearchBar
           value={query}
           onChange={setQuery}
-          placeholder="Search renewal types..."
+          placeholder="Search renewal frequencies..."
         />
         <Button
           className="rounded-xl shrink-0"
@@ -49,7 +51,7 @@ export function RenewalTypesMasterPanel() {
           }}
         >
           <Plus />
-          Add Renewal Type
+          Add Renewal Frequency
         </Button>
       </div>
 
@@ -57,7 +59,7 @@ export function RenewalTypesMasterPanel() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="pl-4">Renewal Type</TableHead>
+              <TableHead className="pl-4">Renewal Frequency</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -66,7 +68,7 @@ export function RenewalTypesMasterPanel() {
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="py-12 text-center text-muted-foreground">
-                  No renewal types found.
+                  No renewal frequencies found.
                 </TableCell>
               </TableRow>
             ) : (
@@ -93,6 +95,18 @@ export function RenewalTypesMasterPanel() {
                           <Edit />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${item.name}"?`)) {
+                              void deleteRenewalType(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -107,11 +121,12 @@ export function RenewalTypesMasterPanel() {
         key={`${editing?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing ? "Edit Renewal Type" : "Add Renewal Type"}
+        title={editing ? "Edit Renewal Frequency" : "Add Renewal Frequency"}
+        saving={saving}
         initialData={editing ? { name: editing.name, status: editing.status } : undefined}
-        onSave={(data) => {
-          if (editing) updateRenewalType(editing.id, data);
-          else addRenewalType(data);
+        onSave={async (data) => {
+          if (editing) await updateRenewalType(editing.id, data);
+          else await addRenewalType(data);
         }}
       />
     </div>

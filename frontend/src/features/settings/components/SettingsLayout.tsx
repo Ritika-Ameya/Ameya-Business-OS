@@ -1,5 +1,6 @@
-import { Building2, Database, IndianRupee, SlidersHorizontal } from "lucide-react";
+import { Building2, Database, IndianRupee, Palette, SlidersHorizontal } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { SettingsMessages } from "@/features/settings/components/SettingsMessages";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { cn } from "@/shared/utils";
 import { settingsSectionLabels } from "@/features/settings/utils/settings-utils";
@@ -8,6 +9,7 @@ const navItems = [
   { to: "/settings/company", label: settingsSectionLabels.company, icon: Building2 },
   { to: "/settings/masters", label: settingsSectionLabels.masters, icon: Database },
   { to: "/settings/finance", label: settingsSectionLabels.finance, icon: IndianRupee },
+  { to: "/settings/branding", label: settingsSectionLabels.branding, icon: Palette },
   {
     to: "/settings/preferences",
     label: settingsSectionLabels.preferences,
@@ -22,6 +24,8 @@ export function SettingsLayout() {
         title="Settings"
         subtitle="Application configuration and master data management."
       />
+
+      <SettingsMessages />
 
       <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
         <aside className="lg:w-56 lg:shrink-0">

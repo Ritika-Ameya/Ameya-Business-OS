@@ -16,6 +16,7 @@ import { ReportsPage } from "@/features/reports/pages/ReportsPage";
 import { CompanySettingsPage } from "@/features/settings/pages/CompanySettingsPage";
 import { FinanceSettingsPage } from "@/features/settings/pages/FinanceSettingsPage";
 import { MastersSettingsPage } from "@/features/settings/pages/MastersSettingsPage";
+import { BrandingSettingsPage } from "@/features/settings/pages/BrandingSettingsPage";
 import { PreferencesSettingsPage } from "@/features/settings/pages/PreferencesSettingsPage";
 
 export function AppRoutes() {
@@ -39,6 +40,7 @@ export function AppRoutes() {
           <Route path="company" element={<CompanySettingsPage />} />
           <Route path="masters" element={<MastersSettingsPage />} />
           <Route path="finance" element={<FinanceSettingsPage />} />
+          <Route path="branding" element={<BrandingSettingsPage />} />
           <Route path="preferences" element={<PreferencesSettingsPage />} />
         </Route>
       </Route>

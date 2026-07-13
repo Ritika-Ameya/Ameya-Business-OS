@@ -27,8 +27,9 @@ interface SimpleMasterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: SimpleMasterForm) => void;
+  onSave: (data: SimpleMasterForm) => void | Promise<void>;
   initialData?: SimpleMasterForm;
+  saving?: boolean;
 }
 
 const emptyForm = (): SimpleMasterForm => ({
@@ -42,6 +43,7 @@ export function SimpleMasterDialog({
   title,
   onSave,
   initialData,
+  saving = false,
 }: SimpleMasterDialogProps) {
   const [form, setForm] = useState<SimpleMasterForm>(
     () => initialData ?? emptyForm()
@@ -52,9 +54,9 @@ export function SimpleMasterDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    onSave(form);
+    await onSave(form);
     onOpenChange(false);
   };
 
@@ -98,8 +100,8 @@ export function SimpleMasterDialog({
           <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

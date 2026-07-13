@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ExpenseCategoryDialog } from "@/features/settings/components/masters/dialogs/ExpenseCategoryDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -23,7 +24,8 @@ import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsExpenseCategory } from "@/features/settings/types/settings";
 
 export function ExpenseCategoriesMasterPanel() {
-  const { expenseCategories, addExpenseCategory, updateExpenseCategory } = useAppConfig();
+  const { expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory, saving } =
+    useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SettingsExpenseCategory | undefined>();
@@ -101,6 +103,18 @@ export function ExpenseCategoriesMasterPanel() {
                           <Edit />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${category.name}"?`)) {
+                              void deleteExpenseCategory(category.id);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -115,10 +129,11 @@ export function ExpenseCategoriesMasterPanel() {
         key={`${editing?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        saving={saving}
         initialData={editing}
-        onSave={(data) => {
-          if (editing) updateExpenseCategory(editing.id, data);
-          else addExpenseCategory(data);
+        onSave={async (data) => {
+          if (editing) await updateExpenseCategory(editing.id, data);
+          else await addExpenseCategory(data);
         }}
       />
     </div>
