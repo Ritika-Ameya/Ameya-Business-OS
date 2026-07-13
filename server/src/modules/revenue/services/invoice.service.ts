@@ -25,12 +25,15 @@ import {
   parseSearchFields,
   parseSearchMode,
 } from '../utils/invoiceSearch.util';
-import { applyBalance } from '../utils/outstanding.util';
+import {
+  applyBalance,
+  resolveCreateAmounts,
+  resolveUpdateAmounts,
+  roundMoney,
+} from '../utils/invoiceCalculation.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
-
-const round2 = (value: number): number => Math.round(value * 100) / 100;
 
 export class InvoiceService extends BaseService {
   constructor() {
@@ -80,10 +83,12 @@ export class InvoiceService extends BaseService {
       throw new ValidationError('Deal does not belong to the selected customer');
     }
 
-    const taxPercent = input.taxPercent;
-    const subtotal = round2(input.subtotal);
-    const tax = round2(input.tax ?? (subtotal * taxPercent) / 100);
-    const total = round2(input.total ?? subtotal + tax);
+    const { subtotal, taxPercent, tax, total } = resolveCreateAmounts({
+      subtotal: input.subtotal,
+      taxPercent: input.taxPercent,
+      tax: input.tax,
+      total: input.total,
+    });
 
     const invoiceNumber =
       input.invoiceNumber.trim() || (await this.allocateInvoiceNumber());
@@ -132,21 +137,12 @@ export class InvoiceService extends BaseService {
       await this.assertUniqueInvoiceNumber(input.invoiceNumber, id);
     }
 
-    const subtotal = input.subtotal !== undefined ? round2(input.subtotal) : existing.subtotal;
-    const taxPercent =
-      input.taxPercent !== undefined ? input.taxPercent : existing.taxPercent;
-    const tax =
-      input.tax !== undefined
-        ? round2(input.tax)
-        : input.subtotal !== undefined || input.taxPercent !== undefined
-          ? round2((subtotal * taxPercent) / 100)
-          : existing.tax;
-    const total =
-      input.total !== undefined
-        ? round2(input.total)
-        : input.subtotal !== undefined || input.taxPercent !== undefined || input.tax !== undefined
-          ? round2(subtotal + tax)
-          : existing.total;
+    const { subtotal, taxPercent, tax, total } = resolveUpdateAmounts(existing, {
+      subtotal: input.subtotal,
+      taxPercent: input.taxPercent,
+      tax: input.tax,
+      total: input.total,
+    });
 
     const payments = await this.listPaymentsForInvoice(id);
     const balance = applyBalance({ ...existing, total }, payments);
@@ -219,8 +215,7 @@ export class InvoiceService extends BaseService {
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
     const invoice = await this.getById(invoiceId);
     const existingPayments = await this.listPaymentsForInvoice(invoiceId);
-    const currentReceived = applyBalance(invoice, existingPayments).received;
-    const nextOutstanding = Math.max(0, invoice.total - currentReceived);
+    const { outstanding: nextOutstanding } = applyBalance(invoice, existingPayments);
 
     if (input.status === 'received' && input.amount > nextOutstanding + 0.001) {
       throw new ValidationError('Payment cannot exceed outstanding balance', [
@@ -231,7 +226,7 @@ export class InvoiceService extends BaseService {
     const payment = await paymentRepository.create({
       invoiceId,
       customerId: invoice.customerId,
-      amount: round2(input.amount),
+      amount: roundMoney(input.amount),
       currency: input.currency.trim() || invoice.currency || 'INR',
       method: input.mode.trim(),
       status: input.status,
@@ -264,7 +259,7 @@ export class InvoiceService extends BaseService {
     const payment = await paymentRepository.updateOrThrow(
       paymentId,
       {
-        amount: input.amount !== undefined ? round2(input.amount) : undefined,
+        amount: input.amount !== undefined ? roundMoney(input.amount) : undefined,
         method: input.mode?.trim(),
         status: input.status,
         paidAt: input.paymentDate,
