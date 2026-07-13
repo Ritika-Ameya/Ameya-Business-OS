@@ -1,9 +1,10 @@
-export type HealthStatus = 'healthy' | 'unhealthy';
+export type HealthStatus = 'healthy' | 'unhealthy' | 'degraded';
 
 export interface ComponentHealthCheck {
   status: HealthStatus;
   message?: string;
   latencyMs?: number;
+  details?: Record<string, unknown>;
 }
 
 export interface InfrastructureHealthResponse {
@@ -13,6 +14,10 @@ export interface InfrastructureHealthResponse {
     googleAuth: ComponentHealthCheck;
     googleSheets: ComponentHealthCheck;
     googleDrive: ComponentHealthCheck;
+    spreadsheet: ComponentHealthCheck;
+    worksheets: ComponentHealthCheck;
+    headers: ComponentHealthCheck;
+    bootstrap: ComponentHealthCheck;
   };
 }
 

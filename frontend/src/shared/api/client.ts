@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/shared/api/config";
+import { API_BASE_URL, DEV_API_KEY } from "@/shared/api/config";
 import { ApiError } from "@/shared/api/errors";
 import type { ApiResponseBody } from "@/shared/api/types";
 
@@ -31,6 +31,10 @@ export async function apiRequest<T>(
 
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
+  }
+
+  if (DEV_API_KEY) {
+    headers["X-DEV-KEY"] = DEV_API_KEY;
   }
 
   const response = await fetch(buildUrl(path, params), {

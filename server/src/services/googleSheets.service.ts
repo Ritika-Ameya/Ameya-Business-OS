@@ -58,6 +58,16 @@ export class GoogleSheetsService extends BaseService {
     return this.client.deleteRows(sheetId, startIndex, endIndex);
   }
 
+  async createSheetTab(title: string): Promise<number> {
+    this.logInfo(`Creating worksheet "${title}"`);
+    return this.client.createSheetTab(title);
+  }
+
+  async deleteSheetTab(sheetId: number): Promise<void> {
+    this.logInfo(`Deleting worksheet sheetId=${sheetId}`);
+    return this.client.deleteSheetTab(sheetId);
+  }
+
   async batchUpdate(requests: sheets_v4.Schema$Request[]): Promise<void> {
     this.logDebug(`Executing batch update with ${requests.length} request(s)`);
     return this.client.batchUpdate(requests);

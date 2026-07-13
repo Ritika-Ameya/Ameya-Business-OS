@@ -184,6 +184,43 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
     ]);
   }
 
+  async createSheetTab(title: string): Promise<number> {
+    return wrapGoogleOperation(`Google Sheets createSheetTab(${title})`, async () =>
+      withGoogleRetry(async () => {
+        const sheets = this.getSheetsApi();
+        const response = await sheets.spreadsheets.batchUpdate(
+          {
+            spreadsheetId: this.config.sheetId,
+            requestBody: {
+              requests: [
+                {
+                  addSheet: {
+                    properties: { title },
+                  },
+                },
+              ],
+            },
+          },
+          { timeout: this.requestOptions.timeout },
+        );
+
+        const sheetId =
+          response.data.replies?.[0]?.addSheet?.properties?.sheetId ??
+          (await this.getSheetIdByName(title));
+
+        return sheetId;
+      }, { maxRetries: this.requestOptions.maxRetries }),
+    );
+  }
+
+  async deleteSheetTab(sheetId: number): Promise<void> {
+    await this.batchUpdate([
+      {
+        deleteSheet: { sheetId },
+      },
+    ]);
+  }
+
   async batchUpdate(requests: sheets_v4.Schema$Request[]): Promise<void> {
     if (requests.length === 0) {
       return;

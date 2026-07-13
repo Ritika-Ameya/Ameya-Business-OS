@@ -71,3 +71,6 @@ export {
   parseNumberField,
 } from './sheetMapper.util';
 export { createBaseEntityMapper } from './entityMapper.util';
+export { assertUniqueField, assertUniqueFields } from './uniqueness.util';
+export { assertForeignKeys } from './foreignKey.util';
+export type { ForeignKeyRule } from './foreignKey.util';

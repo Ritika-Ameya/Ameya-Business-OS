@@ -1,6 +1,9 @@
 import type { BaseEntity } from '../../../types';
 import { slugifyMasterName } from '../validators/master.validators';
-import { MasterCrudService } from './masterCrud.service';
+import {
+  MasterCrudService,
+  type MasterCrudOptions,
+} from './masterCrud.service';
 import type { MasterRepository } from './master.repository';
 
 export class SlugMasterCrudService<
@@ -10,8 +13,9 @@ export class SlugMasterCrudService<
     serviceName: string,
     repository: MasterRepository<TEntity>,
     resourceLabel: string,
+    options: MasterCrudOptions = { uniqueFields: ['name', 'slug'] },
   ) {
-    super(serviceName, repository, resourceLabel);
+    super(serviceName, repository, resourceLabel, options);
   }
 
   override async create(

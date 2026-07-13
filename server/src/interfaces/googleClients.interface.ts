@@ -21,6 +21,8 @@ export interface GoogleSheetsClientInterface {
   appendRows(range: string, values: string[][]): Promise<SheetAppendResult>;
   updateRows(range: string, values: string[][]): Promise<SheetUpdateResult>;
   deleteRows(sheetId: number, startIndex: number, endIndex: number): Promise<void>;
+  createSheetTab(title: string): Promise<number>;
+  deleteSheetTab(sheetId: number): Promise<void>;
   batchUpdate(requests: sheets_v4.Schema$Request[]): Promise<void>;
 }
 

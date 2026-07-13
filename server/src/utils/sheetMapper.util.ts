@@ -41,12 +41,13 @@ export const parseSheetRows = (
   return { headers, dataRows };
 };
 
-export const rowToRecord = (headers: string[], row: string[]): Record<string, string> => {
+export const rowToRecord = (headers: string[], row: unknown[]): Record<string, string> => {
   const record: Record<string, string> = {};
 
   headers.forEach((header, index) => {
     if (header) {
-      record[header] = row[index] ?? '';
+      const cell = row[index];
+      record[header] = cell === undefined || cell === null ? '' : String(cell);
     }
   });
 
@@ -57,13 +58,20 @@ export const recordToRow = (headers: string[], record: Record<string, string>): 
   return headers.map((header) => record[header] ?? '');
 };
 
-export const parseBoolean = (value: string | undefined): boolean => {
-  if (!value) return false;
-  return value === 'true' || value === '1' || value.toLowerCase() === 'yes';
+export const parseBoolean = (value: string | boolean | number | undefined | null): boolean => {
+  if (value === undefined || value === null || value === '') return false;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes';
 };
 
-export const parseNumberField = (value: string | undefined, fallback = 0): number => {
-  if (!value) return fallback;
+export const parseNumberField = (
+  value: string | number | undefined | null,
+  fallback = 0,
+): number => {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'number') return Number.isNaN(value) ? fallback : value;
   const parsed = Number(value);
   return Number.isNaN(parsed) ? fallback : parsed;
 };

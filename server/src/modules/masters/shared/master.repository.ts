@@ -3,6 +3,7 @@ import type { BaseEntity, EntityRowMapper, PaginatedResult, QueryOptions } from 
 import type { PersistenceContract } from '../../../types/persistence.contracts';
 import { GoogleSheetRepository } from '../../../repositories/googleSheet.repository';
 import type { GoogleSheetsService } from '../../../services/googleSheets.service';
+import type { HeaderManager } from '../../../services/sheets/headerManager.service';
 
 export class MasterRepository<TEntity extends BaseEntity & Record<string, unknown>>
   extends GoogleSheetRepository<TEntity>
@@ -13,8 +14,9 @@ export class MasterRepository<TEntity extends BaseEntity & Record<string, unknow
     sheetsService: GoogleSheetsService,
     contract: PersistenceContract,
     mapper: EntityRowMapper<TEntity>,
+    headerManager?: HeaderManager,
   ) {
-    super(repositoryName, sheetsService, contract, mapper);
+    super(repositoryName, sheetsService, contract, mapper, headerManager);
   }
 }
 
@@ -23,7 +25,8 @@ export const createMasterRepository = <TEntity extends BaseEntity & Record<strin
   sheetsService: GoogleSheetsService,
   contract: PersistenceContract,
   mapper: EntityRowMapper<TEntity>,
+  headerManager?: HeaderManager,
 ): MasterRepository<TEntity> =>
-  new MasterRepository(repositoryName, sheetsService, contract, mapper);
+  new MasterRepository(repositoryName, sheetsService, contract, mapper, headerManager);
 
 export type { PaginatedResult, QueryOptions };
