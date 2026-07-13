@@ -20,14 +20,52 @@ export interface UserEntity extends BaseEntity {
   lastLoginAt?: string;
 }
 
+export type CustomerRecordType = 'opportunity' | 'customer';
+export type CustomerStatus = 'active' | 'inactive' | 'prospect';
+
+export interface CustomerTimelineEntry {
+  id: string;
+  action?: string;
+  stageId?: string;
+  stageName: string;
+  notes?: string;
+  nextActionDate?: string;
+  timestamp: string;
+}
+
+/** One domain model for Opportunity → Customer lifecycle (recordType discriminator). */
 export interface CustomerEntity extends BaseEntity {
-  name: string;
-  email?: string;
-  phone?: string;
-  companyId?: string;
-  stage: string;
-  source?: string;
-  assignedTo?: string;
+  recordType: CustomerRecordType;
+  status: CustomerStatus;
+  currentStageId: string;
+  companyName: string;
+  gstin: string;
+  industryId: string;
+  sourceId: string;
+  contactPerson: string;
+  phone: string;
+  alternatePhone: string;
+  email: string;
+  website: string;
+  billingAddress: string;
+  serviceAddress: string;
+  countryId: string;
+  stateId: string;
+  city: string;
+  pincode: string;
+  notes: string;
+  businessValue: number;
+  expectedRevenue: number;
+  nextActionDate: string;
+  lastContactDate: string;
+  renewalDate: string;
+  outstandingAmount: number;
+  tags: string[];
+  isActive: boolean;
+  timeline: CustomerTimelineEntry[];
+  activeDeals: number;
+  lastPayment: string;
+  businessSince: string;
 }
 
 export interface DealEntity extends BaseEntity {
@@ -96,6 +134,7 @@ export interface RenewalEntity extends BaseEntity {
 
 export interface DocumentEntity extends BaseEntity {
   name: string;
+  fileType: string;
   mimeType: string;
   size: number;
   driveFileId: string;

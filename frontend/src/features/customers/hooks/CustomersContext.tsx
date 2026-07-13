@@ -1,26 +1,24 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { seedCustomers } from "@/features/customers/data/seed-customers";
-import { seedSettingsStages } from "@/features/settings/data/seed-settings";
+import { customersApi } from "@/features/customers/api/customers.api";
 import {
-  getDefaultStageForRecordType,
-  getStageById,
-  resolveRecordTypeFromStage,
-} from "@/features/customers/utils/stage-utils";
+  mapCustomerFromDto,
+  mapFormToCreateBody,
+  mapFormToUpdateBody,
+} from "@/features/customers/api/customer.mappers";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type {
   Customer,
   CustomerFormData,
-  CustomerTimelineEntry,
   RecordType,
 } from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
-
-const STORAGE_KEY = "ameya-customers";
 
 export interface StageChangePayload {
   stageId: string;
@@ -30,14 +28,21 @@ export interface StageChangePayload {
 
 interface CustomersContextValue {
   customers: Customer[];
-  addCustomer: (data: CustomerFormData, stages?: SettingsStage[]) => Customer;
-  updateCustomer: (id: string, data: CustomerFormData) => void;
+  loading: boolean;
+  error: string | null;
+  refreshCustomers: () => Promise<void>;
+  addCustomer: (data: CustomerFormData, stages?: SettingsStage[]) => Promise<Customer>;
+  updateCustomer: (id: string, data: CustomerFormData) => Promise<void>;
   changeCustomerStage: (
     id: string,
     payload: StageChangePayload,
     stages: SettingsStage[]
-  ) => void;
-  updateRecordType: (id: string, recordType: RecordType, stages: SettingsStage[]) => void;
+  ) => Promise<void>;
+  updateRecordType: (
+    id: string,
+    recordType: RecordType,
+    stages: SettingsStage[]
+  ) => Promise<void>;
   getCustomer: (id: string) => Customer | undefined;
 }
 
@@ -45,189 +50,74 @@ const CustomersContext = createContext<CustomersContextValue | null>(null);
 
 export { CustomersContext };
 
-function normalizeCustomer(customer: Customer, stages = seedSettingsStages): Customer {
-  const recordType = customer.recordType ?? "customer";
-  const defaultStage = getDefaultStageForRecordType(stages, recordType);
-  const currentStageId = customer.currentStageId ?? defaultStage?.id;
-
-  return {
-    ...customer,
-    billingAddress: customer.billingAddress ?? customer.address,
-    serviceAddress: customer.serviceAddress ?? customer.billingAddress ?? customer.address,
-    recordType,
-    currentStageId,
-    timeline: customer.timeline ?? [],
-  };
-}
-
-function loadCustomers(): Customer[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return (JSON.parse(stored) as Customer[]).map((customer) =>
-        normalizeCustomer(customer)
-      );
-    }
-  } catch {
-    // fall through to seed data
+function upsertCustomer(list: Customer[], customer: Customer): Customer[] {
+  const index = list.findIndex((item) => item.id === customer.id);
+  if (index === -1) {
+    return [customer, ...list];
   }
-  return seedCustomers.map((customer) => normalizeCustomer(customer));
-}
-
-function persistCustomers(customers: Customer[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
-}
-
-function formToCustomerFields(data: CustomerFormData) {
-  return {
-    name: data.name.trim(),
-    company: data.company.trim(),
-    phone: data.phone.trim(),
-    email: data.email.trim(),
-    gst: data.gst.trim().toUpperCase() || undefined,
-    billingAddress: data.billingAddress.trim() || undefined,
-    serviceAddress: data.serviceAddress.trim() || undefined,
-    address: data.billingAddress.trim() || undefined,
-    notes: data.notes.trim() || undefined,
-    recordType: data.recordType,
-  };
-}
-
-function createTimelineEntry(
-  stage: SettingsStage,
-  notes?: string,
-  nextActionDate?: string
-): CustomerTimelineEntry {
-  return {
-    id: `tl-${crypto.randomUUID().slice(0, 8)}`,
-    stageId: stage.id,
-    stageName: stage.name,
-    notes: notes?.trim() || undefined,
-    nextActionDate,
-    timestamp: new Date().toISOString(),
-  };
+  const next = [...list];
+  next[index] = customer;
+  return next;
 }
 
 export function CustomersProvider({ children }: { children: ReactNode }) {
-  const [customers, setCustomers] = useState<Customer[]>(loadCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshCustomers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await customersApi.list();
+      setCustomers(items.map(mapCustomerFromDto));
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setCustomers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial load from backend on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
+    void refreshCustomers();
+  }, [refreshCustomers]);
 
   const addCustomer = useCallback(
-    (data: CustomerFormData, stages: SettingsStage[] = seedSettingsStages): Customer => {
-      const recordType = data.recordType;
-      const defaultStage = getDefaultStageForRecordType(stages, recordType);
-      const resolvedRecordType = defaultStage
-        ? resolveRecordTypeFromStage(recordType, defaultStage)
-        : recordType;
-
-      const customer: Customer = {
-        id: `cust-${crypto.randomUUID().slice(0, 8)}`,
-        ...formToCustomerFields(data),
-        recordType: resolvedRecordType,
-        currentStageId: defaultStage?.id,
-        timeline: defaultStage
-          ? [createTimelineEntry(defaultStage, data.notes.trim() || undefined)]
-          : [],
-        status: resolvedRecordType === "customer" ? "active" : "prospect",
-        outstanding: 0,
-        activeDeals: 0,
-        businessValue: 0,
-        createdAt: new Date().toISOString().split("T")[0],
-        businessSince: new Date().toISOString().split("T")[0],
-      };
-
-      setCustomers((prev) => {
-        const next = [customer, ...prev];
-        persistCustomers(next);
-        return next;
-      });
-
+    async (data: CustomerFormData, _stages?: SettingsStage[]): Promise<Customer> => {
+      void _stages;
+      const created = await customersApi.create(mapFormToCreateBody(data));
+      const customer = mapCustomerFromDto(created);
+      setCustomers((prev) => [customer, ...prev]);
       return customer;
     },
     []
   );
 
-  const updateCustomer = useCallback((id: string, data: CustomerFormData) => {
-    setCustomers((prev) => {
-      const next = prev.map((customer) =>
-        customer.id === id
-          ? {
-              ...customer,
-              ...formToCustomerFields(data),
-            }
-          : customer
-      );
-      persistCustomers(next);
-      return next;
-    });
+  const updateCustomer = useCallback(async (id: string, data: CustomerFormData) => {
+    const updated = await customersApi.update(id, mapFormToUpdateBody(data));
+    const customer = mapCustomerFromDto(updated);
+    setCustomers((prev) => upsertCustomer(prev, customer));
   }, []);
 
   const changeCustomerStage = useCallback(
-    (id: string, payload: StageChangePayload, stages: SettingsStage[]) => {
-      const stage = getStageById(stages, payload.stageId);
-      if (!stage) return;
-
-      setCustomers((prev) => {
-        const next = prev.map((customer) => {
-          if (customer.id !== id) return customer;
-
-          const recordType = resolveRecordTypeFromStage(customer.recordType, stage);
-          const timelineEntry = createTimelineEntry(
-            stage,
-            payload.notes,
-            payload.nextActionDate
-          );
-
-          return {
-            ...customer,
-            currentStageId: stage.id,
-            recordType,
-            nextActionDate:
-              payload.nextActionDate !== undefined
-                ? payload.nextActionDate
-                : customer.nextActionDate,
-            status:
-              recordType === "customer" && customer.status === "prospect"
-                ? "active"
-                : customer.status,
-            timeline: [timelineEntry, ...customer.timeline],
-          };
-        });
-        persistCustomers(next);
-        return next;
-      });
+    async (id: string, payload: StageChangePayload, _stages: SettingsStage[]) => {
+      void _stages;
+      const updated = await customersApi.changeStage(id, payload);
+      const customer = mapCustomerFromDto(updated);
+      setCustomers((prev) => upsertCustomer(prev, customer));
     },
     []
   );
 
   const updateRecordType = useCallback(
-    (id: string, recordType: RecordType, stages: SettingsStage[]) => {
-      setCustomers((prev) => {
-        const next = prev.map((customer) => {
-          if (customer.id !== id) return customer;
-
-          const currentStage = getStageById(stages, customer.currentStageId);
-          const stageStillApplies =
-            currentStage &&
-            (currentStage.applicableFor === "both" ||
-              currentStage.applicableFor === recordType);
-
-          const nextStageId = stageStillApplies
-            ? customer.currentStageId
-            : getDefaultStageForRecordType(stages, recordType)?.id;
-
-          return {
-            ...customer,
-            recordType,
-            currentStageId: nextStageId,
-            status:
-              recordType === "customer" && customer.status === "prospect"
-                ? "active"
-                : customer.status,
-          };
-        });
-        persistCustomers(next);
-        return next;
-      });
+    async (id: string, recordType: RecordType, _stages: SettingsStage[]) => {
+      void _stages;
+      const updated = await customersApi.changeRecordType(id, recordType);
+      const customer = mapCustomerFromDto(updated);
+      setCustomers((prev) => upsertCustomer(prev, customer));
     },
     []
   );
@@ -240,13 +130,26 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       customers,
+      loading,
+      error,
+      refreshCustomers,
       addCustomer,
       updateCustomer,
       changeCustomerStage,
       updateRecordType,
       getCustomer,
     }),
-    [customers, addCustomer, updateCustomer, changeCustomerStage, updateRecordType, getCustomer]
+    [
+      customers,
+      loading,
+      error,
+      refreshCustomers,
+      addCustomer,
+      updateCustomer,
+      changeCustomerStage,
+      updateRecordType,
+      getCustomer,
+    ]
   );
 
   return (

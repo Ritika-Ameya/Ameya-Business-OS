@@ -27,17 +27,42 @@ export const USERS_CONTRACT: PersistenceContract = {
   columns: withBaseColumns(['email', 'name', 'role', 'status', 'lastLoginAt']),
 };
 
+/** Single worksheet for Opportunity + Customer lifecycle stages (recordType discriminator). */
 export const CUSTOMERS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.CUSTOMERS,
   entityName: 'Customer',
   columns: withBaseColumns([
-    'name',
-    'email',
+    'recordType',
+    'status',
+    'currentStageId',
+    'companyName',
+    'gstin',
+    'industryId',
+    'sourceId',
+    'contactPerson',
     'phone',
-    'companyId',
-    'stage',
-    'source',
-    'assignedTo',
+    'alternatePhone',
+    'email',
+    'website',
+    'billingAddress',
+    'serviceAddress',
+    'countryId',
+    'stateId',
+    'city',
+    'pincode',
+    'notes',
+    'businessValue',
+    'expectedRevenue',
+    'nextActionDate',
+    'lastContactDate',
+    'renewalDate',
+    'outstandingAmount',
+    'tags',
+    'isActive',
+    'timeline',
+    'activeDeals',
+    'lastPayment',
+    'businessSince',
   ]),
 };
 
@@ -122,11 +147,13 @@ export const RENEWALS_CONTRACT: PersistenceContract = {
   ]),
 };
 
+/** Document metadata only — no Google Drive upload in this sprint. */
 export const DOCUMENTS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.DOCUMENTS,
   entityName: 'Document',
   columns: withBaseColumns([
     'name',
+    'fileType',
     'mimeType',
     'size',
     'driveFileId',

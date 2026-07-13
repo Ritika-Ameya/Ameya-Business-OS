@@ -95,13 +95,13 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
       return;
     }
 
-    changeCustomerStage(customer.id, { stageId }, stages);
+    void changeCustomerStage(customer.id, { stageId }, stages);
   };
 
   const handleStageConfirm = (data: { nextActionDate?: string; notes?: string }) => {
     if (!pendingStage) return;
 
-    changeCustomerStage(
+    void changeCustomerStage(
       customer.id,
       {
         stageId: pendingStage.id,
@@ -115,7 +115,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
 
   const handleRecordTypeChange = (recordType: RecordType) => {
     if (recordType === customer.recordType) return;
-    updateRecordType(customer.id, recordType, stages);
+    void updateRecordType(customer.id, recordType, stages);
   };
 
   return (

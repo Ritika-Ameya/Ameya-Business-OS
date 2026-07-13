@@ -12,9 +12,8 @@ export function DashboardQuickActions() {
   const { stages } = useAppConfig();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleSave = (data: CustomerFormData) => {
-    addCustomer(data, stages);
-    setDialogOpen(false);
+  const handleSave = async (data: CustomerFormData) => {
+    await addCustomer(data, stages);
   };
 
   return (

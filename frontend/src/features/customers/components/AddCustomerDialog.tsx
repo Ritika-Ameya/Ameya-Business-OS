@@ -21,6 +21,7 @@ import {
 import { isValidEmail } from "@/features/customers/utils/customer-utils";
 import { recordTypeLabels } from "@/features/customers/utils/stage-utils";
 import { isValidGstin } from "@/features/settings/utils/app-config-utils";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type { Customer, CustomerFormData } from "@/features/customers/types/customer";
 
 const emptyForm: CustomerFormData = {
@@ -60,7 +61,7 @@ interface FormErrors {
 interface AddCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: CustomerFormData) => void;
+  onSave: (data: CustomerFormData) => void | Promise<void>;
   initialData?: Customer;
 }
 
@@ -72,13 +73,17 @@ export function AddCustomerDialog({
 }: AddCustomerDialogProps) {
   const [form, setForm] = useState(() => formFromCustomer(initialData));
   const [errors, setErrors] = useState<FormErrors>({});
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isEditing = Boolean(initialData);
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (saving) return;
     if (nextOpen) {
       setForm(formFromCustomer(initialData));
       setErrors({});
+      setSubmitError(null);
     }
     onOpenChange(nextOpen);
   };
@@ -103,13 +108,22 @@ export function AddCustomerDialog({
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave(form);
-    onOpenChange(false);
-    setForm(emptyForm);
-    setErrors({});
+
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      await onSave(form);
+      onOpenChange(false);
+      setForm(emptyForm);
+      setErrors({});
+    } catch (err) {
+      setSubmitError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateField = (field: keyof CustomerFormData, value: string) => {
@@ -128,7 +142,7 @@ export function AddCustomerDialog({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update record details. Changes are saved locally."
+              ? "Update record details. Changes are saved to the server."
               : "Add a new opportunity or customer to your pipeline."}
           </DialogDescription>
         </DialogHeader>
@@ -139,9 +153,8 @@ export function AddCustomerDialog({
               <Label htmlFor="record-type">Record Type</Label>
               <Select
                 value={form.recordType}
-                onValueChange={(value) =>
-                  updateField("recordType", value)
-                }
+                onValueChange={(value) => updateField("recordType", value)}
+                disabled={saving}
               >
                 <SelectTrigger id="record-type" className="rounded-xl">
                   <SelectValue />
@@ -167,6 +180,7 @@ export function AddCustomerDialog({
                 aria-invalid={Boolean(errors.name)}
                 aria-describedby={errors.name ? "name-error" : undefined}
                 className="rounded-xl"
+                disabled={saving}
               />
               {errors.name && (
                 <p id="name-error" role="alert" className="text-xs text-destructive">
@@ -183,6 +197,7 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("company", e.target.value)}
                 placeholder="Company or business name"
                 className="rounded-xl"
+                disabled={saving}
               />
             </div>
 
@@ -198,6 +213,7 @@ export function AddCustomerDialog({
                 aria-invalid={Boolean(errors.phone)}
                 aria-describedby={errors.phone ? "phone-error" : undefined}
                 className="rounded-xl"
+                disabled={saving}
               />
               {errors.phone && (
                 <p id="phone-error" role="alert" className="text-xs text-destructive">
@@ -217,6 +233,7 @@ export function AddCustomerDialog({
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "email-error" : undefined}
                 className="rounded-xl"
+                disabled={saving}
               />
               {errors.email && (
                 <p id="email-error" role="alert" className="text-xs text-destructive">
@@ -236,6 +253,7 @@ export function AddCustomerDialog({
                 aria-invalid={Boolean(errors.gst)}
                 aria-describedby={errors.gst ? "gst-error" : undefined}
                 className="rounded-xl"
+                disabled={saving}
               />
               {errors.gst && (
                 <p id="gst-error" role="alert" className="text-xs text-destructive">
@@ -252,6 +270,7 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("billingAddress", e.target.value)}
                 placeholder="Billing address for invoices"
                 className="rounded-xl"
+                disabled={saving}
               />
             </div>
 
@@ -263,6 +282,7 @@ export function AddCustomerDialog({
                 onChange={(e) => updateField("serviceAddress", e.target.value)}
                 placeholder="Service or delivery address"
                 className="rounded-xl"
+                disabled={saving}
               />
             </div>
 
@@ -275,20 +295,28 @@ export function AddCustomerDialog({
                 placeholder="Additional notes about this customer..."
                 rows={3}
                 className="rounded-xl resize-none"
+                disabled={saving}
               />
             </div>
           </div>
+
+          {submitError && (
+            <p role="alert" className="text-sm text-destructive">
+              {submitError}
+            </p>
+          )}
 
           <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              {isEditing ? "Save Changes" : "Save Customer"}
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Customer"}
             </Button>
           </DialogFooter>
         </form>
