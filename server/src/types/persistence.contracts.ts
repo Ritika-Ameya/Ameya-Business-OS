@@ -70,20 +70,43 @@ export const DEALS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.DEALS,
   entityName: 'Deal',
   columns: withBaseColumns([
+    'dealNumber',
     'title',
     'customerId',
-    'stage',
-    'value',
+    'customerName',
+    'status',
+    'currentStageId',
+    'dealType',
+    'contractValue',
     'currency',
+    'probability',
+    'startDate',
     'expectedCloseDate',
-    'assignedTo',
+    'actualCloseDate',
+    'nextRenewal',
+    'renewalFrequency',
+    'nextActionDate',
+    'owner',
+    'description',
+    'notes',
+    'componentsCount',
+    'timeline',
   ]),
 };
 
 export const DEAL_COMPONENTS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.DEAL_COMPONENTS,
   entityName: 'DealComponent',
-  columns: withBaseColumns(['dealId', 'name', 'type', 'quantity', 'unitPrice', 'totalPrice']),
+  columns: withBaseColumns([
+    'dealId',
+    'name',
+    'category',
+    'description',
+    'amount',
+    'billingType',
+    'status',
+    'renewalDate',
+  ]),
 };
 
 export const INVOICES_CONTRACT: PersistenceContract = {

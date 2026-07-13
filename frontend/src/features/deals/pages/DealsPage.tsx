@@ -13,7 +13,7 @@ import type { DealFilters } from "@/features/deals/types/deal";
 
 export function DealsPage() {
   const navigate = useNavigate();
-  const { deals } = useDeals();
+  const { deals, loading, error } = useDeals();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<DealFilters>(defaultDealFilters);
 
@@ -50,6 +50,15 @@ export function DealsPage() {
         }
       />
 
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      )}
+
       <DealStatsCards deals={deals} />
 
       <DealSearchFilters
@@ -59,7 +68,7 @@ export function DealsPage() {
         onFiltersChange={setFilters}
       />
 
-      {isSearching ? (
+      {loading || isSearching ? (
         <TableSkeleton rows={6} />
       ) : (
         <DealTable

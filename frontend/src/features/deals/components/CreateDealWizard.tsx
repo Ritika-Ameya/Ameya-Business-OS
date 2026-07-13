@@ -45,7 +45,7 @@ interface FormErrors {
 interface CreateDealWizardProps {
   customerId: string;
   customerName: string;
-  onSave: (data: DealFormData) => void;
+  onSave: (data: DealFormData) => void | Promise<void>;
 }
 
 export function CreateDealWizard({
@@ -57,6 +57,7 @@ export function CreateDealWizard({
   const activeDealTypes = getActiveDealTypes(dealTypes);
   const [form, setForm] = useState<DealFormData>(emptyForm);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [saving, setSaving] = useState(false);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {};
@@ -86,9 +87,14 @@ export function CreateDealWizard({
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!validate()) return;
-    onSave(form);
+    setSaving(true);
+    try {
+      await onSave(form);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateField = <K extends keyof DealFormData>(
@@ -306,8 +312,8 @@ export function CreateDealWizard({
         <Button variant="ghost" className="rounded-xl" asChild>
           <Link to={`/customers/${customerId}`}>Cancel</Link>
         </Button>
-        <Button className="rounded-xl" onClick={handleCreate}>
-          Create Deal
+        <Button className="rounded-xl" onClick={() => void handleCreate()} disabled={saving}>
+          {saving ? "Creating…" : "Create Deal"}
         </Button>
       </div>
     </div>
