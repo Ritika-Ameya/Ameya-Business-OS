@@ -6,7 +6,8 @@ export type RenewalFrequency = "none" | "monthly" | "quarterly" | "annual";
 
 export interface DealTimelineEntry {
   id: string;
-  stageId: string;
+  action?: string;
+  stageId?: string;
   stageName: string;
   notes?: string;
   nextActionDate?: string;
@@ -29,6 +30,12 @@ export interface Deal {
   contractValue?: number;
   renewalFrequency?: RenewalFrequency;
   description?: string;
+  notes?: string;
+  dealNumber?: string;
+  currency?: string;
+  probability?: number;
+  owner?: string;
+  expectedCloseDate?: string;
 }
 
 export interface DealFormData {

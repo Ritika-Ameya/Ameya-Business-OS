@@ -14,7 +14,12 @@ import {
   STAGE_MASTER_CONTRACT,
   STATE_CONTRACT,
 } from '../../modules/masters/contracts/master.contracts';
-import { CUSTOMERS_CONTRACT, DOCUMENTS_CONTRACT } from '../../types/persistence.contracts';
+import {
+  CUSTOMERS_CONTRACT,
+  DEAL_COMPONENTS_CONTRACT,
+  DEALS_CONTRACT,
+  DOCUMENTS_CONTRACT,
+} from '../../types/persistence.contracts';
 
 /**
  * Canonical master worksheet contracts used by Bootstrap + HeaderManager.
@@ -40,6 +45,8 @@ export const BOOTSTRAP_MASTER_CONTRACTS: readonly PersistenceContract[] = [
 export const BOOTSTRAP_BUSINESS_CONTRACTS: readonly PersistenceContract[] = [
   CUSTOMERS_CONTRACT,
   DOCUMENTS_CONTRACT,
+  DEALS_CONTRACT,
+  DEAL_COMPONENTS_CONTRACT,
 ] as const;
 
 export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [

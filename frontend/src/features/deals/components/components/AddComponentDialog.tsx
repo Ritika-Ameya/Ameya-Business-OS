@@ -24,6 +24,7 @@ import {
   componentStatusLabels,
   validateComponentForm,
 } from "@/features/deals/utils/deal-component-utils";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type { BillingType, ComponentFormData, ComponentStatus } from "@/features/deals/types/deal-component";
 
 const emptyForm: ComponentFormData = {
@@ -56,6 +57,8 @@ export function AddComponentDialog({
   const [errors, setErrors] = useState<Partial<Record<keyof ComponentFormData, string>>>(
     {}
   );
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -65,7 +68,7 @@ export function AddComponentDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const validationErrors = validateComponentForm(form);
@@ -74,10 +77,18 @@ export function AddComponentDialog({
       return;
     }
 
-    addComponent(dealId, form);
-    onOpenChange(false);
-    setForm(emptyForm);
-    setErrors({});
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      await addComponent(dealId, form);
+      onOpenChange(false);
+      setForm(emptyForm);
+      setErrors({});
+    } catch (err) {
+      setSubmitError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateField = <K extends keyof ComponentFormData>(
@@ -271,15 +282,24 @@ export function AddComponentDialog({
             </div>
           </div>
 
+          {submitError && (
+            <p role="alert" className="text-sm text-destructive">
+              {submitError}
+            </p>
+          )}
+
           <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit">Save Component</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving…" : "Save Component"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

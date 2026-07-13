@@ -1,25 +1,23 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { seedDealComponents } from "@/features/deals/data/seed-deal-components";
-import { seedDeals } from "@/features/deals/data/seed-deals";
-import { seedSettingsStages } from "@/features/settings/data/seed-settings";
+import { dealsApi } from "@/features/deals/api/deals.api";
 import {
-  getDefaultStageForRecordType,
-  getStageById,
-} from "@/features/customers/utils/stage-utils";
-import { computeNextRenewal } from "@/features/deals/utils/deal-utils";
+  mapComponentFormToBody,
+  mapComponentFromDto,
+  mapDealFromDto,
+  mapFormToCreateBody,
+} from "@/features/deals/api/deal.mappers";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type { RecordType } from "@/features/customers/types/customer";
-import type { Deal, DealFormData, DealTimelineEntry } from "@/features/deals/types/deal";
+import type { Deal, DealFormData } from "@/features/deals/types/deal";
 import type { ComponentFormData, DealComponent } from "@/features/deals/types/deal-component";
 import type { SettingsStage } from "@/features/settings/types/settings";
-
-const DEALS_KEY = "ameya-deals";
-const COMPONENTS_KEY = "ameya-deal-components";
 
 interface CreateDealInput extends DealFormData {
   customerId: string;
@@ -36,14 +34,18 @@ export interface DealStageChangePayload {
 interface DealsContextValue {
   deals: Deal[];
   components: DealComponent[];
-  addDeal: (input: CreateDealInput, stages?: SettingsStage[]) => Deal;
+  loading: boolean;
+  error: string | null;
+  refreshDeals: () => Promise<void>;
+  loadComponentsForDeal: (dealId: string) => Promise<DealComponent[]>;
+  addDeal: (input: CreateDealInput, stages?: SettingsStage[]) => Promise<Deal>;
   getDeal: (id: string) => Deal | undefined;
   changeDealStage: (
     id: string,
     payload: DealStageChangePayload,
     stages: SettingsStage[]
-  ) => void;
-  addComponent: (dealId: string, data: ComponentFormData) => DealComponent;
+  ) => Promise<void>;
+  addComponent: (dealId: string, data: ComponentFormData) => Promise<DealComponent>;
   getComponentsByDeal: (dealId: string) => DealComponent[];
 }
 
@@ -51,166 +53,77 @@ const DealsContext = createContext<DealsContextValue | null>(null);
 
 export { DealsContext };
 
-function loadJson<T>(key: string, fallback: T): T {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) return JSON.parse(stored) as T;
-  } catch {
-    // fall through
-  }
-  return fallback;
-}
-
-function persistJson<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function parseAmount(value: string): number {
-  const parsed = Number.parseFloat(value.replace(/,/g, ""));
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function normalizeDeal(deal: Deal, stages = seedSettingsStages): Deal {
-  const defaultStage = getDefaultStageForRecordType(stages, "customer");
-
-  return {
-    ...deal,
-    timeline: deal.timeline ?? [],
-    currentStageId: deal.currentStageId ?? defaultStage?.id,
-  };
-}
-
-function formToComponent(
-  dealId: string,
-  data: ComponentFormData
-): Omit<DealComponent, "id"> {
-  return {
-    dealId,
-    name: data.name.trim(),
-    category: data.category.trim(),
-    description: data.description.trim(),
-    amount: parseAmount(data.amount),
-    billingType: data.billingType,
-    status: data.status,
-    renewalDate: data.renewalApplicable ? data.renewalDate || undefined : undefined,
-  };
-}
-
-function createTimelineEntry(
-  stage: SettingsStage,
-  notes?: string,
-  nextActionDate?: string
-): DealTimelineEntry {
-  return {
-    id: `dtl-${crypto.randomUUID().slice(0, 8)}`,
-    stageId: stage.id,
-    stageName: stage.name,
-    notes: notes?.trim() || undefined,
-    nextActionDate,
-    timestamp: new Date().toISOString(),
-  };
+function upsertDeal(list: Deal[], deal: Deal): Deal[] {
+  const index = list.findIndex((item) => item.id === deal.id);
+  if (index === -1) return [deal, ...list];
+  const next = [...list];
+  next[index] = deal;
+  return next;
 }
 
 export function DealsProvider({ children }: { children: ReactNode }) {
-  const [deals, setDeals] = useState<Deal[]>(() =>
-    loadJson(DEALS_KEY, seedDeals).map((deal) => normalizeDeal(deal))
-  );
-  const [components, setComponents] = useState<DealComponent[]>(() =>
-    loadJson(COMPONENTS_KEY, seedDealComponents)
-  );
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [components, setComponents] = useState<DealComponent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshDeals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await dealsApi.list();
+      setDeals(items.map(mapDealFromDto));
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setDeals([]);
+      setComponents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadComponentsForDeal = useCallback(async (dealId: string) => {
+    const items = await dealsApi.listComponents(dealId);
+    const mapped = items.map(mapComponentFromDto);
+    setComponents((prev) => {
+      const others = prev.filter((component) => component.dealId !== dealId);
+      return [...mapped, ...others];
+    });
+    return mapped;
+  }, []);
+
+  useEffect(() => {
+    // Initial load from backend on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
+    void refreshDeals();
+  }, [refreshDeals]);
 
   const addDeal = useCallback(
-    (input: CreateDealInput, stages: SettingsStage[] = seedSettingsStages): Deal => {
-      const contractValue = Number.parseFloat(input.contractValue.replace(/,/g, ""));
-      const recordType = input.customerRecordType ?? "customer";
-      const defaultStage = getDefaultStageForRecordType(stages, recordType);
-
-      const deal: Deal = {
-        id: `deal-${crypto.randomUUID().slice(0, 8)}`,
-        title: input.title.trim(),
-        customerId: input.customerId,
-        customerName: input.customerName,
-        status: "draft",
-        startDate: input.startDate,
-        nextRenewal: computeNextRenewal(
-          input.startDate,
-          input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>
-        ),
-        currentStageId: defaultStage?.id,
-        timeline: defaultStage ? [createTimelineEntry(defaultStage)] : [],
-        componentsCount: 0,
-        dealType: input.dealType as NonNullable<Deal["dealType"]>,
-        contractValue,
-        renewalFrequency: input.renewalFrequency as NonNullable<Deal["renewalFrequency"]>,
-        description: input.description.trim() || undefined,
-      };
-
-      setDeals((prev) => {
-        const next = [deal, ...prev];
-        persistJson(DEALS_KEY, next);
-        return next;
-      });
-
+    async (input: CreateDealInput, _stages?: SettingsStage[]): Promise<Deal> => {
+      void _stages;
+      const created = await dealsApi.create(mapFormToCreateBody(input));
+      const deal = mapDealFromDto(created);
+      setDeals((prev) => [deal, ...prev]);
       return deal;
     },
     []
   );
 
   const changeDealStage = useCallback(
-    (id: string, payload: DealStageChangePayload, stages: SettingsStage[]) => {
-      const stage = getStageById(stages, payload.stageId);
-      if (!stage) return;
-
-      setDeals((prev) => {
-        const next = prev.map((deal) => {
-          if (deal.id !== id) return deal;
-
-          const timelineEntry = createTimelineEntry(
-            stage,
-            payload.notes,
-            payload.nextActionDate
-          );
-
-          return {
-            ...deal,
-            currentStageId: stage.id,
-            nextActionDate:
-              payload.nextActionDate !== undefined
-                ? payload.nextActionDate
-                : deal.nextActionDate,
-            timeline: [timelineEntry, ...deal.timeline],
-          };
-        });
-        persistJson(DEALS_KEY, next);
-        return next;
-      });
+    async (id: string, payload: DealStageChangePayload, _stages: SettingsStage[]) => {
+      void _stages;
+      const updated = await dealsApi.changeStage(id, payload);
+      setDeals((prev) => upsertDeal(prev, mapDealFromDto(updated)));
     },
     []
   );
 
   const addComponent = useCallback(
-    (dealId: string, data: ComponentFormData): DealComponent => {
-      const component: DealComponent = {
-        id: `comp-${crypto.randomUUID().slice(0, 8)}`,
-        ...formToComponent(dealId, data),
-      };
-
-      setComponents((prev) => {
-        const next = [component, ...prev];
-        persistJson(COMPONENTS_KEY, next);
-        return next;
-      });
-
-      setDeals((prev) => {
-        const next = prev.map((deal) =>
-          deal.id === dealId
-            ? { ...deal, componentsCount: deal.componentsCount + 1 }
-            : deal
-        );
-        persistJson(DEALS_KEY, next);
-        return next;
-      });
-
+    async (dealId: string, data: ComponentFormData): Promise<DealComponent> => {
+      const result = await dealsApi.addComponent(dealId, mapComponentFormToBody(data));
+      const component = mapComponentFromDto(result.component);
+      setComponents((prev) => [component, ...prev]);
+      setDeals((prev) => upsertDeal(prev, mapDealFromDto(result.deal)));
       return component;
     },
     []
@@ -230,13 +143,29 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     () => ({
       deals,
       components,
+      loading,
+      error,
+      refreshDeals,
+      loadComponentsForDeal,
       addDeal,
       getDeal,
       changeDealStage,
       addComponent,
       getComponentsByDeal,
     }),
-    [deals, components, addDeal, getDeal, changeDealStage, addComponent, getComponentsByDeal]
+    [
+      deals,
+      components,
+      loading,
+      error,
+      refreshDeals,
+      loadComponentsForDeal,
+      addDeal,
+      getDeal,
+      changeDealStage,
+      addComponent,
+      getComponentsByDeal,
+    ]
   );
 
   return <DealsContext.Provider value={value}>{children}</DealsContext.Provider>;

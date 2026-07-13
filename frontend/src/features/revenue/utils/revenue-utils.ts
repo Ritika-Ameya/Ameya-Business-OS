@@ -1,4 +1,3 @@
-import { seedDeals } from "@/features/deals/data/seed-deals";
 import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import { seedPayments } from "@/features/revenue/data/seed-payments";
 import { formatInvoiceCurrency, getUniqueCustomers } from "@/features/revenue/utils/invoice-utils";
@@ -178,7 +177,7 @@ function mapRenewalType(frequency?: RenewalFrequency): CompanyRenewalRow["renewa
   }
 }
 
-export function getCompanyRenewals(deals: Deal[] = seedDeals): CompanyRenewalRow[] {
+export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 

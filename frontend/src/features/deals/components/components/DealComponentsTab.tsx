@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { AddComponentDialog } from "@/features/deals/components/components/AddComponentDialog";
 import { DealComponentsEmptyState } from "@/features/deals/components/components/DealComponentsEmptyState";
@@ -13,8 +13,22 @@ interface DealComponentsTabProps {
 
 export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { getComponentsByDeal } = useDeals();
+  const [loading, setLoading] = useState(true);
+  const { getComponentsByDeal, loadComponentsForDeal } = useDeals();
   const components = getComponentsByDeal(dealId);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Load components for this deal
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount / deal change
+    setLoading(true);
+    void loadComponentsForDeal(dealId).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dealId, loadComponentsForDeal]);
 
   return (
     <div className="space-y-8">
@@ -29,7 +43,9 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
         }
       />
 
-      {components.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading components…</p>
+      ) : components.length === 0 ? (
         <DealComponentsEmptyState onAddComponent={() => setDialogOpen(true)} />
       ) : (
         <DealComponentsTable components={components} />

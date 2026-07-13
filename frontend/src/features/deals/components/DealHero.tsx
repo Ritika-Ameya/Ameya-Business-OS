@@ -84,13 +84,13 @@ export function DealHero({ deal }: DealHeroProps) {
       return;
     }
 
-    changeDealStage(deal.id, { stageId }, stages);
+    void changeDealStage(deal.id, { stageId }, stages);
   };
 
   const handleStageConfirm = (data: { nextActionDate?: string; notes?: string }) => {
     if (!pendingStage) return;
 
-    changeDealStage(
+    void changeDealStage(
       deal.id,
       {
         stageId: pendingStage.id,

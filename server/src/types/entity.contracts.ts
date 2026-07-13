@@ -68,23 +68,61 @@ export interface CustomerEntity extends BaseEntity {
   businessSince: string;
 }
 
+export type DealStatus = 'draft' | 'active' | 'completed' | 'on-hold';
+export type DealRenewalFrequency = 'none' | 'monthly' | 'quarterly' | 'annual';
+
+export interface DealTimelineEntry {
+  id: string;
+  action?: string;
+  stageId?: string;
+  stageName: string;
+  notes?: string;
+  nextActionDate?: string;
+  timestamp: string;
+}
+
 export interface DealEntity extends BaseEntity {
+  dealNumber: string;
   title: string;
   customerId: string;
-  stage: string;
-  value: number;
+  customerName: string;
+  status: DealStatus;
+  currentStageId: string;
+  dealType: string;
+  contractValue: number;
   currency: string;
-  expectedCloseDate?: string;
-  assignedTo?: string;
+  probability: number;
+  startDate: string;
+  expectedCloseDate: string;
+  actualCloseDate: string;
+  nextRenewal: string;
+  renewalFrequency: DealRenewalFrequency;
+  nextActionDate: string;
+  owner: string;
+  description: string;
+  notes: string;
+  componentsCount: number;
+  timeline: DealTimelineEntry[];
 }
+
+export type DealBillingType =
+  | 'one-time'
+  | 'monthly'
+  | 'quarterly'
+  | 'half-yearly'
+  | 'yearly';
+
+export type DealComponentStatus = 'pending' | 'in-progress' | 'completed';
 
 export interface DealComponentEntity extends BaseEntity {
   dealId: string;
   name: string;
-  type: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  category: string;
+  description: string;
+  amount: number;
+  billingType: DealBillingType;
+  status: DealComponentStatus;
+  renewalDate: string;
 }
 
 export interface InvoiceEntity extends BaseEntity {
