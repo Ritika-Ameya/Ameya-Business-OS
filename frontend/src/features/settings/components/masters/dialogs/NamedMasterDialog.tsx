@@ -16,38 +16,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { Textarea } from "@/shared/ui/textarea";
 import type { SettingsEntityStatus } from "@/features/settings/types/settings";
 
-interface SimpleMasterForm {
+export interface NamedMasterForm {
   name: string;
+  description: string;
   status: SettingsEntityStatus;
 }
 
-interface SimpleMasterDialogProps {
+interface NamedMasterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: SimpleMasterForm) => void | Promise<void>;
-  initialData?: SimpleMasterForm;
+  onSave: (data: NamedMasterForm) => void | Promise<void>;
+  initialData?: NamedMasterForm;
   saving?: boolean;
 }
 
-const emptyForm = (): SimpleMasterForm => ({
+const emptyForm = (): NamedMasterForm => ({
   name: "",
+  description: "",
   status: "active",
 });
 
-export function SimpleMasterDialog({
+export function NamedMasterDialog({
   open,
   onOpenChange,
   title,
   onSave,
   initialData,
   saving = false,
-}: SimpleMasterDialogProps) {
-  const [form, setForm] = useState<SimpleMasterForm>(
-    () => initialData ?? emptyForm()
-  );
+}: NamedMasterDialogProps) {
+  const [form, setForm] = useState<NamedMasterForm>(() => initialData ?? emptyForm());
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) setForm(initialData ?? emptyForm());
@@ -73,6 +74,14 @@ export function SimpleMasterDialog({
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              className="min-h-20 rounded-xl"
             />
           </div>
           <div className="space-y-2">

@@ -16,22 +16,25 @@ import { currencyOptions, financialYearOptions } from "@/features/settings/utils
 import type { CompanySettings } from "@/features/settings/types/settings";
 
 export function CompanySettingsPage() {
-  const { company, updateCompany } = useAppConfig();
-  const [form, setForm] = useState<CompanySettings>(company);
-  const [saved, setSaved] = useState(false);
+  const { company, updateCompany, loading, saving } = useAppConfig();
+  const [draft, setDraft] = useState<CompanySettings | null>(null);
+  const form = draft ?? company;
 
   const updateField = <K extends keyof CompanySettings>(
     field: K,
     value: CompanySettings[K]
   ) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    setSaved(false);
+    setDraft((prev) => ({ ...(prev ?? company), [field]: value }));
   };
 
-  const handleSave = () => {
-    updateCompany(form);
-    setSaved(true);
+  const handleSave = async () => {
+    await updateCompany(form);
+    setDraft(null);
   };
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading company settings...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -170,12 +173,9 @@ export function CompanySettingsPage() {
         </div>
 
         <div className="mt-6 flex items-center gap-3 border-t border-border/60 pt-6">
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save Changes
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
-          {saved && (
-            <span className="text-sm text-muted-foreground">Saved locally.</span>
-          )}
         </div>
       </div>
     </div>

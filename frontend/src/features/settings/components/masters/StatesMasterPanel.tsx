@@ -1,13 +1,8 @@
 import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { StageDialog } from "@/features/settings/components/masters/dialogs/StageDialog";
+import { StateMasterDialog } from "@/features/settings/components/masters/dialogs/StateMasterDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
 import { SettingsStatusBadge } from "@/features/settings/components/SettingsStatusBadge";
-import {
-  stageApplicableForLabels,
-  stageReminderOffsetLabels,
-  getStageColorStyle,
-} from "@/features/customers/utils/stage-utils";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -26,64 +21,57 @@ import {
 } from "@/shared/ui/table";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { filterByQuery } from "@/features/settings/utils/settings-utils";
-import type { SettingsStage } from "@/features/settings/types/settings";
+import type { SettingsState } from "@/features/settings/types/settings";
 
-export function StagesMasterPanel() {
-  const { stages, addStage, updateStage, deleteStage, saving } = useAppConfig();
+export function StatesMasterPanel() {
+  const { states, countries, addState, updateState, deleteState, saving } = useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<SettingsStage | undefined>();
+  const [editing, setEditing] = useState<SettingsState | undefined>();
 
-  const sortedStages = useMemo(
-    () => [...stages].sort((a, b) => a.sequence - b.sequence),
-    [stages]
+  const countryNameById = useMemo(
+    () => new Map(countries.map((country) => [country.id, country.name])),
+    [countries]
   );
 
   const filtered = useMemo(
     () =>
-      filterByQuery(sortedStages, query, (item) => [
+      filterByQuery(states, query, (item) => [
         item.name,
-        stageApplicableForLabels[item.applicableFor],
-        stageReminderOffsetLabels[item.reminderOffset],
+        item.code,
+        countryNameById.get(item.countryId) ?? "",
       ]),
-    [sortedStages, query]
+    [states, query, countryNameById]
   );
-
-  const nextSequence =
-    sortedStages.length > 0 ? Math.max(...sortedStages.map((s) => s.sequence)) + 1 : 1;
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          Configure pipeline stages for opportunities and customers. Stages drive
-          follow-up reminders across the application.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SettingsSearchBar value={query} onChange={setQuery} placeholder="Search stages..." />
+        <SettingsSearchBar value={query} onChange={setQuery} placeholder="Search states..." />
         <Button
           className="rounded-xl shrink-0"
           onClick={() => {
             setEditing(undefined);
             setDialogOpen(true);
           }}
+          disabled={countries.length === 0}
         >
           <Plus />
-          Add Stage
+          Add State
         </Button>
       </div>
+
+      {countries.length === 0 && (
+        <p className="text-sm text-muted-foreground">Add at least one country before creating states.</p>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-border/70">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="pl-4 w-12">#</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead className="hidden md:table-cell">Applicable For</TableHead>
-              <TableHead className="hidden lg:table-cell">Requirements</TableHead>
-              <TableHead className="hidden lg:table-cell">Reminder</TableHead>
+              <TableHead className="pl-4">State</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Country</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -91,35 +79,17 @@ export function StagesMasterPanel() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                  No stages found.
+                <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                  No states found.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="pl-4 text-muted-foreground">{item.sequence}</TableCell>
-                  <TableCell>
-                    <span
-                      className="inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium"
-                      style={getStageColorStyle(item.color)}
-                    >
-                      {item.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {stageApplicableForLabels[item.applicableFor]}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {[
-                      item.dateRequired ? "Date" : null,
-                      item.notesRequired ? "Notes" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "—"}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {stageReminderOffsetLabels[item.reminderOffset]}
+                  <TableCell className="pl-4 font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.code}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {countryNameById.get(item.countryId) ?? "—"}
                   </TableCell>
                   <TableCell>
                     <SettingsStatusBadge status={item.status} />
@@ -146,7 +116,7 @@ export function StagesMasterPanel() {
                           className="text-destructive"
                           onClick={() => {
                             if (window.confirm(`Delete "${item.name}"?`)) {
-                              void deleteStage(item.id);
+                              void deleteState(item.id);
                             }
                           }}
                         >
@@ -163,18 +133,18 @@ export function StagesMasterPanel() {
         </Table>
       </div>
 
-      <StageDialog
+      <StateMasterDialog
         key={`${editing?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing ? "Edit Stage" : "Add Stage"}
-        nextSequence={nextSequence}
+        title={editing ? "Edit State" : "Add State"}
+        countries={countries}
+        saving={saving}
         initialData={editing}
         onSave={async (data) => {
-          if (editing) await updateStage(editing.id, data);
-          else await addStage(data);
+          if (editing) await updateState(editing.id, data);
+          else await addState(data);
         }}
-        saving={saving}
       />
     </div>
   );

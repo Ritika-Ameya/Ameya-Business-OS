@@ -6,22 +6,25 @@ import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import type { FinanceSettings } from "@/features/settings/types/settings";
 
 export function FinanceSettingsPage() {
-  const { finance, updateFinance } = useAppConfig();
-  const [form, setForm] = useState<FinanceSettings>(finance);
-  const [saved, setSaved] = useState(false);
+  const { finance, updateFinance, loading, saving } = useAppConfig();
+  const [draft, setDraft] = useState<FinanceSettings | null>(null);
+  const form = draft ?? finance;
 
   const updateField = <K extends keyof FinanceSettings>(
     field: K,
     value: FinanceSettings[K]
   ) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    setSaved(false);
+    setDraft((prev) => ({ ...(prev ?? finance), [field]: value }));
   };
 
-  const handleSave = () => {
-    updateFinance(form);
-    setSaved(true);
+  const handleSave = async () => {
+    await updateFinance(form);
+    setDraft(null);
   };
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Loading invoice configuration...</p>;
+  }
 
   return (
     <div className="space-y-6">
@@ -88,12 +91,9 @@ export function FinanceSettingsPage() {
         </div>
 
         <div className="mt-6 flex items-center gap-3 border-t border-border/60 pt-6">
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save Changes
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
-          {saved && (
-            <span className="text-sm text-muted-foreground">Saved locally.</span>
-          )}
         </div>
       </div>
     </div>

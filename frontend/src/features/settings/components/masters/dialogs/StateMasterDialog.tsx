@@ -16,46 +16,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import type { SettingsEntityStatus } from "@/features/settings/types/settings";
+import type { SettingsCountry, SettingsState, StateFormData } from "@/features/settings/types/settings";
 
-interface SimpleMasterForm {
-  name: string;
-  status: SettingsEntityStatus;
-}
-
-interface SimpleMasterDialogProps {
+interface StateMasterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: SimpleMasterForm) => void | Promise<void>;
-  initialData?: SimpleMasterForm;
+  countries: SettingsCountry[];
+  onSave: (data: StateFormData) => void | Promise<void>;
+  initialData?: SettingsState;
   saving?: boolean;
 }
 
-const emptyForm = (): SimpleMasterForm => ({
+const emptyForm = (countryId = ""): StateFormData => ({
   name: "",
+  code: "",
+  countryId,
   status: "active",
 });
 
-export function SimpleMasterDialog({
+function formFromState(state?: SettingsState): StateFormData {
+  if (!state) return emptyForm();
+  return {
+    name: state.name,
+    code: state.code,
+    countryId: state.countryId,
+    status: state.status,
+  };
+}
+
+export function StateMasterDialog({
   open,
   onOpenChange,
   title,
+  countries,
   onSave,
   initialData,
   saving = false,
-}: SimpleMasterDialogProps) {
-  const [form, setForm] = useState<SimpleMasterForm>(
-    () => initialData ?? emptyForm()
+}: StateMasterDialogProps) {
+  const defaultCountryId = countries.find((c) => c.status === "active")?.id ?? countries[0]?.id ?? "";
+  const [form, setForm] = useState(() =>
+    initialData ? formFromState(initialData) : emptyForm(defaultCountryId)
   );
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) setForm(initialData ?? emptyForm());
+    if (nextOpen) {
+      setForm(initialData ? formFromState(initialData) : emptyForm(defaultCountryId));
+    }
     onOpenChange(nextOpen);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !form.code.trim() || !form.countryId) return;
     await onSave(form);
     onOpenChange(false);
   };
@@ -68,12 +80,40 @@ export function SimpleMasterDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>State Name</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               className="rounded-xl"
             />
+          </div>
+          <div className="space-y-2">
+            <Label>State Code</Label>
+            <Input
+              value={form.code}
+              onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
+              placeholder="MH"
+              maxLength={5}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Country</Label>
+            <Select
+              value={form.countryId}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, countryId: value }))}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((country) => (
+                  <SelectItem key={country.id} value={country.id}>
+                    {country.name} ({country.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Status</Label>
@@ -82,7 +122,7 @@ export function SimpleMasterDialog({
               onValueChange={(value) =>
                 setForm((prev) => ({
                   ...prev,
-                  status: value as SettingsEntityStatus,
+                  status: value as StateFormData["status"],
                 }))
               }
             >

@@ -4,17 +4,22 @@ export const settingsSectionLabels = {
   company: "Company",
   masters: "Masters",
   finance: "Finance",
+  branding: "Branding",
   preferences: "Preferences",
 } as const;
 
 export const masterTabLabels = {
+  "opportunity-sources": "Opportunity Sources",
+  industries: "Industries",
+  stages: "Stage Builder",
+  "deal-types": "Deal Types",
+  "payment-methods": "Payment Methods",
+  "expense-categories": "Expense Categories",
+  "renewal-types": "Renewal Frequencies",
+  countries: "Countries",
+  states: "States",
   employees: "Employees",
   vendors: "Vendors",
-  "expense-categories": "Expense Categories",
-  "renewal-types": "Renewal Types",
-  "payment-methods": "Payment Methods",
-  "deal-types": "Deal Types",
-  stages: "Stage Builder",
 } as const;
 
 export const statusLabels: Record<SettingsEntityStatus, string> = {

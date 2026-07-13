@@ -16,46 +16,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import type { SettingsEntityStatus } from "@/features/settings/types/settings";
+import type { CountryFormData, SettingsCountry } from "@/features/settings/types/settings";
 
-interface SimpleMasterForm {
-  name: string;
-  status: SettingsEntityStatus;
-}
-
-interface SimpleMasterDialogProps {
+interface CountryMasterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: SimpleMasterForm) => void | Promise<void>;
-  initialData?: SimpleMasterForm;
+  onSave: (data: CountryFormData) => void | Promise<void>;
+  initialData?: SettingsCountry;
   saving?: boolean;
 }
 
-const emptyForm = (): SimpleMasterForm => ({
+const emptyForm = (): CountryFormData => ({
   name: "",
+  code: "",
   status: "active",
 });
 
-export function SimpleMasterDialog({
+function formFromCountry(country?: SettingsCountry): CountryFormData {
+  if (!country) return emptyForm();
+  return { name: country.name, code: country.code, status: country.status };
+}
+
+export function CountryMasterDialog({
   open,
   onOpenChange,
   title,
   onSave,
   initialData,
   saving = false,
-}: SimpleMasterDialogProps) {
-  const [form, setForm] = useState<SimpleMasterForm>(
-    () => initialData ?? emptyForm()
-  );
+}: CountryMasterDialogProps) {
+  const [form, setForm] = useState(() => formFromCountry(initialData));
 
   const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) setForm(initialData ?? emptyForm());
+    if (nextOpen) setForm(formFromCountry(initialData));
     onOpenChange(nextOpen);
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !form.code.trim()) return;
     await onSave(form);
     onOpenChange(false);
   };
@@ -68,10 +67,20 @@ export function SimpleMasterDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label>Country Name</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Country Code</Label>
+            <Input
+              value={form.code}
+              onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
+              placeholder="IN"
+              maxLength={3}
               className="rounded-xl"
             />
           </div>
@@ -82,7 +91,7 @@ export function SimpleMasterDialog({
               onValueChange={(value) =>
                 setForm((prev) => ({
                   ...prev,
-                  status: value as SettingsEntityStatus,
+                  status: value as CountryFormData["status"],
                 }))
               }
             >

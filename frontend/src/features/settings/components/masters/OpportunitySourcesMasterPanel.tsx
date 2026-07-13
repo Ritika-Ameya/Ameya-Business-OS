@@ -1,13 +1,8 @@
 import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { StageDialog } from "@/features/settings/components/masters/dialogs/StageDialog";
+import { NamedMasterDialog } from "@/features/settings/components/masters/dialogs/NamedMasterDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
 import { SettingsStatusBadge } from "@/features/settings/components/SettingsStatusBadge";
-import {
-  stageApplicableForLabels,
-  stageReminderOffsetLabels,
-  getStageColorStyle,
-} from "@/features/customers/utils/stage-utils";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -26,43 +21,28 @@ import {
 } from "@/shared/ui/table";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { filterByQuery } from "@/features/settings/utils/settings-utils";
-import type { SettingsStage } from "@/features/settings/types/settings";
+import type { SettingsOpportunitySource } from "@/features/settings/types/settings";
 
-export function StagesMasterPanel() {
-  const { stages, addStage, updateStage, deleteStage, saving } = useAppConfig();
+export function OpportunitySourcesMasterPanel() {
+  const { opportunitySources, addOpportunitySource, updateOpportunitySource, deleteOpportunitySource, saving } =
+    useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<SettingsStage | undefined>();
-
-  const sortedStages = useMemo(
-    () => [...stages].sort((a, b) => a.sequence - b.sequence),
-    [stages]
-  );
+  const [editing, setEditing] = useState<SettingsOpportunitySource | undefined>();
 
   const filtered = useMemo(
-    () =>
-      filterByQuery(sortedStages, query, (item) => [
-        item.name,
-        stageApplicableForLabels[item.applicableFor],
-        stageReminderOffsetLabels[item.reminderOffset],
-      ]),
-    [sortedStages, query]
+    () => filterByQuery(opportunitySources, query, (item) => [item.name, item.description]),
+    [opportunitySources, query]
   );
-
-  const nextSequence =
-    sortedStages.length > 0 ? Math.max(...sortedStages.map((s) => s.sequence)) + 1 : 1;
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          Configure pipeline stages for opportunities and customers. Stages drive
-          follow-up reminders across the application.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SettingsSearchBar value={query} onChange={setQuery} placeholder="Search stages..." />
+        <SettingsSearchBar
+          value={query}
+          onChange={setQuery}
+          placeholder="Search opportunity sources..."
+        />
         <Button
           className="rounded-xl shrink-0"
           onClick={() => {
@@ -71,7 +51,7 @@ export function StagesMasterPanel() {
           }}
         >
           <Plus />
-          Add Stage
+          Add Source
         </Button>
       </div>
 
@@ -79,11 +59,8 @@ export function StagesMasterPanel() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="pl-4 w-12">#</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead className="hidden md:table-cell">Applicable For</TableHead>
-              <TableHead className="hidden lg:table-cell">Requirements</TableHead>
-              <TableHead className="hidden lg:table-cell">Reminder</TableHead>
+              <TableHead className="pl-4">Source</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -91,35 +68,16 @@ export function StagesMasterPanel() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                  No stages found.
+                <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
+                  No opportunity sources found.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="pl-4 text-muted-foreground">{item.sequence}</TableCell>
-                  <TableCell>
-                    <span
-                      className="inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-medium"
-                      style={getStageColorStyle(item.color)}
-                    >
-                      {item.name}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {stageApplicableForLabels[item.applicableFor]}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {[
-                      item.dateRequired ? "Date" : null,
-                      item.notesRequired ? "Notes" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "—"}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {stageReminderOffsetLabels[item.reminderOffset]}
+                  <TableCell className="pl-4 font-medium">{item.name}</TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground">
+                    {item.description || "—"}
                   </TableCell>
                   <TableCell>
                     <SettingsStatusBadge status={item.status} />
@@ -146,7 +104,7 @@ export function StagesMasterPanel() {
                           className="text-destructive"
                           onClick={() => {
                             if (window.confirm(`Delete "${item.name}"?`)) {
-                              void deleteStage(item.id);
+                              void deleteOpportunitySource(item.id);
                             }
                           }}
                         >
@@ -163,18 +121,21 @@ export function StagesMasterPanel() {
         </Table>
       </div>
 
-      <StageDialog
+      <NamedMasterDialog
         key={`${editing?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={editing ? "Edit Stage" : "Add Stage"}
-        nextSequence={nextSequence}
-        initialData={editing}
-        onSave={async (data) => {
-          if (editing) await updateStage(editing.id, data);
-          else await addStage(data);
-        }}
+        title={editing ? "Edit Opportunity Source" : "Add Opportunity Source"}
         saving={saving}
+        initialData={
+          editing
+            ? { name: editing.name, description: editing.description, status: editing.status }
+            : undefined
+        }
+        onSave={async (data) => {
+          if (editing) await updateOpportunitySource(editing.id, data);
+          else await addOpportunitySource(data);
+        }}
       />
     </div>
   );

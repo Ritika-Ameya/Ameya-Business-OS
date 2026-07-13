@@ -34,9 +34,10 @@ interface StageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  onSave: (data: StageFormData) => void;
+  onSave: (data: StageFormData) => void | Promise<void>;
   initialData?: SettingsStage;
   nextSequence?: number;
+  saving?: boolean;
 }
 
 const emptyForm = (nextSequence = 1): StageFormData => ({
@@ -70,6 +71,7 @@ export function StageDialog({
   onSave,
   initialData,
   nextSequence = 1,
+  saving = false,
 }: StageDialogProps) {
   const [form, setForm] = useState<StageFormData>(() =>
     initialData ? formFromStage(initialData) : emptyForm(nextSequence)
@@ -82,9 +84,9 @@ export function StageDialog({
     onOpenChange(nextOpen);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    onSave(form);
+    await onSave(form);
     onOpenChange(false);
   };
 
@@ -261,8 +263,8 @@ export function StageDialog({
           <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
-            Save
+          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

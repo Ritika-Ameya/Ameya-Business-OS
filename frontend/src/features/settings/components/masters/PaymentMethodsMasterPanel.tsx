@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SlugMasterDialog } from "@/features/settings/components/masters/dialogs/SlugMasterDialog";
 import { SettingsSearchBar } from "@/features/settings/components/SettingsSearchBar";
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -23,13 +24,14 @@ import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsPaymentMethod } from "@/features/settings/types/settings";
 
 export function PaymentMethodsMasterPanel() {
-  const { paymentMethods, addPaymentMethod, updatePaymentMethod } = useAppConfig();
+  const { paymentMethods, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, saving } =
+    useAppConfig();
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SettingsPaymentMethod | undefined>();
 
   const filtered = useMemo(
-    () => filterByQuery(paymentMethods, query, (item) => [item.name]),
+    () => filterByQuery(paymentMethods, query, (item) => [item.name, item.slug]),
     [paymentMethods, query]
   );
 
@@ -58,6 +60,7 @@ export function PaymentMethodsMasterPanel() {
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="pl-4">Payment Method</TableHead>
+              <TableHead>Slug</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -65,7 +68,7 @@ export function PaymentMethodsMasterPanel() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="py-12 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="py-12 text-center text-muted-foreground">
                   No payment methods found.
                 </TableCell>
               </TableRow>
@@ -73,6 +76,7 @@ export function PaymentMethodsMasterPanel() {
               filtered.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="pl-4 font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.slug}</TableCell>
                   <TableCell>
                     <SettingsStatusBadge status={item.status} />
                   </TableCell>
@@ -93,6 +97,18 @@ export function PaymentMethodsMasterPanel() {
                           <Edit />
                           Edit
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${item.name}"?`)) {
+                              void deletePaymentMethod(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -108,14 +124,15 @@ export function PaymentMethodsMasterPanel() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editing ? "Edit Payment Method" : "Add Payment Method"}
+        saving={saving}
         initialData={
           editing
             ? { name: editing.name, slug: editing.slug, status: editing.status }
             : undefined
         }
-        onSave={(data) => {
-          if (editing) updatePaymentMethod(editing.id, data);
-          else addPaymentMethod(data);
+        onSave={async (data) => {
+          if (editing) await updatePaymentMethod(editing.id, data);
+          else await addPaymentMethod(data);
         }}
       />
     </div>
