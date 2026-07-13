@@ -5,9 +5,8 @@ import { GenerateInvoiceDialog } from "@/features/revenue/components/invoices/Ge
 import { InvoiceTable } from "@/features/revenue/components/invoices/InvoiceTable";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
-import { getInvoicesByDealId } from "@/features/revenue/utils/invoice-utils";
-import type { GenerateInvoiceContext } from "@/features/revenue/types/invoice";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
 
 interface DealInvoicesTabProps {
   dealId: string;
@@ -16,10 +15,11 @@ interface DealInvoicesTabProps {
 export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
   const navigate = useNavigate();
   const { getDeal } = useDeals();
+  const { getInvoicesByDealId } = useRevenue();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const deal = getDeal(dealId);
-  const dealInvoices = getInvoicesByDealId(seedInvoices, dealId);
+  const dealInvoices = getInvoicesByDealId(dealId);
 
   if (!deal) {
     return null;
@@ -32,8 +32,8 @@ export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
     dealTitle: deal.title,
   };
 
-  const handleGenerate = (componentIds: string[]) => {
-    navigate(`/invoices/inv-new`, { state: { ...context, componentIds } });
+  const handleGenerate = (invoice: Invoice) => {
+    navigate(`/invoices/${invoice.id}`);
   };
 
   if (dealInvoices.length === 0) {

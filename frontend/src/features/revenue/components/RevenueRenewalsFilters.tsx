@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Select,
   SelectContent,
@@ -5,9 +6,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
   defaultRenewalFilters,
-  getRevenueCustomers,
+  getCompanyRenewals,
   renewalStatusLabels,
   renewalTypeLabels,
 } from "@/features/revenue/utils/revenue-utils";
@@ -23,7 +25,15 @@ export function RevenueRenewalsFilters({
   filters,
   onFiltersChange,
 }: RevenueRenewalsFiltersProps) {
-  const customers = getRevenueCustomers();
+  const { deals } = useDeals();
+  const customers = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const renewal of getCompanyRenewals(deals)) {
+      map.set(renewal.customerId, renewal.customerName);
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [deals]);
+
   const hasActiveFilters =
     filters.customer !== defaultRenewalFilters.customer ||
     filters.renewalType !== defaultRenewalFilters.renewalType ||

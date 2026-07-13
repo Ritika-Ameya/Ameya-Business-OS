@@ -19,6 +19,8 @@ import {
   DEAL_COMPONENTS_CONTRACT,
   DEALS_CONTRACT,
   DOCUMENTS_CONTRACT,
+  INVOICES_CONTRACT,
+  PAYMENTS_CONTRACT,
 } from '../../types/persistence.contracts';
 
 /**
@@ -47,6 +49,8 @@ export const BOOTSTRAP_BUSINESS_CONTRACTS: readonly PersistenceContract[] = [
   DOCUMENTS_CONTRACT,
   DEALS_CONTRACT,
   DEAL_COMPONENTS_CONTRACT,
+  INVOICES_CONTRACT,
+  PAYMENTS_CONTRACT,
 ] as const;
 
 export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [

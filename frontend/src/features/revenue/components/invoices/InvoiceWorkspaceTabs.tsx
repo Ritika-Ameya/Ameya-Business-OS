@@ -1,10 +1,5 @@
-import {
-  FileText,
-  History,
-  LayoutGrid,
-  Wallet,
-} from "lucide-react";
-import { InvoiceEmptyState } from "@/features/revenue/components/invoices/InvoiceEmptyState";
+import { FileText, History, LayoutGrid, Wallet } from "lucide-react";
+import { InvoiceDocumentsTab } from "@/features/revenue/components/invoices/InvoiceDocumentsTab";
 import { InvoiceOverviewTab } from "@/features/revenue/components/invoices/InvoiceOverviewTab";
 import { InvoicePaymentsTab } from "@/features/revenue/components/invoices/payments/InvoicePaymentsTab";
 import { InvoiceTimelineTab } from "@/features/revenue/components/invoices/payments/InvoiceTimelineTab";
@@ -57,15 +52,11 @@ export function InvoiceWorkspaceTabs({
       </TabsContent>
 
       <TabsContent value="documents" className="mt-0">
-        <InvoiceEmptyState
-          icon={FileText}
-          title="No documents uploaded"
-          description="Invoice PDFs and related documents will be stored here."
-        />
+        <InvoiceDocumentsTab invoice={invoice} />
       </TabsContent>
 
       <TabsContent value="timeline" className="mt-0">
-        <InvoiceTimelineTab invoiceId={invoice.id} />
+        <InvoiceTimelineTab invoice={invoice} />
       </TabsContent>
     </Tabs>
   );

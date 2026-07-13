@@ -11,18 +11,21 @@ import {
   getRevenueCustomers,
 } from "@/features/revenue/utils/revenue-utils";
 import { invoiceDateLabels } from "@/features/revenue/utils/invoice-utils";
+import type { Invoice } from "@/features/revenue/types/invoice";
 import type { CollectionFilters } from "@/features/revenue/types/revenue";
 
 interface RevenueCollectionsFiltersProps {
+  invoices: Invoice[];
   filters: CollectionFilters;
   onFiltersChange: (filters: CollectionFilters) => void;
 }
 
 export function RevenueCollectionsFilters({
+  invoices,
   filters,
   onFiltersChange,
 }: RevenueCollectionsFiltersProps) {
-  const customers = getRevenueCustomers();
+  const customers = getRevenueCustomers(invoices);
   const hasActiveFilters =
     filters.customer !== defaultCollectionFilters.customer ||
     filters.status !== defaultCollectionFilters.status ||

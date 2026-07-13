@@ -1,8 +1,7 @@
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
-import { seedPayments } from "@/features/revenue/data/seed-payments";
 import { formatInvoiceCurrency, getUniqueCustomers } from "@/features/revenue/utils/invoice-utils";
 import type { Deal, RenewalFrequency } from "@/features/deals/types/deal";
 import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Payment } from "@/features/revenue/types/payment";
 import type {
   CollectionFilters,
   CollectionStatusFilter,
@@ -71,8 +70,8 @@ export const companyRenewalStatusStyles: Record<CompanyRenewalStatus, string> = 
   renewed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
 };
 
-export function getCollectionInvoices(): Invoice[] {
-  return seedInvoices.filter(
+export function getCollectionInvoices(invoices: Invoice[]): Invoice[] {
+  return invoices.filter(
     (invoice) =>
       invoice.outstanding > 0 ||
       invoice.status === "partial" ||
@@ -90,21 +89,27 @@ export function getDaysOverdue(dueDate: string): number {
   return diff > 0 ? diff : 0;
 }
 
-export function getLastPaymentDate(invoiceId: string): string | undefined {
-  const payments = seedPayments
+export function getLastPaymentDate(
+  invoiceId: string,
+  payments: Payment[]
+): string | undefined {
+  const matched = payments
     .filter((payment) => payment.invoiceId === invoiceId)
     .sort(
       (a, b) =>
         new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
     );
-  return payments[0]?.paymentDate;
+  return matched[0]?.paymentDate;
 }
 
-export function buildCollectionRows(invoices: Invoice[]): CollectionRow[] {
+export function buildCollectionRows(
+  invoices: Invoice[],
+  payments: Payment[]
+): CollectionRow[] {
   return invoices.map((invoice) => ({
     invoice,
     daysOverdue: getDaysOverdue(invoice.dueDate),
-    lastPaymentDate: getLastPaymentDate(invoice.id),
+    lastPaymentDate: getLastPaymentDate(invoice.id, payments),
   }));
 }
 
@@ -138,8 +143,8 @@ export function filterCollectionRows(
   });
 }
 
-export function getCollectionStats() {
-  const collectionInvoices = getCollectionInvoices();
+export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
+  const collectionInvoices = getCollectionInvoices(invoices);
   const outstandingAmount = collectionInvoices.reduce(
     (sum, invoice) => sum + invoice.outstanding,
     0
@@ -148,7 +153,7 @@ export function getCollectionStats() {
   const overdueCount = collectionInvoices.filter((i) => i.status === "overdue").length;
 
   const now = new Date();
-  const collectedThisMonth = seedPayments
+  const collectedThisMonth = payments
     .filter((payment) => {
       const date = new Date(payment.paymentDate);
       return (
@@ -252,18 +257,17 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]) {
   }).length;
 
   const overdue = renewals.filter((r) => r.status === "overdue").length;
-  const renewed = 0;
 
   return {
     upcomingThisMonth: String(upcomingThisMonth),
     overdue: String(overdue),
-    renewed: String(renewed),
+    renewed: "0",
     renewalValue: "—",
   };
 }
 
-export function getRevenueCustomers() {
-  return getUniqueCustomers(seedInvoices);
+export function getRevenueCustomers(invoices: Invoice[]) {
+  return getUniqueCustomers(invoices);
 }
 
 export const revenueTabLabels: Record<string, string> = {

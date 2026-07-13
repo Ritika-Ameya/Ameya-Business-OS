@@ -1,7 +1,6 @@
 import { Receipt } from "lucide-react";
 import { InvoiceTable } from "@/features/revenue/components/invoices/InvoiceTable";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
-import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import type { Customer } from "@/features/customers/types/customer";
 
 interface CustomerInvoicesTabProps {
@@ -9,7 +8,8 @@ interface CustomerInvoicesTabProps {
 }
 
 export function CustomerInvoicesTab({ customer }: CustomerInvoicesTabProps) {
-  const customerInvoices = getInvoicesByCustomerId(seedInvoices, customer.id);
+  const { getInvoicesByCustomerId } = useRevenue();
+  const customerInvoices = getInvoicesByCustomerId(customer.id);
 
   if (customerInvoices.length === 0) {
     return (

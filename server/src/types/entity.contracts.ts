@@ -125,18 +125,38 @@ export interface DealComponentEntity extends BaseEntity {
   renewalDate: string;
 }
 
+export type InvoiceStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
+
+export interface InvoiceTimelineEntry {
+  id: string;
+  action?: string;
+  stageName: string;
+  notes?: string;
+  timestamp: string;
+}
+
 export interface InvoiceEntity extends BaseEntity {
   invoiceNumber: string;
   customerId: string;
-  dealId?: string;
-  status: string;
+  customerName: string;
+  dealId: string;
+  dealTitle: string;
+  status: InvoiceStatus;
   issueDate: string;
   dueDate: string;
   subtotal: number;
+  taxPercent: number;
   tax: number;
   total: number;
   currency: string;
+  received: number;
+  outstanding: number;
+  componentIds: string[];
+  notes: string;
+  timeline: InvoiceTimelineEntry[];
 }
+
+export type PaymentStatus = 'received' | 'pending' | 'failed';
 
 export interface PaymentEntity extends BaseEntity {
   invoiceId: string;
@@ -144,9 +164,12 @@ export interface PaymentEntity extends BaseEntity {
   amount: number;
   currency: string;
   method: string;
-  status: string;
-  paidAt?: string;
-  reference?: string;
+  status: PaymentStatus;
+  paidAt: string;
+  reference: string;
+  receivedBy: string;
+  transactionId: string;
+  notes: string;
 }
 
 export interface ExpenseEntity extends BaseEntity {

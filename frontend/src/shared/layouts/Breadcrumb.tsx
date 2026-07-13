@@ -1,9 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { seedInvoices } from "@/features/revenue/data/seed-invoices";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { getInvoiceById } from "@/features/revenue/utils/invoice-utils";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { revenueTabLabels } from "@/features/revenue/utils/revenue-utils";
 import { masterTabLabels, settingsSectionLabels } from "@/features/settings/utils/settings-utils";
 import type { MasterTab } from "@/features/settings/types/settings";
@@ -38,7 +37,8 @@ function resolveEntityLabel(
   segments: string[],
   index: number,
   getCustomer: (id: string) => { name: string } | undefined,
-  getDeal: (id: string) => { title: string } | undefined
+  getDeal: (id: string) => { title: string } | undefined,
+  getInvoice: (id: string) => { invoiceNo: string } | undefined
 ): string | null {
   const segment = segments[index];
   const parent = segments[index - 1];
@@ -52,10 +52,7 @@ function resolveEntityLabel(
   }
 
   if (parent === "invoices" && segment.startsWith("inv-")) {
-    if (segment === "inv-new") {
-      return "New Invoice";
-    }
-    return getInvoiceById(seedInvoices, segment)?.invoiceNo ?? null;
+    return getInvoice(segment)?.invoiceNo ?? null;
   }
 
   return null;
@@ -72,6 +69,7 @@ export function Breadcrumb() {
   const [searchParams] = useSearchParams();
   const { getCustomer } = useCustomers();
   const { getDeal } = useDeals();
+  const { getInvoice } = useRevenue();
   const segments = pathname.split("/").filter(Boolean);
 
   const masterTab = searchParams.get("tab") as MasterTab | null;
@@ -170,7 +168,13 @@ export function Breadcrumb() {
           segments[index + 1] === "new" && segment === "deals"
             ? `/${segments.slice(0, index).join("/")}`
             : `/${segments.slice(0, index + 1).join("/")}`;
-        const entityLabel = resolveEntityLabel(segments, index, getCustomer, getDeal);
+        const entityLabel = resolveEntityLabel(
+          segments,
+          index,
+          getCustomer,
+          getDeal,
+          getInvoice
+        );
         const label = entityLabel ?? getSegmentLabel(segment, index, segments);
         const isLast = index === lastVisibleIndex && !trailingLabel;
 

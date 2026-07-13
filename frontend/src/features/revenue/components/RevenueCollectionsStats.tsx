@@ -1,9 +1,19 @@
 import { AlertCircle, CalendarClock, CheckCircle2, IndianRupee } from "lucide-react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { getCollectionStats } from "@/features/revenue/utils/revenue-utils";
+import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Payment } from "@/features/revenue/types/payment";
 
-export function RevenueCollectionsStats() {
-  const stats = getCollectionStats();
+interface RevenueCollectionsStatsProps {
+  invoices: Invoice[];
+  payments: Payment[];
+}
+
+export function RevenueCollectionsStats({
+  invoices,
+  payments,
+}: RevenueCollectionsStatsProps) {
+  const stats = getCollectionStats(invoices, payments);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
