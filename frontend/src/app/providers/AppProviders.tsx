@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DashboardProvider } from "@/features/dashboard/hooks/DashboardContext";
 import { AppConfigProvider } from "@/features/settings/hooks/AppConfigContext";
 import { CustomersProvider } from "@/features/customers/hooks/CustomersContext";
 import { DealsProvider } from "@/features/deals/hooks/DealsContext";
@@ -12,7 +13,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <DealsProvider>
         <RevenueProvider>
           <AppConfigProvider>
-            <ExpensesProvider>{children}</ExpensesProvider>
+            <ExpensesProvider>
+              <DashboardProvider>{children}</DashboardProvider>
+            </ExpensesProvider>
           </AppConfigProvider>
         </RevenueProvider>
       </DealsProvider>

@@ -1,15 +1,11 @@
-import { seedDashboardActivity } from "@/features/dashboard/data/seed-dashboard";
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
-import {
-  buildCollectionRows,
-  getCollectionInvoices,
-  getCompanyRenewals,
-} from "@/features/revenue/utils/revenue-utils";
 import { formatDate } from "@/shared/utils/format-date";
-import type { Deal } from "@/features/deals/types/deal";
-import type { Invoice } from "@/features/revenue/types/invoice";
-import type { Payment } from "@/features/revenue/types/payment";
-import type { DashboardKpi, FounderInsight } from "@/features/dashboard/types/dashboard";
+import type { DashboardSummaryDto } from "@/features/dashboard/api/dashboard.dto";
+import type {
+  DashboardActivity,
+  DashboardKpi,
+  FounderInsight,
+} from "@/features/dashboard/types/dashboard";
 
 export function getTimeOfDayGreeting(): string {
   const hour = new Date().getHours();
@@ -28,123 +24,123 @@ export function formatTodayDate(): string {
 }
 
 export function getFounderInsight(
-  invoices: Invoice[] = [],
-  deals: Deal[] = []
+  summary: DashboardSummaryDto | null
 ): FounderInsight {
-  const outstanding = getCollectionInvoices(invoices).reduce(
-    (sum, invoice) => sum + invoice.outstanding,
-    0
-  );
-
-  if (outstanding > 0) {
-    return {
-      message: `You have ${formatInvoiceCurrency(outstanding)} pending collections due in the next 7 days.`,
-    };
+  if (!summary) {
+    return { message: "Loading business insight…" };
   }
-
-  const renewalsThisWeek = getCompanyRenewals(deals).filter((renewal) => {
-    const date = new Date(renewal.renewalDate);
-    const now = new Date();
-    const weekFromNow = new Date(now);
-    weekFromNow.setDate(now.getDate() + 7);
-    return date >= now && date <= weekFromNow;
-  });
-
-  if (renewalsThisWeek.length === 0) {
-    return { message: "No renewals are due this week." };
-  }
-
-  return { message: "Revenue is higher than expenses this month." };
+  return summary.insight;
 }
 
 export function getDashboardKpis(
-  invoices: Invoice[] = [],
-  deals: Deal[] = []
+  summary: DashboardSummaryDto | null
 ): DashboardKpi[] {
-  const now = new Date();
-  const revenueThisMonth = invoices
-    .filter((invoice) => {
-      const date = new Date(invoice.invoiceDate);
-      return (
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear()
-      );
-    })
-    .reduce((sum, invoice) => sum + invoice.received, 0);
+  if (!summary) {
+    return [
+      {
+        id: "revenue",
+        label: "Revenue This Month",
+        value: "—",
+        trend: "Loading…",
+        trendDirection: "neutral",
+        href: "/revenue?tab=invoices",
+      },
+      {
+        id: "collections",
+        label: "Outstanding Collections",
+        value: "—",
+        trend: "Loading…",
+        trendDirection: "neutral",
+        href: "/revenue?tab=collections",
+      },
+      {
+        id: "renewals",
+        label: "Upcoming Renewals",
+        value: "—",
+        trend: "Loading…",
+        trendDirection: "neutral",
+        href: "/revenue?tab=renewals",
+      },
+      {
+        id: "cash",
+        label: "Cash Position",
+        value: "—",
+        trend: "Loading…",
+        trendDirection: "neutral",
+      },
+    ];
+  }
 
-  const outstanding = getCollectionInvoices(invoices).reduce(
-    (sum, invoice) => sum + invoice.outstanding,
-    0
-  );
-
-  const upcomingRenewals = getCompanyRenewals(deals).filter(
-    (renewal) => renewal.status === "upcoming"
-  ).length;
+  const trendPct = summary.revenueTrendPct;
+  const revenueTrend =
+    trendPct === 0
+      ? "Flat vs last month"
+      : `${trendPct > 0 ? "+" : ""}${trendPct}% vs last month`;
 
   return [
     {
       id: "revenue",
       label: "Revenue This Month",
-      value: formatInvoiceCurrency(revenueThisMonth),
-      trend: "+12% vs last month",
-      trendDirection: "up",
+      value: formatInvoiceCurrency(summary.revenueThisMonth),
+      trend: revenueTrend,
+      trendDirection: trendPct > 0 ? "up" : trendPct < 0 ? "down" : "neutral",
       href: "/revenue?tab=invoices",
     },
     {
       id: "collections",
       label: "Outstanding Collections",
-      value: formatInvoiceCurrency(outstanding),
-      trend: "3 invoices pending",
+      value: formatInvoiceCurrency(summary.outstandingCollections),
+      trend:
+        summary.pendingInvoiceCount === 0
+          ? "All clear"
+          : `${summary.pendingInvoiceCount} invoice${summary.pendingInvoiceCount === 1 ? "" : "s"} pending`,
       trendDirection: "neutral",
       href: "/revenue?tab=collections",
     },
     {
       id: "renewals",
       label: "Upcoming Renewals",
-      value: String(upcomingRenewals),
-      trend: upcomingRenewals > 0 ? "Due this quarter" : "None scheduled",
-      trendDirection: upcomingRenewals > 0 ? "down" : "neutral",
+      value: String(summary.upcomingRenewals),
+      trend:
+        summary.upcomingRenewals > 0 ? "Due this quarter" : "None scheduled",
+      trendDirection: summary.upcomingRenewals > 0 ? "down" : "neutral",
       href: "/revenue?tab=renewals",
     },
     {
       id: "cash",
       label: "Cash Position",
-      value: formatInvoiceCurrency(1850000),
-      trend: "Healthy runway",
-      trendDirection: "up",
+      value: formatInvoiceCurrency(summary.cashPosition),
+      trend: summary.cashPosition >= 0 ? "Healthy runway" : "Monitor closely",
+      trendDirection: summary.cashPosition >= 0 ? "up" : "down",
     },
   ];
 }
 
-export function getPendingCollectionsTop5(
-  invoices: Invoice[] = [],
-  payments: Payment[] = []
-) {
-  return buildCollectionRows(getCollectionInvoices(invoices), payments)
-    .sort((a, b) => b.invoice.outstanding - a.invoice.outstanding)
-    .slice(0, 5)
-    .map(({ invoice }) => ({
-      id: invoice.id,
-      customer: invoice.customerName,
-      outstanding: formatInvoiceCurrency(invoice.outstanding),
-      dueDate: formatInvoiceDate(invoice.dueDate),
-    }));
+export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
+  if (!summary) return [];
+  return summary.pendingCollections.map((item) => ({
+    id: item.id,
+    customer: item.customer,
+    outstanding: formatInvoiceCurrency(item.outstanding),
+    dueDate: formatInvoiceDate(item.dueDate),
+  }));
 }
 
-export function getUpcomingRenewalsTop5(deals: Deal[] = []) {
-  return getCompanyRenewals(deals)
-    .filter((renewal) => renewal.status === "upcoming")
-    .slice(0, 5)
-    .map((renewal) => ({
-      id: renewal.id,
-      customer: renewal.customerName,
-      renewal: renewal.renewalLabel,
-      dueDate: formatDate(renewal.renewalDate),
-    }));
+export function getUpcomingRenewalsTop5(summary: DashboardSummaryDto | null) {
+  if (!summary) return [];
+  return summary.upcomingRenewalsList.map((item) => ({
+    id: item.id,
+    customer: item.customer,
+    renewal: item.renewal,
+    dueDate: formatDate(item.dueDate),
+  }));
 }
 
-export function getRecentActivity() {
-  return [...seedDashboardActivity].sort(
+export function getRecentActivity(
+  summary: DashboardSummaryDto | null
+): DashboardActivity[] {
+  if (!summary) return [];
+  return [...summary.activity].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 }

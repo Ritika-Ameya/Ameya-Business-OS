@@ -1,26 +1,20 @@
-import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
-import {
-  getDashboardExpenseStats,
-  getMonthlyExpenseChartData,
-} from "@/features/expenses/utils/expense-utils";
 import { cn } from "@/shared/utils";
 
 export function RevenueExpenseChart() {
-  const { transactions } = useExpenses();
-  const stats = getDashboardExpenseStats(transactions);
-  const expenseData = getMonthlyExpenseChartData(transactions);
+  const { summary } = useDashboard();
+  const stats = summary?.chart.expenseStats ?? {
+    monthlyExpense: 0,
+    pendingExpense: 0,
+    yearlyExpense: 0,
+  };
+  const chartData = summary?.chart.points ?? [];
 
   const maxValue = Math.max(
-    ...expenseData.map((point) => point.expense),
+    ...chartData.map((point) => Math.max(point.revenue, point.expense)),
     1
   );
-
-  const revenuePlaceholder = expenseData.map((point, index) => ({
-    month: point.month,
-    revenue: [420000, 385000, 510000, 475000, 530000, 485000][index] ?? 450000,
-    expense: point.expense,
-  }));
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
@@ -52,37 +46,43 @@ export function RevenueExpenseChart() {
       </div>
 
       <div className="flex h-48 items-end justify-between gap-2 sm:gap-4">
-        {revenuePlaceholder.map((point) => {
-          const scale = Math.max(point.revenue, point.expense, maxValue);
-          const revenueHeight = (point.revenue / scale) * 100;
-          const expenseHeight = (point.expense / scale) * 100;
+        {chartData.length === 0 ? (
+          <p className="w-full self-center text-center text-sm text-muted-foreground">
+            No chart data yet
+          </p>
+        ) : (
+          chartData.map((point) => {
+            const scale = Math.max(point.revenue, point.expense, maxValue);
+            const revenueHeight = (point.revenue / scale) * 100;
+            const expenseHeight = (point.expense / scale) * 100;
 
-          return (
-            <div
-              key={point.month}
-              className="group flex flex-1 flex-col items-center gap-2"
-            >
-              <div className="flex h-40 w-full items-end justify-center gap-1 sm:gap-1.5">
-                <div
-                  className={cn(
-                    "w-full max-w-5 rounded-t-md bg-emerald-500/80 transition-opacity group-hover:opacity-100",
-                    "opacity-90 dark:bg-emerald-500/70"
-                  )}
-                  style={{ height: `${revenueHeight}%` }}
-                  title={`Revenue: ${formatInvoiceCurrency(point.revenue)}`}
-                />
-                <div
-                  className="w-full max-w-5 rounded-t-md bg-muted-foreground/25 transition-opacity group-hover:opacity-100"
-                  style={{ height: `${Math.max(expenseHeight, 4)}%` }}
-                  title={`Expense: ${formatInvoiceCurrency(point.expense)}`}
-                />
+            return (
+              <div
+                key={point.yearMonth}
+                className="group flex flex-1 flex-col items-center gap-2"
+              >
+                <div className="flex h-40 w-full items-end justify-center gap-1 sm:gap-1.5">
+                  <div
+                    className={cn(
+                      "w-full max-w-5 rounded-t-md bg-emerald-500/80 transition-opacity group-hover:opacity-100",
+                      "opacity-90 dark:bg-emerald-500/70"
+                    )}
+                    style={{ height: `${revenueHeight}%` }}
+                    title={`Revenue: ${formatInvoiceCurrency(point.revenue)}`}
+                  />
+                  <div
+                    className="w-full max-w-5 rounded-t-md bg-muted-foreground/25 transition-opacity group-hover:opacity-100"
+                    style={{ height: `${Math.max(expenseHeight, 4)}%` }}
+                    title={`Expense: ${formatInvoiceCurrency(point.expense)}`}
+                  />
+                </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {point.month}
+                </span>
               </div>
-              <span className="text-xs font-medium text-muted-foreground">
-                {point.month}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

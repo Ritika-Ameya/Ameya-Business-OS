@@ -357,54 +357,6 @@ export function generateRecurringTransactions(
   return generated;
 }
 
-export function getDashboardExpenseStats(transactions: ExpenseTransaction[]) {
-  const { from: monthFrom, to: monthTo } = getDateRangeForPreset("this-month");
-  const { from: yearFrom, to: yearTo } = getDateRangeForPreset("this-year");
-
-  const inRange = (txn: ExpenseTransaction, from: Date | null, to: Date | null) => {
-    const date = new Date(txn.date);
-    return (!from || date >= from) && (!to || date <= to);
-  };
-
-  const monthlyTransactions = transactions.filter((txn) =>
-    inRange(txn, monthFrom, monthTo)
-  );
-  const yearlyTransactions = transactions.filter((txn) =>
-    inRange(txn, yearFrom, yearTo)
-  );
-
-  return {
-    monthlyExpense: monthlyTransactions.reduce((sum, txn) => sum + txn.amount, 0),
-    pendingExpense: transactions
-      .filter((txn) => txn.status === "pending" || txn.status === "partial")
-      .reduce((sum, txn) => sum + txn.amount, 0),
-    yearlyExpense: yearlyTransactions.reduce((sum, txn) => sum + txn.amount, 0),
-  };
-}
-
-export function getMonthlyExpenseChartData(transactions: ExpenseTransaction[]) {
-  const now = new Date();
-  const months: { month: string; expense: number }[] = [];
-
-  for (let index = 5; index >= 0; index -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-    const from = startOfDay(date);
-    const to = endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0));
-    const label = new Intl.DateTimeFormat("en-IN", { month: "short" }).format(date);
-
-    const expense = transactions
-      .filter((txn) => {
-        const txnDate = new Date(txn.date);
-        return txnDate >= from && txnDate <= to;
-      })
-      .reduce((sum, txn) => sum + txn.amount, 0);
-
-    months.push({ month: label, expense });
-  }
-
-  return months;
-}
-
 export function validateTransactionForm(
   data: ExpenseTransactionFormData
 ): Partial<Record<keyof ExpenseTransactionFormData, string>> {

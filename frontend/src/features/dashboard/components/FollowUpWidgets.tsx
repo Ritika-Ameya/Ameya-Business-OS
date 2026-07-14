@@ -1,21 +1,13 @@
 import { FollowUpCard } from "@/features/dashboard/components/FollowUpCard";
-import {
-  getOverdueFollowUps,
-  getTodaysFollowUps,
-  getTomorrowsFollowUps,
-} from "@/features/dashboard/utils/follow-up-utils";
-import { useCustomers } from "@/features/customers/hooks/use-customers";
-import { useDeals } from "@/features/deals/hooks/use-deals";
-import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
+import type { FollowUpItem } from "@/features/dashboard/types/dashboard";
 
 export function FollowUpWidgets() {
-  const { customers } = useCustomers();
-  const { deals } = useDeals();
-  const { stages } = useAppConfig();
+  const { summary } = useDashboard();
 
-  const todaysItems = getTodaysFollowUps(customers, deals, stages);
-  const tomorrowsItems = getTomorrowsFollowUps(customers, deals, stages);
-  const overdueItems = getOverdueFollowUps(customers, deals, stages);
+  const todaysItems = (summary?.followUps.today ?? []) as FollowUpItem[];
+  const tomorrowsItems = (summary?.followUps.tomorrow ?? []) as FollowUpItem[];
+  const overdueItems = (summary?.followUps.overdue ?? []) as FollowUpItem[];
 
   return (
     <section className="space-y-4">

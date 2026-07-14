@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { dashboardRouter, reportsRouter } from '../modules/analytics';
 import { customersRouter } from '../modules/customers';
 import { dealsRouter } from '../modules/deals';
 import { expensesRouter, expenseMastersRouter } from '../modules/expenses';
@@ -16,5 +17,7 @@ router.use('/deals', dealsRouter);
 router.use('/invoices', invoicesRouter);
 router.use('/expenses', expensesRouter);
 router.use('/expense-masters', expenseMastersRouter);
+router.use('/dashboard', dashboardRouter);
+router.use('/reports', reportsRouter);
 
 export default router;

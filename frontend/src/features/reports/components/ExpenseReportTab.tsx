@@ -4,14 +4,16 @@ import {
   ReceiptText,
   RefreshCw,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { ExpenseReportTable } from "@/features/reports/components/ExpenseReportTable";
-import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { reportsApi } from "@/features/reports/api/reports.api";
 import {
-  computeExpenseReportStats,
-  filterExpensesForReport,
-} from "@/features/reports/utils/report-utils";
+  formatExpenseReportStats,
+  mapReportExpense,
+} from "@/features/reports/api/reports.mappers";
+import { useReportQuery } from "@/features/reports/hooks/use-report-query";
+import { useExpenses } from "@/features/expenses/hooks/use-expenses";
 import type { ReportFilters } from "@/features/reports/types/reports";
 
 interface ExpenseReportTabProps {
@@ -19,25 +21,39 @@ interface ExpenseReportTabProps {
 }
 
 export function ExpenseReportTab({ filters }: ExpenseReportTabProps) {
-  const { transactions, categories } = useExpenses();
-
-  const filtered = useMemo(
-    () => filterExpensesForReport(transactions, filters, categories),
-    [transactions, filters, categories]
+  const { categories } = useExpenses();
+  const fetcher = useCallback(
+    (nextFilters: ReportFilters) => reportsApi.getExpenses(nextFilters),
+    []
   );
+  const { data, loading, error } = useReportQuery(filters, fetcher);
 
-  const recurringCount = useMemo(
-    () => filtered.filter((transaction) => transaction.recurring).length,
-    [filtered]
+  const transactions = useMemo(
+    () => (data?.items ?? []).map(mapReportExpense),
+    [data]
   );
-
   const stats = useMemo(
-    () => computeExpenseReportStats(filtered, recurringCount),
-    [filtered, recurringCount]
+    () =>
+      data
+        ? formatExpenseReportStats(data.stats)
+        : {
+            totalExpense: "—",
+            paid: "—",
+            pending: "—",
+            recurringExpenses: "—",
+          },
+    [data]
   );
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+      {loading && !data && (
+        <p className="text-sm text-muted-foreground">Loading expense report…</p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Expense"
@@ -65,7 +81,7 @@ export function ExpenseReportTab({ filters }: ExpenseReportTabProps) {
         />
       </div>
 
-      <ExpenseReportTable transactions={filtered} categories={categories} />
+      <ExpenseReportTable transactions={transactions} categories={categories} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { formatDate } from "@/shared/utils";
-import type { FollowUpItem } from "@/features/dashboard/utils/follow-up-utils";
+import type { FollowUpItem } from "@/features/dashboard/types/dashboard";
 
 interface FollowUpCardProps {
   title: string;
