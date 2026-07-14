@@ -4,15 +4,15 @@ import {
   Clock,
   IndianRupee,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { OutstandingReportTable } from "@/features/reports/components/OutstandingReportTable";
-import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { reportsApi } from "@/features/reports/api/reports.api";
 import {
-  computeOutstandingReportStats,
-  filterOutstandingForReport,
-  getOutstandingRows,
-} from "@/features/reports/utils/report-utils";
+  formatOutstandingReportStats,
+  mapOutstandingRow,
+} from "@/features/reports/api/reports.mappers";
+import { useReportQuery } from "@/features/reports/hooks/use-report-query";
 import type { ReportFilters } from "@/features/reports/types/reports";
 
 interface OutstandingReportTabProps {
@@ -20,20 +20,38 @@ interface OutstandingReportTabProps {
 }
 
 export function OutstandingReportTab({ filters }: OutstandingReportTabProps) {
-  const { invoices: allInvoices } = useRevenue();
-  const invoices = useMemo(
-    () => filterOutstandingForReport(allInvoices, filters),
-    [allInvoices, filters]
+  const fetcher = useCallback(
+    (nextFilters: ReportFilters) => reportsApi.getOutstanding(nextFilters),
+    []
   );
+  const { data, loading, error } = useReportQuery(filters, fetcher);
 
-  const rows = useMemo(() => getOutstandingRows(invoices), [invoices]);
+  const rows = useMemo(
+    () => (data?.items ?? []).map(mapOutstandingRow),
+    [data]
+  );
   const stats = useMemo(
-    () => computeOutstandingReportStats(invoices),
-    [invoices]
+    () =>
+      data
+        ? formatOutstandingReportStats(data.stats)
+        : {
+            outstandingAmount: "—",
+            invoicesPending: "—",
+            overdueInvoices: "—",
+            averageOutstanding: "—",
+          },
+    [data]
   );
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+      {loading && !data && (
+        <p className="text-sm text-muted-foreground">Loading outstanding report…</p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Outstanding Amount"

@@ -4,15 +4,15 @@ import {
   CheckCircle2,
   RefreshCw,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { RenewalReportTable } from "@/features/reports/components/RenewalReportTable";
-import { useDeals } from "@/features/deals/hooks/use-deals";
+import { reportsApi } from "@/features/reports/api/reports.api";
 import {
-  computeRenewalReportStats,
-  filterRenewalsForReport,
-  getAllRenewals,
-} from "@/features/reports/utils/report-utils";
+  formatRenewalReportStats,
+  mapReportRenewal,
+} from "@/features/reports/api/reports.mappers";
+import { useReportQuery } from "@/features/reports/hooks/use-report-query";
 import type { ReportFilters } from "@/features/reports/types/reports";
 
 interface RenewalReportTabProps {
@@ -20,20 +20,38 @@ interface RenewalReportTabProps {
 }
 
 export function RenewalReportTab({ filters }: RenewalReportTabProps) {
-  const { deals } = useDeals();
+  const fetcher = useCallback(
+    (nextFilters: ReportFilters) => reportsApi.getRenewals(nextFilters),
+    []
+  );
+  const { data, loading, error } = useReportQuery(filters, fetcher);
 
-  const renewals = useMemo(() => {
-    const all = getAllRenewals(deals);
-    return filterRenewalsForReport(all, filters);
-  }, [deals, filters]);
-
+  const renewals = useMemo(
+    () => (data?.items ?? []).map(mapReportRenewal),
+    [data]
+  );
   const stats = useMemo(
-    () => computeRenewalReportStats(renewals, deals),
-    [renewals, deals]
+    () =>
+      data
+        ? formatRenewalReportStats(data.stats)
+        : {
+            upcomingRenewals: "—",
+            overdueRenewals: "—",
+            renewed: "—",
+            renewalValue: "—",
+          },
+    [data]
   );
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+      {loading && !data && (
+        <p className="text-sm text-muted-foreground">Loading renewal report…</p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Upcoming Renewals"

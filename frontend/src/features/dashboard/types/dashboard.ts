@@ -26,3 +26,17 @@ export interface DashboardKpi {
 export interface FounderInsight {
   message: string;
 }
+
+export type FollowUpEntityType = "customer" | "deal";
+
+export interface FollowUpItem {
+  id: string;
+  entityType: FollowUpEntityType;
+  customerId: string;
+  dealId?: string;
+  company: string;
+  contactPerson: string;
+  dealTitle?: string;
+  currentStage: string;
+  nextActionDate: string;
+}

@@ -1,12 +1,14 @@
 import { Lightbulb } from "lucide-react";
-import { formatTodayDate, getFounderInsight, getTimeOfDayGreeting } from "@/features/dashboard/utils/dashboard-utils";
-import { useDeals } from "@/features/deals/hooks/use-deals";
-import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import {
+  formatTodayDate,
+  getFounderInsight,
+  getTimeOfDayGreeting,
+} from "@/features/dashboard/utils/dashboard-utils";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
 export function FounderInsightBanner() {
-  const { invoices } = useRevenue();
-  const { deals } = useDeals();
-  const insight = getFounderInsight(invoices, deals);
+  const { summary } = useDashboard();
+  const insight = getFounderInsight(summary);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">

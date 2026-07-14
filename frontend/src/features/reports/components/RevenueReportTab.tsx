@@ -4,14 +4,15 @@ import {
   IndianRupee,
   TrendingUp,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { RevenueReportTable } from "@/features/reports/components/RevenueReportTable";
-import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { reportsApi } from "@/features/reports/api/reports.api";
 import {
-  computeRevenueReportStats,
-  filterInvoicesForReport,
-} from "@/features/reports/utils/report-utils";
+  formatRevenueReportStats,
+  mapReportInvoice,
+} from "@/features/reports/api/reports.mappers";
+import { useReportQuery } from "@/features/reports/hooks/use-report-query";
 import type { ReportFilters } from "@/features/reports/types/reports";
 
 interface RevenueReportTabProps {
@@ -19,15 +20,38 @@ interface RevenueReportTabProps {
 }
 
 export function RevenueReportTab({ filters }: RevenueReportTabProps) {
-  const { invoices: allInvoices } = useRevenue();
-  const invoices = useMemo(
-    () => filterInvoicesForReport(allInvoices, filters),
-    [allInvoices, filters]
+  const fetcher = useCallback(
+    (nextFilters: ReportFilters) => reportsApi.getRevenue(nextFilters),
+    []
   );
-  const stats = useMemo(() => computeRevenueReportStats(invoices), [invoices]);
+  const { data, loading, error } = useReportQuery(filters, fetcher);
+
+  const invoices = useMemo(
+    () => (data?.items ?? []).map(mapReportInvoice),
+    [data]
+  );
+  const stats = useMemo(
+    () =>
+      data
+        ? formatRevenueReportStats(data.stats)
+        : {
+            totalRevenue: "—",
+            collected: "—",
+            outstanding: "—",
+            averageInvoiceValue: "—",
+          },
+    [data]
+  );
 
   return (
     <div className="space-y-6">
+      {error && (
+        <p className="text-sm text-destructive">{error}</p>
+      )}
+      {loading && !data && (
+        <p className="text-sm text-muted-foreground">Loading revenue report…</p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Revenue"

@@ -2,11 +2,11 @@ import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { getPendingCollectionsTop5 } from "@/features/dashboard/utils/dashboard-utils";
-import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
 export function PendingCollectionsCard() {
-  const { invoices, payments } = useRevenue();
-  const items = getPendingCollectionsTop5(invoices, payments);
+  const { summary } = useDashboard();
+  const items = getPendingCollectionsTop5(summary);
 
   return (
     <div className="flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm">
