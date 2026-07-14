@@ -6,6 +6,7 @@ import { ExpenseMasterTable } from "@/features/expenses/components/ExpenseMaster
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
 import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { defaultMasterFilters, filterMasters } from "@/features/expenses/utils/expense-utils";
 import type { ExpenseMasterFormData, ExpenseMasterTemplate, ExpenseMasterFilters } from "@/features/expenses/types/expense";
 
@@ -15,6 +16,8 @@ export function ExpenseMasterTab() {
     categories,
     vendors,
     employees,
+    loading,
+    error,
     addMaster,
     updateMaster,
     addCategory,
@@ -26,9 +29,10 @@ export function ExpenseMasterTab() {
   const [filters, setFilters] = useState<ExpenseMasterFilters>(defaultMasterFilters);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMaster, setEditingMaster] = useState<ExpenseMasterTemplate | undefined>();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const deferredQuery = useDeferredValue(query);
-  const isSearching = query !== deferredQuery;
+  const isSearching = loading || query !== deferredQuery;
 
   const filteredMasters = useMemo(
     () => filterMasters(masters, deferredQuery, filters),
@@ -52,12 +56,19 @@ export function ExpenseMasterTab() {
   };
 
   const handleSave = (data: ExpenseMasterFormData) => {
-    if (editingMaster) {
-      updateMaster(editingMaster.id, data);
-    } else {
-      addMaster(data);
-    }
-    setEditingMaster(undefined);
+    void (async () => {
+      setSaveError(null);
+      try {
+        if (editingMaster) {
+          await updateMaster(editingMaster.id, data);
+        } else {
+          await addMaster(data);
+        }
+        setEditingMaster(undefined);
+      } catch (err) {
+        setSaveError(getErrorMessage(err));
+      }
+    })();
   };
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -69,6 +80,11 @@ export function ExpenseMasterTab() {
 
   return (
     <div className="space-y-6">
+      {(error || saveError) && (
+        <p role="alert" className="text-sm text-destructive">
+          {saveError ?? error}
+        </p>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Recurring expense templates auto-generate pending entries in the register.
