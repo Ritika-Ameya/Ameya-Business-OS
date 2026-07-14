@@ -8,6 +8,7 @@ export const SHEET_TABS = {
   INVOICES: 'Invoices',
   PAYMENTS: 'Payments',
   EXPENSES: 'Expenses',
+  EXPENSE_MASTERS: 'ExpenseMasters',
   RENEWALS: 'Renewals',
   DOCUMENTS: 'Documents',
   ACTIVITY_LOGS: 'ActivityLogs',

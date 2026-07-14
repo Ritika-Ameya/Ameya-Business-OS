@@ -172,15 +172,51 @@ export interface PaymentEntity extends BaseEntity {
   notes: string;
 }
 
+export type ExpenseTransactionStatus = 'paid' | 'pending' | 'partial' | 'cancelled';
+export type ExpensePayeeType = 'vendor' | 'employee';
+export type ExpenseMasterStatus = 'active' | 'inactive';
+export type ExpenseFrequency =
+  | 'monthly'
+  | 'quarterly'
+  | 'half-yearly'
+  | 'yearly'
+  | 'one-time';
+
 export interface ExpenseEntity extends BaseEntity {
-  description: string;
-  category: string;
+  expenseDate: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  payeeType: ExpensePayeeType;
+  vendorOrEmployee: string;
+  vendorId: string;
+  employeeId: string;
   amount: number;
   currency: string;
-  expenseDate: string;
-  vendor?: string;
-  status: string;
-  receiptDocumentId?: string;
+  status: ExpenseTransactionStatus;
+  paymentMethod: string;
+  referenceNumber: string;
+  notes: string;
+  hasAttachment: boolean;
+  recurring: boolean;
+  masterTemplateId: string;
+  generatedPeriod: string;
+}
+
+export interface ExpenseMasterEntity extends BaseEntity {
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  payeeType: ExpensePayeeType;
+  vendorOrEmployee: string;
+  vendorId: string;
+  employeeId: string;
+  defaultAmount: number;
+  frequency: ExpenseFrequency;
+  startDate: string;
+  endDate: string;
+  autoGenerate: boolean;
+  status: ExpenseMasterStatus;
 }
 
 export interface RenewalEntity extends BaseEntity {

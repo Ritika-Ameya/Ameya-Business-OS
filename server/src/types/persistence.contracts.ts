@@ -152,18 +152,50 @@ export const PAYMENTS_CONTRACT: PersistenceContract = {
   ]),
 };
 
+/** Expense register transactions — aligned with frontend ExpenseTransaction. */
 export const EXPENSES_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.EXPENSES,
   entityName: 'Expense',
   columns: withBaseColumns([
-    'description',
-    'category',
+    'expenseDate',
+    'name',
+    'categoryId',
+    'categoryName',
+    'payeeType',
+    'vendorOrEmployee',
+    'vendorId',
+    'employeeId',
     'amount',
     'currency',
-    'expenseDate',
-    'vendor',
     'status',
-    'receiptDocumentId',
+    'paymentMethod',
+    'referenceNumber',
+    'notes',
+    'hasAttachment',
+    'recurring',
+    'masterTemplateId',
+    'generatedPeriod',
+  ]),
+};
+
+/** Recurring expense templates — aligned with frontend ExpenseMasterTemplate. */
+export const EXPENSE_MASTERS_CONTRACT: PersistenceContract = {
+  tabName: SHEET_TABS.EXPENSE_MASTERS,
+  entityName: 'ExpenseMaster',
+  columns: withBaseColumns([
+    'name',
+    'categoryId',
+    'categoryName',
+    'payeeType',
+    'vendorOrEmployee',
+    'vendorId',
+    'employeeId',
+    'defaultAmount',
+    'frequency',
+    'startDate',
+    'endDate',
+    'autoGenerate',
+    'status',
   ]),
 };
 
@@ -219,6 +251,7 @@ export const PERSISTENCE_CONTRACTS = {
   invoices: INVOICES_CONTRACT,
   payments: PAYMENTS_CONTRACT,
   expenses: EXPENSES_CONTRACT,
+  expenseMasters: EXPENSE_MASTERS_CONTRACT,
   renewals: RENEWALS_CONTRACT,
   documents: DOCUMENTS_CONTRACT,
   activityLogs: ACTIVITY_LOGS_CONTRACT,

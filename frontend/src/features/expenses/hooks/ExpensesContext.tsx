@@ -1,25 +1,25 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { legacyCategoryIdMap } from "@/features/settings/data/seed-settings";
+import { expenseMastersApi, expensesApi } from "@/features/expenses/api/expenses.api";
 import {
-  seedExpenseMasters,
-  seedExpenseTransactions,
-} from "@/features/expenses/data/seed-expenses";
+  mapExpenseFromDto,
+  mapExpenseMasterFromDto,
+  mapMasterFormToBody,
+  mapTransactionFormToBody,
+} from "@/features/expenses/api/expense.mappers";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import {
   toEmployeeItems,
   toExpenseCategoryItems,
   toVendorItems,
 } from "@/features/settings/utils/app-config-utils";
-import {
-  generateRecurringTransactions,
-  parseAmount,
-} from "@/features/expenses/utils/expense-utils";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type {
   EmployeeItem,
   ExpenseCategoryItem,
@@ -31,9 +31,6 @@ import type {
 } from "@/features/expenses/types/expense";
 import type { ExpenseCategoryFormData } from "@/features/settings/types/settings";
 
-const TXN_KEY = "ameya-expense-transactions-v2";
-const MASTER_KEY = "ameya-expense-masters-v2";
-
 interface UpdateTransactionOptions {
   updateTemplate?: boolean;
 }
@@ -44,14 +41,17 @@ interface ExpensesContextValue {
   categories: ExpenseCategoryItem[];
   vendors: VendorItem[];
   employees: EmployeeItem[];
-  addTransaction: (data: ExpenseTransactionFormData) => ExpenseTransaction;
+  loading: boolean;
+  error: string | null;
+  refreshExpenses: () => Promise<void>;
+  addTransaction: (data: ExpenseTransactionFormData) => Promise<ExpenseTransaction>;
   updateTransaction: (
     id: string,
     data: ExpenseTransactionFormData,
     options?: UpdateTransactionOptions
-  ) => void;
-  addMaster: (data: ExpenseMasterFormData) => ExpenseMasterTemplate;
-  updateMaster: (id: string, data: ExpenseMasterFormData) => void;
+  ) => Promise<void>;
+  addMaster: (data: ExpenseMasterFormData) => Promise<ExpenseMasterTemplate>;
+  updateMaster: (id: string, data: ExpenseMasterFormData) => Promise<void>;
   addCategory: (name: string) => Promise<ExpenseCategoryItem>;
   addVendor: (name: string) => VendorItem;
   addEmployee: (name: string) => EmployeeItem;
@@ -61,97 +61,34 @@ const ExpensesContext = createContext<ExpensesContextValue | null>(null);
 
 export { ExpensesContext };
 
-function loadJson<T>(key: string, fallback: T): T {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) return JSON.parse(stored) as T;
-  } catch {
-    // fall through
-  }
-  return fallback;
+function upsertTransaction(
+  list: ExpenseTransaction[],
+  transaction: ExpenseTransaction
+): ExpenseTransaction[] {
+  const index = list.findIndex((item) => item.id === transaction.id);
+  if (index === -1) return [transaction, ...list];
+  const next = [...list];
+  next[index] = transaction;
+  return next;
 }
 
-function persistJson<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function migrateCategoryIds(transactions: ExpenseTransaction[]): ExpenseTransaction[] {
-  return transactions.map((transaction) => ({
-    ...transaction,
-    categoryId:
-      legacyCategoryIdMap[transaction.categoryId] ?? transaction.categoryId,
-  }));
-}
-
-function migrateMasterCategoryIds(
-  masters: ExpenseMasterTemplate[]
+function upsertMaster(
+  list: ExpenseMasterTemplate[],
+  master: ExpenseMasterTemplate
 ): ExpenseMasterTemplate[] {
-  return masters.map((master) => ({
-    ...master,
-    categoryId: legacyCategoryIdMap[master.categoryId] ?? master.categoryId,
-  }));
-}
-
-function formToTransaction(
-  data: ExpenseTransactionFormData,
-  existing?: ExpenseTransaction
-): Omit<ExpenseTransaction, "id"> {
-  return {
-    date: data.date,
-    categoryId: data.categoryId,
-    name: data.name.trim(),
-    vendorOrEmployee: data.vendorOrEmployee.trim(),
-    payeeType: data.payeeType,
-    vendorId: data.vendorId,
-    employeeId: data.employeeId,
-    amount: parseAmount(data.amount),
-    status: data.status,
-    paymentMethod: data.paymentMethod || undefined,
-    referenceNumber: data.referenceNumber.trim() || undefined,
-    notes: data.notes.trim() || undefined,
-    hasAttachment: data.hasAttachment,
-    recurring: data.recurring,
-    masterTemplateId: existing?.masterTemplateId,
-    generatedPeriod: existing?.generatedPeriod,
-  };
-}
-
-function formToMaster(data: ExpenseMasterFormData): Omit<ExpenseMasterTemplate, "id"> {
-  return {
-    name: data.name.trim(),
-    categoryId: data.categoryId,
-    vendorOrEmployee: data.vendorOrEmployee.trim(),
-    payeeType: data.payeeType,
-    vendorId: data.vendorId,
-    employeeId: data.employeeId,
-    defaultAmount: parseAmount(data.defaultAmount),
-    frequency: data.frequency as ExpenseMasterTemplate["frequency"],
-    startDate: data.startDate,
-    endDate: data.endDate.trim() || undefined,
-    autoGenerate: data.autoGenerate,
-    status: data.status,
-  };
-}
-
-function loadInitialExpenseState() {
-  const masters = migrateMasterCategoryIds(loadJson(MASTER_KEY, seedExpenseMasters));
-  const loaded = migrateCategoryIds(loadJson(TXN_KEY, seedExpenseTransactions));
-  const generated = generateRecurringTransactions(masters, loaded);
-  const transactions =
-    generated.length > 0 ? [...generated, ...loaded] : loaded;
-  if (generated.length > 0) {
-    persistJson(TXN_KEY, transactions);
-  }
-  return { masters, transactions };
+  const index = list.findIndex((item) => item.id === master.id);
+  if (index === -1) return [master, ...list];
+  const next = [...list];
+  next[index] = master;
+  return next;
 }
 
 function ExpensesProviderInner({ children }: { children: ReactNode }) {
   const appConfig = useAppConfig();
-  const initial = loadInitialExpenseState();
-  const [transactions, setTransactions] = useState<ExpenseTransaction[]>(
-    initial.transactions
-  );
-  const [masters, setMasters] = useState<ExpenseMasterTemplate[]>(initial.masters);
+  const [transactions, setTransactions] = useState<ExpenseTransaction[]>([]);
+  const [masters, setMasters] = useState<ExpenseMasterTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const categories = useMemo(
     () => toExpenseCategoryItems(appConfig.expenseCategories),
@@ -166,16 +103,30 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
     [appConfig.employees]
   );
 
-  const appendGeneratedTransactions = useCallback(
-    (masterList: ExpenseMasterTemplate[], current: ExpenseTransaction[]) => {
-      const generated = generateRecurringTransactions(masterList, current);
-      if (generated.length === 0) return current;
-      const next = [...generated, ...current];
-      persistJson(TXN_KEY, next);
-      return next;
-    },
-    []
-  );
+  const refreshExpenses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [masterDtos, expenseDtos] = await Promise.all([
+        expenseMastersApi.list(),
+        expensesApi.list(),
+      ]);
+      setMasters(masterDtos.map(mapExpenseMasterFromDto));
+      setTransactions(expenseDtos.map(mapExpenseFromDto));
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setMasters([]);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial load from backend (list also triggers server-side recurring generation)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount
+    void refreshExpenses();
+  }, [refreshExpenses]);
 
   const addCategory = useCallback(
     async (name: string): Promise<ExpenseCategoryItem> => {
@@ -218,53 +169,34 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
   );
 
   const addMaster = useCallback(
-    (data: ExpenseMasterFormData): ExpenseMasterTemplate => {
-      const master: ExpenseMasterTemplate = {
-        id: `master-${crypto.randomUUID().slice(0, 8)}`,
-        ...formToMaster(data),
-      };
-      let nextMasters: ExpenseMasterTemplate[] = [];
-      setMasters((prev) => {
-        nextMasters = [master, ...prev];
-        persistJson(MASTER_KEY, nextMasters);
-        return nextMasters;
-      });
-      setTransactions((txnPrev) => appendGeneratedTransactions(nextMasters, txnPrev));
+    async (data: ExpenseMasterFormData): Promise<ExpenseMasterTemplate> => {
+      const created = await expenseMastersApi.create(mapMasterFormToBody(data));
+      const master = mapExpenseMasterFromDto(created);
+      setMasters((prev) => [master, ...prev]);
+      // Refresh transactions so server-generated recurring rows appear
+      const expenseDtos = await expensesApi.list();
+      setTransactions(expenseDtos.map(mapExpenseFromDto));
       return master;
     },
-    [appendGeneratedTransactions]
+    []
   );
 
-  const updateMaster = useCallback(
-    (id: string, data: ExpenseMasterFormData) => {
-      let nextMasters: ExpenseMasterTemplate[] = [];
-      setMasters((prev) => {
-        nextMasters = prev.map((master) =>
-          master.id === id ? { ...master, ...formToMaster(data) } : master
-        );
-        persistJson(MASTER_KEY, nextMasters);
-        return nextMasters;
-      });
-      setTransactions((txnPrev) => appendGeneratedTransactions(nextMasters, txnPrev));
-    },
-    [appendGeneratedTransactions]
-  );
+  const updateMaster = useCallback(async (id: string, data: ExpenseMasterFormData) => {
+    const updated = await expenseMastersApi.update(id, mapMasterFormToBody(data));
+    const master = mapExpenseMasterFromDto(updated);
+    setMasters((prev) => upsertMaster(prev, master));
+    const expenseDtos = await expensesApi.list();
+    setTransactions(expenseDtos.map(mapExpenseFromDto));
+  }, []);
 
   const addTransaction = useCallback(
-    (data: ExpenseTransactionFormData): ExpenseTransaction => {
-      const transaction: ExpenseTransaction = {
-        id: `txn-${crypto.randomUUID().slice(0, 8)}`,
-        ...formToTransaction(data),
-      };
-
-      setTransactions((prev) => {
-        const next = [transaction, ...prev];
-        persistJson(TXN_KEY, next);
-        return next;
-      });
+    async (data: ExpenseTransactionFormData): Promise<ExpenseTransaction> => {
+      const created = await expensesApi.create(mapTransactionFormToBody(data));
+      const transaction = mapExpenseFromDto(created);
+      setTransactions((prev) => [transaction, ...prev]);
 
       if (data.recurring && data.createMaster && data.masterFrequency) {
-        addMaster({
+        await addMaster({
           name: data.name,
           categoryId: data.categoryId,
           payeeType: data.payeeType,
@@ -286,39 +218,33 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
   );
 
   const updateTransaction = useCallback(
-    (
+    async (
       id: string,
       data: ExpenseTransactionFormData,
       options?: UpdateTransactionOptions
     ) => {
       const existing = transactions.find((txn) => txn.id === id);
-      const newAmount = parseAmount(data.amount);
-
-      setTransactions((prev) => {
-        const next = prev.map((txn) =>
-          txn.id === id ? { ...txn, ...formToTransaction(data, txn) } : txn
-        );
-        persistJson(TXN_KEY, next);
-        return next;
-      });
+      const updated = await expensesApi.update(id, mapTransactionFormToBody(data, existing));
+      const transaction = mapExpenseFromDto(updated);
+      setTransactions((prev) => upsertTransaction(prev, transaction));
 
       if (
         options?.updateTemplate &&
         existing?.masterTemplateId &&
-        existing.amount !== newAmount
+        existing.amount !== transaction.amount
       ) {
-        setMasters((masterPrev) => {
-          const masterNext = masterPrev.map((master) =>
-            master.id === existing.masterTemplateId
-              ? { ...master, defaultAmount: newAmount }
-              : master
+        const master = masters.find((item) => item.id === existing.masterTemplateId);
+        if (master) {
+          const masterUpdated = await expenseMastersApi.update(master.id, {
+            defaultAmount: transaction.amount,
+          });
+          setMasters((prev) =>
+            upsertMaster(prev, mapExpenseMasterFromDto(masterUpdated))
           );
-          persistJson(MASTER_KEY, masterNext);
-          return masterNext;
-        });
+        }
       }
     },
-    [transactions]
+    [transactions, masters]
   );
 
   const value = useMemo(
@@ -328,6 +254,9 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
       categories,
       vendors,
       employees,
+      loading,
+      error,
+      refreshExpenses,
       addTransaction,
       updateTransaction,
       addMaster,
@@ -342,6 +271,9 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
       categories,
       vendors,
       employees,
+      loading,
+      error,
+      refreshExpenses,
       addTransaction,
       updateTransaction,
       addMaster,

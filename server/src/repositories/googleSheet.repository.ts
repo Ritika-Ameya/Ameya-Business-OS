@@ -49,8 +49,8 @@ export abstract class GoogleSheetRepository<
   }
 
   protected get fullRange(): string {
-    // Wide read; actual used width comes from live sheet headers
-    return buildFullRange(this.contract.tabName, Math.max(this.contractColumns.length - 1, 25));
+    // Wide enough for inherited/stub headers + expanded contract columns
+    return buildFullRange(this.contract.tabName, Math.max(this.contractColumns.length + 15, 50));
   }
 
   protected async loadSheetData(): Promise<{

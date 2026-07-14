@@ -8,6 +8,7 @@ import { UpdateRecurringTemplateDialog } from "@/features/expenses/components/Up
 import { StatCard } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/ui/button";
 import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import {
   computeRegisterStats,
   defaultRegisterFilters,
@@ -38,6 +39,8 @@ export function ExpenseRegisterTab({
     categories,
     vendors,
     employees,
+    loading: expensesLoading,
+    error,
     addTransaction,
     updateTransaction,
     addCategory,
@@ -56,6 +59,7 @@ export function ExpenseRegisterTab({
     name: string;
   } | null>(null);
   const [ready, setReady] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const dialogOpen = controlledOpen ?? internalOpen;
   const setDialogOpen = onDialogOpenChange ?? setInternalOpen;
@@ -63,7 +67,10 @@ export function ExpenseRegisterTab({
   const deferredQuery = useDeferredValue(query);
   const deferredFilters = useDeferredValue(filters);
   const loading =
-    !ready || query !== deferredQuery || filters !== deferredFilters;
+    expensesLoading ||
+    !ready ||
+    query !== deferredQuery ||
+    filters !== deferredFilters;
 
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 300);
@@ -117,49 +124,64 @@ export function ExpenseRegisterTab({
   };
 
   const handleSave = (data: ExpenseTransactionFormData) => {
-    if (editingTransaction) {
-      const newAmount = parseAmount(data.amount);
-      if (
-        editingTransaction.masterTemplateId &&
-        editingTransaction.amount !== newAmount
-      ) {
-        setTemplatePrompt({
-          data,
-          oldAmount: editingTransaction.amount,
-          name: editingTransaction.name,
-        });
-        setDialogOpen(false);
-        return;
+    void (async () => {
+      setSaveError(null);
+      try {
+        if (editingTransaction) {
+          const newAmount = parseAmount(data.amount);
+          if (
+            editingTransaction.masterTemplateId &&
+            editingTransaction.amount !== newAmount
+          ) {
+            setTemplatePrompt({
+              data,
+              oldAmount: editingTransaction.amount,
+              name: editingTransaction.name,
+            });
+            setDialogOpen(false);
+            return;
+          }
+          await updateTransaction(editingTransaction.id, data);
+          setEditingTransaction(undefined);
+          return;
+        }
+        await addTransaction(data);
+        setEditingTransaction(undefined);
+      } catch (err) {
+        setSaveError(getErrorMessage(err));
       }
-      updateTransaction(editingTransaction.id, data);
-      setEditingTransaction(undefined);
-      return;
-    }
-    addTransaction(data);
-    setEditingTransaction(undefined);
+    })();
   };
 
   const handleTemplateDecision = (updateTemplate: boolean) => {
     if (!templatePrompt || !editingTransaction) return;
-    updateTransaction(editingTransaction.id, templatePrompt.data, {
+    void updateTransaction(editingTransaction.id, templatePrompt.data, {
       updateTemplate,
-    });
-    setTemplatePrompt(null);
-    setEditingTransaction(undefined);
+    })
+      .then(() => {
+        setTemplatePrompt(null);
+        setEditingTransaction(undefined);
+      })
+      .catch((err) => {
+        setSaveError(getErrorMessage(err));
+      });
   };
 
   const handleCreateMasterFromName = (name: string) => {
-    addMaster({
+    void addMaster({
       name,
-      categoryId: categories[0]?.id ?? "other",
+      categoryId: categories[0]?.id ?? "",
       payeeType: "vendor",
-      vendorOrEmployee: "",
-      defaultAmount: "0",
+      vendorOrEmployee: vendors[0]?.name ?? "Vendor",
+      vendorId: vendors[0]?.id,
+      defaultAmount: "1",
       frequency: "monthly",
-      startDate: new Date().toISOString().split("T")[0],
+      startDate: new Date().toISOString().split("T")[0]!,
       endDate: "",
       autoGenerate: false,
       status: "inactive",
+    }).catch((err) => {
+      setSaveError(getErrorMessage(err));
     });
   };
 
@@ -169,6 +191,11 @@ export function ExpenseRegisterTab({
 
   return (
     <div className="space-y-6">
+      {(error || saveError) && (
+        <p role="alert" className="text-sm text-destructive">
+          {saveError ?? error}
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Expense"
@@ -246,11 +273,12 @@ export function ExpenseRegisterTab({
           open
           onOpenChange={(open) => {
             if (!open) {
-              updateTransaction(editingTransaction!.id, templatePrompt.data, {
+              void updateTransaction(editingTransaction!.id, templatePrompt.data, {
                 updateTemplate: false,
+              }).finally(() => {
+                setTemplatePrompt(null);
+                setEditingTransaction(undefined);
               });
-              setTemplatePrompt(null);
-              setEditingTransaction(undefined);
             }
           }}
           expenseName={templatePrompt.name}
