@@ -4,7 +4,7 @@ import { customerRepository } from '../../customers';
 import type { CustomerEntity } from '../../customers/types/customer.entities';
 import { dealRepository } from '../../deals';
 import type { DealEntity } from '../../deals/types/deal.entities';
-import { expenseMasterRepository, expenseRepository } from '../../expenses';
+import { expenseRepository } from '../../expenses';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import type { StageMasterEntity, StageReminderOffset } from '../../masters/types/master.entities';
 import { stageMasterRepository } from '../../masters/services/master.services';
@@ -210,18 +210,13 @@ export class DashboardService extends BaseService {
   async getSummary(): Promise<DashboardSummary> {
     this.logInfo('Building dashboard summary');
 
-    const [customers, deals, invoices, payments, expenses, expenseMasters] =
-      await Promise.all([
-        customerRepository.findAll(),
-        dealRepository.findAll(),
-        invoiceRepository.findAll(),
-        paymentRepository.findAll(),
-        expenseRepository.findAll(),
-        expenseMasterRepository.findAll(),
-      ]);
-
-    // expenseMasters kept for symmetry / future use; recurring generations live elsewhere
-    void expenseMasters;
+    const [customers, deals, invoices, payments, expenses] = await Promise.all([
+      customerRepository.findAll(),
+      dealRepository.findAll(),
+      invoiceRepository.findAll(),
+      paymentRepository.findAll(),
+      expenseRepository.findAll(),
+    ]);
 
     let stages: StageMasterEntity[] = [];
     try {

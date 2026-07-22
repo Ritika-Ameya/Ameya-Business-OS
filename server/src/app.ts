@@ -9,6 +9,7 @@ import {
   errorHandler,
   notFoundHandler,
   requestIdMiddleware,
+  sheetReadCacheMiddleware,
 } from './middlewares';
 import routes from './routes';
 
@@ -17,6 +18,7 @@ const createApp = (): express.Application => {
 
   app.use(cors(corsOptions));
   app.use(requestIdMiddleware);
+  app.use(sheetReadCacheMiddleware);
   app.use(morgan('dev'));
   app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
   app.use(express.urlencoded({ extended: true }));
