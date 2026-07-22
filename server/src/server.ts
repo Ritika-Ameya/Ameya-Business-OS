@@ -3,6 +3,7 @@ import 'dotenv/config';
 import createApp from './app';
 import { env } from './config';
 import { bootstrapService } from './integrations';
+import { runWithSheetReadCache } from './services/sheets/sheetReadCache';
 import { createLogger } from './utils/logger.util';
 
 const logger = createLogger('Server');
@@ -11,7 +12,7 @@ const start = async (): Promise<void> => {
   logger.info(`${env.NODE_ENV} environment`);
   logger.info('Running Google Sheets bootstrap...');
 
-  const bootstrapResult = await bootstrapService.run();
+  const bootstrapResult = await runWithSheetReadCache(() => bootstrapService.run());
 
   if (bootstrapResult.status === 'completed') {
     logger.info(

@@ -8,6 +8,12 @@ import type {
 import type { sheets_v4 } from 'googleapis';
 import { BaseService } from './base.service';
 import type { GoogleSheetsClient } from '../integrations/googleSheets/googleSheets.client';
+import {
+  extractSheetTabName,
+  getCachedSheetRead,
+  invalidateSheetReadsForRange,
+  invalidateSheetReadsForTab,
+} from './sheets/sheetReadCache';
 
 export class GoogleSheetsService extends BaseService {
   constructor(private readonly client: GoogleSheetsClientInterface) {
@@ -36,26 +42,34 @@ export class GoogleSheetsService extends BaseService {
   }
 
   async readSheet(range?: string): Promise<SheetReadResult> {
-    return this.client.readSheet(range);
+    const resolvedRange = range ?? 'A:ZZ';
+    const values = await this.readByRange(resolvedRange);
+    return { range: resolvedRange, values };
   }
 
   async readByRange(range: string): Promise<string[][]> {
-    return this.client.readByRange(range);
+    return getCachedSheetRead(range, () => this.client.readByRange(range));
   }
 
   async appendRows(range: string, values: string[][]): Promise<SheetAppendResult> {
     this.logDebug(`Appending ${values.length} row(s) to ${range}`);
-    return this.client.appendRows(range, values);
+    const result = await this.client.appendRows(range, values);
+    this.invalidateAfterWrite(range);
+    return result;
   }
 
   async updateRows(range: string, values: string[][]): Promise<SheetUpdateResult> {
     this.logDebug(`Updating rows at ${range}`);
-    return this.client.updateRows(range, values);
+    const result = await this.client.updateRows(range, values);
+    this.invalidateAfterWrite(range);
+    return result;
   }
 
   async deleteRows(sheetId: number, startIndex: number, endIndex: number): Promise<void> {
     this.logDebug(`Deleting rows ${startIndex}-${endIndex} from sheet ${sheetId}`);
-    return this.client.deleteRows(sheetId, startIndex, endIndex);
+    await this.client.deleteRows(sheetId, startIndex, endIndex);
+    // Tab name unknown from sheetId alone — callers that soft-delete via updateRows
+    // already invalidate. Hard deletes are rare; clear nothing by id.
   }
 
   async createSheetTab(title: string): Promise<number> {
@@ -75,6 +89,15 @@ export class GoogleSheetsService extends BaseService {
 
   getClient(): GoogleSheetsClientInterface {
     return this.client;
+  }
+
+  private invalidateAfterWrite(range: string): void {
+    const tabName = extractSheetTabName(range);
+    if (tabName) {
+      invalidateSheetReadsForTab(tabName);
+      return;
+    }
+    invalidateSheetReadsForRange(range);
   }
 }
 

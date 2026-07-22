@@ -55,7 +55,10 @@ export const withGoogleRetry = async <T>(
         throw error;
       }
 
-      await sleep(delayMs * Math.pow(2, attempt));
+      // Jitter reduces synchronized retry storms that amplify 429s.
+      const jitter = Math.floor(Math.random() * delayMs);
+      const backoff = delayMs * Math.pow(2, attempt) + jitter;
+      await sleep(backoff);
     }
   }
 

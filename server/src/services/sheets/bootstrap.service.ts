@@ -44,6 +44,7 @@ const emptyResult = (): BootstrapResult => ({
 /**
  * One-shot platform bootstrap for Google Sheets worksheets + headers.
  * Repositories must never create worksheets — they consume this service's outcome.
+ * Executes exactly once per process lifetime (see `ran`).
  */
 export class BootstrapService extends BaseService {
   private ran = false;
@@ -123,7 +124,11 @@ export class BootstrapService extends BaseService {
         });
       }
 
-      const tabsAfter = await this.sheetsService.getSheetTabs();
+      // Avoid a second spreadsheets.get when no tabs were created.
+      const tabsAfter =
+        createdWorksheets.length > 0
+          ? await this.sheetsService.getSheetTabs()
+          : tabsBefore;
       const deletedDefaultSheet1 = await this.maybeDeleteDefaultSheet1(tabsAfter);
 
       this.result = {

@@ -40,9 +40,8 @@ export class ExpenseService extends BaseService {
     options?: QueryOptions,
     search?: SearchParams,
   ): Promise<PaginatedResult<ExpenseEntity>> {
-    await this.ensureRecurringGenerations();
+    let items = await this.ensureRecurringGenerations();
 
-    let items = await expenseRepository.findAll(options);
     items = applyExpenseSearch(
       items,
       search?.q,
@@ -225,6 +224,10 @@ export class ExpenseService extends BaseService {
     return this.syncHasAttachment(expenseId);
   }
 
+  /**
+   * Generates pending recurring expenses, then returns the current expense list
+   * for the caller to reuse (avoids a second full worksheet read).
+   */
   async ensureRecurringGenerations(): Promise<ExpenseEntity[]> {
     const [masters, transactions] = await Promise.all([
       expenseMasterRepository.findAll(),
@@ -232,7 +235,9 @@ export class ExpenseService extends BaseService {
     ]);
 
     const pending = generatePendingFromMasters(masters, transactions);
-    if (pending.length === 0) return [];
+    if (pending.length === 0) {
+      return transactions;
+    }
 
     const created: ExpenseEntity[] = [];
     for (const item of pending) {
@@ -240,7 +245,9 @@ export class ExpenseService extends BaseService {
       created.push(entity);
     }
     this.logInfo(`Generated ${created.length} recurring expense(s)`);
-    return created;
+
+    // create() invalidates the sheet cache — reload once for a consistent list.
+    return expenseRepository.findAll();
   }
 
   private async syncHasAttachment(expenseId: string): Promise<ExpenseEntity> {
