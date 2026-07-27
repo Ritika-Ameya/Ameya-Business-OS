@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { APP_ROUTES } from "@/app/config";
 import { AppLayout } from "@/shared/layouts/AppLayout";
+import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
+import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { SettingsLayout } from "@/features/settings/components/SettingsLayout";
 import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { CustomersPage } from "@/features/customers/pages/CustomersPage";
@@ -22,7 +24,14 @@ import { PreferencesSettingsPage } from "@/features/settings/pages/PreferencesSe
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Navigate replace to={APP_ROUTES.default} />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/customers" element={<CustomersPage />} />

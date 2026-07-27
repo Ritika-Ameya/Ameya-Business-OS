@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AuthProvider } from "@/features/auth/hooks/AuthContext";
 import { DashboardProvider } from "@/features/dashboard/hooks/DashboardContext";
 import { AppConfigProvider } from "@/features/settings/hooks/AppConfigContext";
 import { CustomersProvider } from "@/features/customers/hooks/CustomersContext";
@@ -9,16 +10,18 @@ import { RevenueProvider } from "@/features/revenue/hooks/RevenueContext";
 /** Composes all application context providers in dependency order. */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <CustomersProvider>
-      <DealsProvider>
-        <RevenueProvider>
-          <AppConfigProvider>
-            <ExpensesProvider>
-              <DashboardProvider>{children}</DashboardProvider>
-            </ExpensesProvider>
-          </AppConfigProvider>
-        </RevenueProvider>
-      </DealsProvider>
-    </CustomersProvider>
+    <AuthProvider>
+      <CustomersProvider>
+        <DealsProvider>
+          <RevenueProvider>
+            <AppConfigProvider>
+              <ExpensesProvider>
+                <DashboardProvider>{children}</DashboardProvider>
+              </ExpensesProvider>
+            </AppConfigProvider>
+          </RevenueProvider>
+        </DealsProvider>
+      </CustomersProvider>
+    </AuthProvider>
   );
 }

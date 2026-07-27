@@ -11,6 +11,7 @@ export const SHEET_TABS = {
   EXPENSE_MASTERS: 'ExpenseMasters',
   RENEWALS: 'Renewals',
   DOCUMENTS: 'Documents',
+  SESSIONS: 'Sessions',
   ACTIVITY_LOGS: 'ActivityLogs',
   SETTINGS: 'Settings',
 } as const;
