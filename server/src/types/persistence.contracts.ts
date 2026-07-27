@@ -24,7 +24,17 @@ export const COMPANY_CONTRACT: PersistenceContract = {
 export const USERS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.USERS,
   entityName: 'User',
-  columns: withBaseColumns(['email', 'name', 'role', 'status', 'lastLoginAt']),
+  columns: withBaseColumns([
+    'email',
+    'passwordHash',
+    'name',
+    'role',
+    'permissions',
+    'status',
+    'lastLoginAt',
+    'failedLoginAttempts',
+    'lockedUntil',
+  ]),
 };
 
 /** Single worksheet for Opportunity + Customer lifecycle stages (recordType discriminator). */
@@ -229,6 +239,19 @@ export const DOCUMENTS_CONTRACT: PersistenceContract = {
   ]),
 };
 
+export const SESSIONS_CONTRACT: PersistenceContract = {
+  tabName: SHEET_TABS.SESSIONS,
+  entityName: 'Session',
+  columns: withBaseColumns([
+    'userId',
+    'refreshTokenHash',
+    'expiresAt',
+    'userAgent',
+    'ipAddress',
+    'isRevoked',
+  ]),
+};
+
 export const ACTIVITY_LOGS_CONTRACT: PersistenceContract = {
   tabName: SHEET_TABS.ACTIVITY_LOGS,
   entityName: 'ActivityLog',
@@ -254,6 +277,7 @@ export const PERSISTENCE_CONTRACTS = {
   expenseMasters: EXPENSE_MASTERS_CONTRACT,
   renewals: RENEWALS_CONTRACT,
   documents: DOCUMENTS_CONTRACT,
+  sessions: SESSIONS_CONTRACT,
   activityLogs: ACTIVITY_LOGS_CONTRACT,
   settings: SETTINGS_CONTRACT,
 } as const;

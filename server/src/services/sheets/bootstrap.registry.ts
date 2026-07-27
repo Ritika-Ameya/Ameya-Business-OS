@@ -15,6 +15,7 @@ import {
   STATE_CONTRACT,
 } from '../../modules/masters/contracts/master.contracts';
 import {
+  ACTIVITY_LOGS_CONTRACT,
   CUSTOMERS_CONTRACT,
   DEAL_COMPONENTS_CONTRACT,
   DEALS_CONTRACT,
@@ -23,6 +24,9 @@ import {
   EXPENSES_CONTRACT,
   INVOICES_CONTRACT,
   PAYMENTS_CONTRACT,
+  SESSIONS_CONTRACT,
+  SETTINGS_CONTRACT,
+  USERS_CONTRACT,
 } from '../../types/persistence.contracts';
 
 /**
@@ -55,6 +59,10 @@ export const BOOTSTRAP_BUSINESS_CONTRACTS: readonly PersistenceContract[] = [
   PAYMENTS_CONTRACT,
   EXPENSES_CONTRACT,
   EXPENSE_MASTERS_CONTRACT,
+  USERS_CONTRACT,
+  SESSIONS_CONTRACT,
+  ACTIVITY_LOGS_CONTRACT,
+  SETTINGS_CONTRACT,
 ] as const;
 
 export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [

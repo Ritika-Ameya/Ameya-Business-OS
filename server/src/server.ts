@@ -3,6 +3,7 @@ import 'dotenv/config';
 import createApp from './app';
 import { env } from './config';
 import { bootstrapService } from './integrations';
+import { authService } from './modules/auth';
 import { runWithSheetReadCache } from './services/sheets/sheetReadCache';
 import { createLogger } from './utils/logger.util';
 
@@ -24,6 +25,13 @@ const start = async (): Promise<void> => {
       `Bootstrap ${bootstrapResult.status}: ${bootstrapResult.error ?? 'unknown error'}`,
     );
     logger.warn('Server will start; infrastructure health will report bootstrap failure');
+  }
+
+  // Seed default super admin if Users sheet is empty
+  try {
+    await authService.seedSuperAdmin();
+  } catch (err) {
+    logger.warn('Super admin seed skipped or failed', err);
   }
 
   const app = createApp();

@@ -12,12 +12,19 @@ export interface CompanyEntity extends BaseEntity {
   website?: string;
 }
 
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'user';
+export type UserStatus = 'active' | 'inactive' | 'locked';
+
 export interface UserEntity extends BaseEntity {
   email: string;
+  passwordHash: string;
   name: string;
-  role: string;
-  status: string;
+  role: UserRole;
+  permissions: string[];
+  status: UserStatus;
   lastLoginAt?: string;
+  failedLoginAttempts: number;
+  lockedUntil?: string;
 }
 
 export type CustomerRecordType = 'opportunity' | 'customer';
@@ -238,6 +245,15 @@ export interface DocumentEntity extends BaseEntity {
   entityType: string;
   entityId: string;
   uploadedBy: string;
+}
+
+export interface SessionEntity extends BaseEntity {
+  userId: string;
+  refreshTokenHash: string;
+  expiresAt: string;
+  userAgent: string;
+  ipAddress: string;
+  isRevoked: boolean;
 }
 
 export interface ActivityLogEntity extends BaseEntity {

@@ -44,6 +44,9 @@ export type {
 export type {
   CompanyEntity,
   UserEntity,
+  UserRole,
+  UserStatus,
+  SessionEntity,
   CustomerEntity,
   DealEntity,
   DealComponentEntity,
@@ -69,6 +72,7 @@ export {
   EXPENSE_MASTERS_CONTRACT,
   RENEWALS_CONTRACT,
   DOCUMENTS_CONTRACT,
+  SESSIONS_CONTRACT,
   ACTIVITY_LOGS_CONTRACT,
   SETTINGS_CONTRACT,
 } from './persistence.contracts';

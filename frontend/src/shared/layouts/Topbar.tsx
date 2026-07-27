@@ -1,4 +1,6 @@
-import { Bell, Menu, Moon, Search, Sun } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/utils";
@@ -11,6 +13,23 @@ type TopbarProps = {
 };
 
 export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarProps) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "??";
+
   const currentDate = new Date().toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
@@ -78,11 +97,22 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
             {currentDate}
           </div>
 
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleLogout}
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut className="size-4" />
+          </Button>
+
           <div
             className="grid size-9 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
             aria-hidden
+            title={user?.email ?? ""}
           >
-            AR
+            {initials}
           </div>
         </div>
       </div>
