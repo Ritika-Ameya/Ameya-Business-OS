@@ -102,7 +102,7 @@ export class InvoiceService extends BaseService {
       }),
     ];
 
-    return invoiceRepository.create({
+    const created = await invoiceRepository.create({
       invoiceNumber,
       customerId: customer.id,
       customerName: input.customerName.trim() || customer.contactPerson || customer.companyName,
@@ -122,6 +122,9 @@ export class InvoiceService extends BaseService {
       notes: input.notes.trim(),
       timeline,
     } as Omit<InvoiceEntity, 'id'>);
+
+    await this.syncCustomerOutstanding(created.customerId);
+    return created;
   }
 
   async update(id: string, input: InvoiceUpdateInput): Promise<InvoiceEntity> {
@@ -152,7 +155,7 @@ export class InvoiceService extends BaseService {
       createInvoiceTimelineEntry({ action: 'updated' }),
     );
 
-    return invoiceRepository.updateOrThrow(
+    const updated = await invoiceRepository.updateOrThrow(
       id,
       {
         ...input,
@@ -171,6 +174,12 @@ export class InvoiceService extends BaseService {
       } as Partial<InvoiceEntity>,
       'Invoice',
     );
+
+    await this.syncCustomerOutstanding(updated.customerId);
+    if (input.customerId && input.customerId !== existing.customerId) {
+      await this.syncCustomerOutstanding(existing.customerId);
+    }
+    return updated;
   }
 
   async remove(id: string): Promise<void> {
@@ -186,22 +195,52 @@ export class InvoiceService extends BaseService {
       'Invoice',
     );
     await invoiceRepository.deleteOrThrow(id, 'Invoice');
+    await this.syncCustomerOutstanding(existing.customerId);
   }
 
   async restore(id: string): Promise<InvoiceEntity> {
-    return invoiceRepository.restore(id);
+    const restored = await invoiceRepository.restore(id);
+    await this.syncCustomerOutstanding(restored.customerId);
+    return restored;
   }
 
   async changeStatus(id: string, status: InvoiceEntity['status']): Promise<InvoiceEntity> {
     const existing = await this.getById(id);
+    const payments = await this.listPaymentsForInvoice(id);
+    const balance = applyBalance(existing, payments);
+
+    // Never allow manual `paid` when balance says otherwise; never override
+    // payment-derived paid/partial with an arbitrary status.
+    let nextStatus = status;
+    if (balance.outstanding <= 0.001) {
+      nextStatus = 'paid';
+    } else if (status === 'paid') {
+      throw new ValidationError('Cannot mark invoice as paid while outstanding balance remains', [
+        `Outstanding balance is ${balance.outstanding}`,
+      ]);
+    } else if (balance.received > 0 && (status === 'draft' || status === 'sent')) {
+      nextStatus = balance.status;
+    }
+
     const timeline = prependInvoiceTimeline(
       existing.timeline,
       createInvoiceTimelineEntry({
         action: 'status_changed',
-        notes: `Status set to ${status}`,
+        notes: `Status set to ${nextStatus}`,
       }),
     );
-    return invoiceRepository.updateOrThrow(id, { status, timeline }, 'Invoice');
+    const updated = await invoiceRepository.updateOrThrow(
+      id,
+      {
+        status: nextStatus,
+        received: balance.received,
+        outstanding: balance.outstanding,
+        timeline,
+      },
+      'Invoice',
+    );
+    await this.syncCustomerOutstanding(updated.customerId);
+    return updated;
   }
 
   async listPayments(invoiceId: string): Promise<PaymentEntity[]> {
@@ -250,35 +289,58 @@ export class InvoiceService extends BaseService {
     paymentId: string,
     input: PaymentUpdateInput,
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
-    await this.getById(invoiceId);
+    const invoice = await this.getById(invoiceId);
     const existing = await paymentRepository.findById(paymentId);
     if (!existing || existing.invoiceId !== invoiceId) {
       throw new NotFoundError('Payment not found');
     }
 
+    const candidate: PaymentEntity = {
+      ...existing,
+      amount: input.amount !== undefined ? roundMoney(input.amount) : existing.amount,
+      method: input.mode !== undefined ? input.mode.trim() : existing.method,
+      status: input.status !== undefined ? input.status : existing.status,
+      paidAt: input.paymentDate !== undefined ? input.paymentDate : existing.paidAt,
+      reference:
+        input.referenceNumber !== undefined
+          ? input.referenceNumber.trim()
+          : existing.reference,
+      receivedBy:
+        input.receivedBy !== undefined ? input.receivedBy.trim() : existing.receivedBy,
+      transactionId:
+        input.transactionId !== undefined
+          ? input.transactionId.trim()
+          : existing.transactionId,
+      notes: input.notes !== undefined ? input.notes.trim() : existing.notes,
+      currency:
+        input.currency !== undefined ? input.currency.trim() : existing.currency,
+    };
+
+    const otherPayments = (await this.listPaymentsForInvoice(invoiceId)).filter(
+      (payment) => payment.id !== paymentId,
+    );
+    const projected = applyBalance(invoice, [...otherPayments, candidate]);
+    if (projected.outstanding < -0.001) {
+      throw new ValidationError('Payment cannot exceed outstanding balance', [
+        `Projected outstanding would be ${projected.outstanding}`,
+      ]);
+    }
+
     const payment = await paymentRepository.updateOrThrow(
       paymentId,
       {
-        amount: input.amount !== undefined ? roundMoney(input.amount) : undefined,
-        method: input.mode?.trim(),
-        status: input.status,
-        paidAt: input.paymentDate,
-        reference: input.referenceNumber?.trim(),
-        receivedBy: input.receivedBy?.trim(),
-        transactionId: input.transactionId?.trim(),
-        notes: input.notes?.trim(),
-        currency: input.currency?.trim(),
+        amount: candidate.amount,
+        method: candidate.method,
+        status: candidate.status,
+        paidAt: candidate.paidAt,
+        reference: candidate.reference,
+        receivedBy: candidate.receivedBy,
+        transactionId: candidate.transactionId,
+        notes: candidate.notes,
+        currency: candidate.currency,
       } as Partial<PaymentEntity>,
       'Payment',
     );
-
-    // Re-validate outstanding after update
-    const invoice = await this.getById(invoiceId);
-    const payments = await this.listPaymentsForInvoice(invoiceId);
-    const balance = applyBalance(invoice, payments);
-    if (balance.outstanding < -0.001) {
-      throw new ValidationError('Payment cannot exceed outstanding balance');
-    }
 
     const invoiceUpdated = await this.recalculateInvoice(invoiceId, {
       action: 'outstanding_updated',
@@ -380,7 +442,7 @@ export class InvoiceService extends BaseService {
       );
     }
 
-    return invoiceRepository.updateOrThrow(
+    const updated = await invoiceRepository.updateOrThrow(
       invoiceId,
       {
         received: balance.received,
@@ -390,20 +452,58 @@ export class InvoiceService extends BaseService {
       },
       'Invoice',
     );
+
+    await this.syncCustomerOutstanding(updated.customerId);
+    return updated;
+  }
+
+  /** Keep denormalized customer.outstandingAmount aligned with invoice balances. */
+  private async syncCustomerOutstanding(customerId: string): Promise<void> {
+    if (!customerId.trim()) return;
+
+    const customer = await customerRepository.findById(customerId);
+    if (!customer) return;
+
+    const invoices = await invoiceRepository.findAll();
+    const outstanding = roundMoney(
+      invoices
+        .filter((invoice) => invoice.customerId === customerId)
+        .reduce((sum, invoice) => sum + Number(invoice.outstanding || 0), 0),
+    );
+
+    if (Math.abs(Number(customer.outstandingAmount || 0) - outstanding) < 0.001) {
+      return;
+    }
+
+    await customerRepository.update(customerId, { outstandingAmount: outstanding });
   }
 
   private async allocateInvoiceNumber(): Promise<string> {
     const configs = await invoiceConfigurationRepository.findAll();
     const config = configs[0];
     const prefix = config?.invoicePrefix?.trim() || 'INV';
-    const nextRaw = config?.nextInvoiceNumber?.trim() || '0001';
-    const invoiceNumber = `${prefix}-${nextRaw}`;
+    const configuredRaw = config?.nextInvoiceNumber?.trim() || '0001';
+    const width = configuredRaw.replace(/\D/g, '').length || 4;
+
+    const existing = await invoiceRepository.findAll();
+    const used = new Set(
+      existing
+        .map((invoice) => String(invoice.invoiceNumber || '').trim().toUpperCase())
+        .filter(Boolean),
+    );
+
+    let numeric = Number.parseInt(configuredRaw.replace(/\D/g, ''), 10);
+    if (Number.isNaN(numeric) || numeric < 1) numeric = 1;
+
+    // Advance past any numbers already used (config can drift after deletes / restores).
+    let invoiceNumber = `${prefix}-${String(numeric).padStart(width, '0')}`;
+    while (used.has(invoiceNumber.toUpperCase())) {
+      numeric += 1;
+      invoiceNumber = `${prefix}-${String(numeric).padStart(width, '0')}`;
+    }
 
     if (config) {
-      const numeric = Number.parseInt(nextRaw.replace(/\D/g, ''), 10);
-      const width = nextRaw.replace(/\D/g, '').length || 4;
-      const nextValue = Number.isNaN(numeric) ? 2 : numeric + 1;
-      const nextInvoiceNumber = String(nextValue).padStart(width, '0');
+      const nextInvoiceNumber = String(numeric + 1).padStart(width, '0');
       await invoiceConfigurationRepository.updateOrThrow(
         config.id,
         { nextInvoiceNumber },

@@ -96,7 +96,7 @@ export const resolveInvoiceStatus = (
     return 'draft';
   }
 
-  return invoice.status === 'sent' ? 'sent' : 'sent';
+  return 'sent';
 };
 
 export const applyBalance = (

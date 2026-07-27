@@ -72,15 +72,20 @@ export class BootstrapService extends BaseService {
   }
 
   /**
-   * Executes bootstrap exactly once per process lifetime.
+   * Executes bootstrap once per successful process lifetime.
+   * Failed attempts leave `ran` false so startup/ops can retry.
    */
   async run(): Promise<BootstrapResult> {
-    if (this.ran) {
-      this.logInfo('Bootstrap already executed — skipping');
+    if (this.ran && this.result.status === 'completed') {
+      this.logInfo('Bootstrap already completed — skipping');
       return this.getStatus();
     }
 
-    this.ran = true;
+    if (this.result.status === 'running') {
+      this.logInfo('Bootstrap already in progress — skipping concurrent run');
+      return this.getStatus();
+    }
+
     this.result = { ...emptyResult(), status: 'running' };
 
     try {
@@ -131,6 +136,7 @@ export class BootstrapService extends BaseService {
           : tabsBefore;
       const deletedDefaultSheet1 = await this.maybeDeleteDefaultSheet1(tabsAfter);
 
+      this.ran = true;
       this.result = {
         status: 'completed',
         spreadsheetTitle,
@@ -152,6 +158,7 @@ export class BootstrapService extends BaseService {
       return this.getStatus();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Bootstrap failed';
+      this.ran = false;
       this.result = {
         ...this.result,
         status: 'failed',

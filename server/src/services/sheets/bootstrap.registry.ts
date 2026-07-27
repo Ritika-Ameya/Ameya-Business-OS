@@ -62,7 +62,8 @@ export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [
   ...BOOTSTRAP_BUSINESS_CONTRACTS,
 ] as const;
 
+/** All provisioned worksheets must exist before Sheet1 cleanup is allowed. */
 export const BOOTSTRAP_REQUIRED_TAB_NAMES: readonly string[] =
-  BOOTSTRAP_MASTER_CONTRACTS.map((contract) => contract.tabName);
+  BOOTSTRAP_CONTRACTS.map((contract) => contract.tabName);
 
 export const DEFAULT_SHEET1_TITLE = 'Sheet1';

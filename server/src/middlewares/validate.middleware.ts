@@ -5,6 +5,16 @@ import type { ValidationSchema } from '../types';
 import { ValidationError } from '../utils/AppError';
 import { formatZodErrors } from '../utils/errorMapper.util';
 
+/**
+ * Express 5: `req.query` is a read-only getter. Store parsed query on
+ * `req.validatedQuery` instead of assigning `req.query`.
+ */
+declare module 'express-serve-static-core' {
+  interface Request {
+    validatedQuery?: Record<string, unknown>;
+  }
+}
+
 export const validate =
   (schema: ValidationSchema) =>
   (req: Request, _res: Response, next: NextFunction): void => {
@@ -14,7 +24,7 @@ export const validate =
       }
 
       if (schema.query) {
-        req.query = schema.query.parse(req.query) as Request['query'];
+        req.validatedQuery = schema.query.parse(req.query) as Record<string, unknown>;
       }
 
       if (schema.params) {
