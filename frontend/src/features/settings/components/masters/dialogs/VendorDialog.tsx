@@ -9,6 +9,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { PhoneNumberInput } from "@/shared/components/PhoneNumberInput";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { isValidPhoneNumberInput } from "@/shared/utils/phone";
 import type { SettingsVendor, VendorFormData } from "@/features/settings/types/settings";
 
 const emptyForm = (): VendorFormData => ({
@@ -61,9 +63,11 @@ export function VendorDialog({
 
   const handleSave = () => {
     if (!form.name.trim()) return;
+    if (!isValidPhoneNumberInput(form.phone)) return;
     onSave(form);
     onOpenChange(false);
   };
+  const isPhoneValid = isValidPhoneNumberInput(form.phone);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -100,11 +104,17 @@ export function VendorDialog({
           </div>
           <div className="space-y-2">
             <Label>Phone</Label>
-            <Input
+            <PhoneNumberInput
               value={form.phone}
-              onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-              className="rounded-xl"
+              onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+              ariaInvalid={!isPhoneValid}
+              ariaDescribedBy={!isPhoneValid ? "vendor-phone-error" : undefined}
             />
+            {!isPhoneValid && (
+              <p id="vendor-phone-error" className="text-xs text-destructive">
+                Please enter a valid mobile number.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
@@ -140,7 +150,7 @@ export function VendorDialog({
           <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" onClick={handleSave}>
+          <Button className="rounded-xl" onClick={handleSave} disabled={!isPhoneValid}>
             Save
           </Button>
         </DialogFooter>

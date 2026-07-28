@@ -18,7 +18,7 @@ import { useDeals } from "@/features/deals/hooks/use-deals";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
-import { formatCurrency, formatDate } from "@/shared/utils";
+import { formatCurrency, formatDate, formatPhoneForDisplay } from "@/shared/utils";
 import {
   getCustomerBillingAddress,
   getCustomerServiceAddress,
@@ -216,7 +216,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <Phone className="size-4" />
-                  {customer.phone}
+                  {formatPhoneForDisplay(customer.phone)}
                 </span>
                 {customer.email && (
                   <span className="flex items-center gap-2">

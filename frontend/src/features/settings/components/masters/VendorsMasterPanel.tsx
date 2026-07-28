@@ -21,6 +21,7 @@ import {
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { filterByQuery } from "@/features/settings/utils/settings-utils";
 import type { SettingsVendor } from "@/features/settings/types/settings";
+import { formatPhoneForDisplay } from "@/shared/utils/phone";
 
 export function VendorsMasterPanel() {
   const { vendors, addVendor, updateVendor } = useAppConfig();
@@ -87,7 +88,7 @@ export function VendorsMasterPanel() {
                     {vendor.contactPerson}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {vendor.phone || "—"}
+                    {vendor.phone ? formatPhoneForDisplay(vendor.phone) : "—"}
                   </TableCell>
                   <TableCell>
                     <SettingsStatusBadge status={vendor.status} />

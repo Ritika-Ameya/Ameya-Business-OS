@@ -1,6 +1,7 @@
 import { Handshake, History, Mail, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
+import { normalizePhoneToE164 } from "@/shared/utils/phone";
 import type { Customer } from "@/features/customers/types/customer";
 
 interface CustomerQuickActionsProps {
@@ -12,6 +13,8 @@ export function CustomerQuickActions({
   customer,
   onOpenTimeline,
 }: CustomerQuickActionsProps) {
+  const phoneHref = normalizePhoneToE164(customer.phone, { required: true });
+
   return (
     <div className="flex flex-wrap gap-2">
       <Button className="rounded-xl" asChild>
@@ -21,7 +24,9 @@ export function CustomerQuickActions({
         </Link>
       </Button>
       <Button variant="outline" className="rounded-xl" asChild>
-        <a href={`tel:${customer.phone.replace(/\s/g, "")}`}>
+        <a
+          href={`tel:${phoneHref === "__INVALID__" ? customer.phone.replace(/\s/g, "") : phoneHref}`}
+        >
           <Phone />
           Call
         </a>

@@ -73,10 +73,16 @@ import type {
   StateFormData,
   VendorFormData,
 } from "@/features/settings/types/settings";
+import { normalizePhoneToE164 } from "@/shared/utils/phone";
 
 const PREFERENCES_KEY = "ameya-settings-preferences";
 const EMPLOYEES_KEY = "ameya-settings-employees";
 const VENDORS_KEY = "ameya-settings-vendors";
+
+const toOptionalPhoneForStorage = (value: string): string => {
+  const normalized = normalizePhoneToE164(value);
+  return normalized === "__INVALID__" ? value.trim() : normalized;
+};
 
 const AppConfigContext = createContext<AppConfigValue | null>(null);
 
@@ -567,7 +573,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
       name: data.name.trim(),
       category: data.category.trim(),
       contactPerson: data.contactPerson.trim(),
-      phone: data.phone.trim(),
+      phone: toOptionalPhoneForStorage(data.phone),
       email: data.email.trim(),
       status: data.status,
     };
@@ -588,7 +594,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
               name: data.name.trim(),
               category: data.category.trim(),
               contactPerson: data.contactPerson.trim(),
-              phone: data.phone.trim(),
+              phone: toOptionalPhoneForStorage(data.phone),
               email: data.email.trim(),
               status: data.status,
             }
