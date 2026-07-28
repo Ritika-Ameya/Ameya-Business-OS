@@ -1,7 +1,9 @@
-import type { GoogleServiceAccountConfig } from './googleCommon.interface';
-
 export type { GoogleDriveClientInterface } from './googleClients.interface';
 
-export interface GoogleDriveConfig extends GoogleServiceAccountConfig {
+export interface GoogleDriveConfig {
   folderId: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  oauthRedirectUri: string;
+  adminEmail: string;
 }

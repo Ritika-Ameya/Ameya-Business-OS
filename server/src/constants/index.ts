@@ -1,7 +1,7 @@
 export { APP_NAME, APP_VERSION, API_PREFIX, DEFAULT_LOCALE, DEFAULT_CURRENCY, REQUEST_BODY_LIMIT } from './app.constants';
 export { HTTP_STATUS, type HttpStatusCode } from './http.constants';
 export { MESSAGES, type MessageKey } from './messages.constants';
-export { GOOGLE_SCOPES, GOOGLE_API, GOOGLE_DEFAULTS } from './google.constants';
+export { GOOGLE_SCOPES, GOOGLE_DRIVE_OAUTH_SCOPES, GOOGLE_API, GOOGLE_DEFAULTS } from './google.constants';
 export { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from './pagination.constants';
 export {
   PAGINATION_QUERY_KEYS,

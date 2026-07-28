@@ -5,8 +5,10 @@ import { authRouter, authenticate } from '../modules/auth';
 import { customersRouter } from '../modules/customers';
 import { dealsRouter } from '../modules/deals';
 import { expensesRouter, expenseMastersRouter } from '../modules/expenses';
+import { googleDriveRouter } from '../modules/googleDrive';
 import { mastersRouter } from '../modules/masters';
 import { invoicesRouter } from '../modules/revenue';
+import { uploadsRouter } from '../modules/uploads';
 import { healthRouter } from './health.routes';
 
 const router = Router();
@@ -14,6 +16,7 @@ const router = Router();
 // Public
 router.use('/health', healthRouter);
 router.use('/auth', authRouter);
+router.use('/google-drive', googleDriveRouter);
 
 // Protected — require valid JWT
 router.use('/settings/masters', authenticate, mastersRouter);
@@ -22,6 +25,7 @@ router.use('/deals', authenticate, dealsRouter);
 router.use('/invoices', authenticate, invoicesRouter);
 router.use('/expenses', authenticate, expensesRouter);
 router.use('/expense-masters', authenticate, expenseMastersRouter);
+router.use('/uploads', authenticate, uploadsRouter);
 router.use('/dashboard', authenticate, dashboardRouter);
 router.use('/reports', authenticate, reportsRouter);
 

@@ -25,7 +25,22 @@ const getErrorMessage = (error: unknown): string => {
 
 export const mapGoogleError = (error: unknown, context: string): AppError => {
   const status = getErrorCode(error);
-  const message = `${context}: ${getErrorMessage(error)}`;
+  const rawMessage = getErrorMessage(error);
+  const message = `${context}: ${rawMessage}`;
+  const lower = rawMessage.toLowerCase();
+
+  if (lower.includes('service accounts do not have storage quota')) {
+    return new AppError('Google Drive is not connected with an authorized admin account');
+  }
+  if (lower.includes('invalid_grant')) {
+    return new UnauthorizedError('Google authorization has expired. Please reconnect Google Drive.');
+  }
+  if (lower.includes('insufficient permissions') || lower.includes('insufficientpermission')) {
+    return new ForbiddenError('Google Drive permission denied');
+  }
+  if (lower.includes('file not found')) {
+    return new NotFoundError('Google Drive file or folder not found');
+  }
 
   switch (status) {
     case HTTP_STATUS.BAD_REQUEST:

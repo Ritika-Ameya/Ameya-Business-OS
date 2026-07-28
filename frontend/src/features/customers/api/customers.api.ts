@@ -57,7 +57,16 @@ export const customersApi = {
   listFiles: (id: string) =>
     apiRequest<CustomerDocumentDto[]>(`${CUSTOMERS_BASE}/${id}/files`),
 
-  addFile: (id: string, body: { name: string; fileType?: string; mimeType?: string; size?: number }) =>
+  addFile: (
+    id: string,
+    body: {
+      name: string;
+      fileType?: string;
+      mimeType?: string;
+      size?: number;
+      contentBase64: string;
+    }
+  ) =>
     apiRequest<{ document: CustomerDocumentDto; customer: CustomerDto }>(
       `${CUSTOMERS_BASE}/${id}/files`,
       { method: "POST", body }

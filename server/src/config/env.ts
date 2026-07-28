@@ -15,6 +15,12 @@ const envSchema = z.object({
   GOOGLE_PRIVATE_KEY: z.string().min(1, 'GOOGLE_PRIVATE_KEY is required'),
   GOOGLE_SHEET_ID: z.string().min(1, 'GOOGLE_SHEET_ID is required'),
   GOOGLE_DRIVE_FOLDER_ID: z.string().min(1, 'GOOGLE_DRIVE_FOLDER_ID is required'),
+  GOOGLE_DRIVE_OAUTH_CLIENT_ID: z.string().default(''),
+  GOOGLE_DRIVE_OAUTH_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_DRIVE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_DRIVE_ADMIN_EMAIL: z.string().email().default(''),
+  GOOGLE_DRIVE_TOKEN_ENCRYPTION_KEY: z.string().default(''),
+  GOOGLE_DRIVE_TOKEN_STORE_PATH: z.string().default('data/google-drive-token.enc'),
   GOOGLE_REQUEST_TIMEOUT_MS: z.coerce
     .number()
     .int()

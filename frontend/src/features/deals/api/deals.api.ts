@@ -66,7 +66,13 @@ export const dealsApi = {
 
   addFile: (
     id: string,
-    body: { name: string; fileType?: string; mimeType?: string; size?: number }
+    body: {
+      name: string;
+      fileType?: string;
+      mimeType?: string;
+      size?: number;
+      contentBase64: string;
+    }
   ) =>
     apiRequest<{ document: DealDocumentDto; deal: DealDto }>(
       `${DEALS_BASE}/${id}/files`,

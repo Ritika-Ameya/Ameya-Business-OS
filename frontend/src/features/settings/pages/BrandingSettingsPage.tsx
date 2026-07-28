@@ -1,13 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { uploadsApi } from "@/shared/api/uploads.api";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import { fileToUploadPayload } from "@/shared/utils";
 import type { BrandingFormData } from "@/features/settings/types/settings";
 
 export function BrandingSettingsPage() {
   const { branding, updateBranding, loading, saving } = useAppConfig();
   const [draft, setDraft] = useState<BrandingFormData | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const form = draft ?? branding;
 
   const updateField = <K extends keyof BrandingFormData>(field: K, value: BrandingFormData[K]) => {
@@ -17,6 +25,30 @@ export function BrandingSettingsPage() {
   const handleSave = async () => {
     await updateBranding(form);
     setDraft(null);
+  };
+
+  const uploadAsset = async (
+    file: File | null,
+    field: "logoUrl" | "faviconUrl",
+    setUploading: (value: boolean) => void,
+    inputRef: React.RefObject<HTMLInputElement | null>
+  ) => {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const payload = await fileToUploadPayload(file);
+      const uploaded = await uploadsApi.upload({ ...payload, makePublic: true });
+      const next = { ...(draft ?? branding), [field]: uploaded.url };
+      setDraft(next);
+      await updateBranding(next);
+      setDraft(null);
+      if (inputRef.current) inputRef.current.value = "";
+    } catch (err) {
+      setUploadError(getErrorMessage(err));
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (loading) {
@@ -43,6 +75,26 @@ export function BrandingSettingsPage() {
               placeholder="https://..."
               className="rounded-xl"
             />
+            <Input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="rounded-xl"
+              disabled={logoUploading || saving}
+              onChange={(e) =>
+                void uploadAsset(
+                  e.target.files?.[0] ?? null,
+                  "logoUrl",
+                  setLogoUploading,
+                  logoInputRef
+                )
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {logoUploading
+                ? "Uploading logo…"
+                : "Paste a URL or upload an image (stored in Google Drive)."}
+            </p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">
@@ -54,7 +106,33 @@ export function BrandingSettingsPage() {
               placeholder="https://..."
               className="rounded-xl"
             />
+            <Input
+              ref={faviconInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon"
+              className="rounded-xl"
+              disabled={faviconUploading || saving}
+              onChange={(e) =>
+                void uploadAsset(
+                  e.target.files?.[0] ?? null,
+                  "faviconUrl",
+                  setFaviconUploading,
+                  faviconInputRef
+                )
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {faviconUploading
+                ? "Uploading favicon…"
+                : "Paste a URL or upload an image (stored in Google Drive)."}
+            </p>
           </div>
+
+          {uploadError && (
+            <p role="alert" className="text-sm text-destructive sm:col-span-2">
+              {uploadError}
+            </p>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="primary-color">Primary Color</Label>
@@ -122,7 +200,11 @@ export function BrandingSettingsPage() {
         </div>
 
         <div className="mt-6 flex items-center gap-3 border-t border-border/60 pt-6">
-          <Button className="rounded-xl" onClick={() => void handleSave()} disabled={saving}>
+          <Button
+            className="rounded-xl"
+            onClick={() => void handleSave()}
+            disabled={saving || logoUploading || faviconUploading}
+          >
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>

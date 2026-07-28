@@ -59,7 +59,13 @@ export const invoicesApi = {
 
   addFile: (
     id: string,
-    body: { name: string; fileType?: string; mimeType?: string; size?: number }
+    body: {
+      name: string;
+      fileType?: string;
+      mimeType?: string;
+      size?: number;
+      contentBase64: string;
+    }
   ) =>
     apiRequest<{ document: InvoiceDocumentDto; invoice: InvoiceDto }>(
       `${INVOICES_BASE}/${id}/files`,

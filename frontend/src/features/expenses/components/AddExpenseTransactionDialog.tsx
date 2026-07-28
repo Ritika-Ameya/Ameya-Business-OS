@@ -20,6 +20,7 @@ import {
 } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
 import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { frequencyLabels, validateTransactionForm } from "@/features/expenses/utils/expense-utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
@@ -72,7 +73,10 @@ function formFromTransaction(transaction?: ExpenseTransaction): ExpenseTransacti
 interface AddExpenseTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: ExpenseTransactionFormData) => void;
+  onSave: (
+    data: ExpenseTransactionFormData,
+    attachment?: File | null
+  ) => void | Promise<void>;
   categories: ExpenseCategoryItem[];
   vendors: VendorItem[];
   employees: EmployeeItem[];
@@ -103,6 +107,9 @@ export function AddExpenseTransactionDialog({
   const [form, setForm] = useState<ExpenseTransactionFormData>(() =>
     formFromTransaction(initialData)
   );
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [errors, setErrors] = useState<
     Partial<Record<keyof ExpenseTransactionFormData, string>>
   >({});
@@ -112,6 +119,8 @@ export function AddExpenseTransactionDialog({
   useEffect(() => {
     if (!open) return;
     setForm(formFromTransaction(initialData));
+    setAttachmentFile(null);
+    setSaveError(null);
     setErrors({});
   }, [open, initialData]);
 
@@ -144,8 +153,19 @@ export function AddExpenseTransactionDialog({
     const nextErrors = validateTransactionForm(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    onSave(form);
-    onOpenChange(false);
+
+    void (async () => {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        await onSave(form, attachmentFile);
+        onOpenChange(false);
+      } catch (err) {
+        setSaveError(getErrorMessage(err));
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   return (
@@ -406,11 +426,17 @@ export function AddExpenseTransactionDialog({
             <Input
               id="attachment"
               type="file"
-              disabled
               className="rounded-xl"
-              title="Attachment upload placeholder"
+              disabled={saving}
+              onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
             />
-            <p className="text-xs text-muted-foreground">File upload placeholder (UI only)</p>
+            <p className="text-xs text-muted-foreground">
+              {attachmentFile
+                ? `Selected: ${attachmentFile.name}`
+                : initialData?.hasAttachment
+                  ? "Existing attachment on file. Choose a file to add another."
+                  : "Optional receipt or invoice. Stored in Google Drive. Max 6 MB."}
+            </p>
           </div>
 
           <div className="space-y-3 rounded-xl border border-border/60 p-4 sm:col-span-2">
@@ -485,17 +511,28 @@ export function AddExpenseTransactionDialog({
             )}
           </div>
 
+          {saveError && (
+            <p role="alert" className="text-sm text-destructive sm:col-span-2">
+              {saveError}
+            </p>
+          )}
+
           <DialogFooter className="sm:col-span-2">
             <Button
               type="button"
               variant="outline"
               className="rounded-xl"
               onClick={() => onOpenChange(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit" className="rounded-xl">
-              {isEditing ? "Save Changes" : "Add Expense"}
+            <Button type="submit" className="rounded-xl" disabled={saving}>
+              {saving
+                ? "Saving…"
+                : isEditing
+                  ? "Save Changes"
+                  : "Add Expense"}
             </Button>
           </DialogFooter>
         </form>

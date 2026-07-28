@@ -2,7 +2,13 @@ export const GOOGLE_SCOPES = {
   SHEETS: 'https://www.googleapis.com/auth/spreadsheets',
   DRIVE: 'https://www.googleapis.com/auth/drive',
   DRIVE_FILE: 'https://www.googleapis.com/auth/drive.file',
+  USERINFO_EMAIL: 'https://www.googleapis.com/auth/userinfo.email',
 } as const;
+
+export const GOOGLE_DRIVE_OAUTH_SCOPES = [
+  GOOGLE_SCOPES.DRIVE,
+  GOOGLE_SCOPES.USERINFO_EMAIL,
+] as const;
 
 export const GOOGLE_API = {
   SHEETS_BASE_URL: 'https://sheets.googleapis.com/v4/spreadsheets',

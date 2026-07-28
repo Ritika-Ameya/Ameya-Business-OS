@@ -52,6 +52,8 @@ export interface DriveUploadOptions {
   mimeType: string;
   content: Buffer | string;
   folderId?: string;
+  /** When true, grants anyone-with-link reader access (needed for logo/img URLs). */
+  makePublic?: boolean;
 }
 
 export interface DriveFolderOptions {
