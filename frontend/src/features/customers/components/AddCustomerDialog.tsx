@@ -11,6 +11,7 @@ import {
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
+import { PhoneNumberInput } from "@/shared/components/PhoneNumberInput";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
 import { isValidEmail } from "@/features/customers/utils/customer-utils";
 import { recordTypeLabels } from "@/features/customers/utils/stage-utils";
 import { isValidGstin } from "@/features/settings/utils/app-config-utils";
+import { isValidPhoneNumberInput } from "@/shared/utils/phone";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type { Customer, CustomerFormData } from "@/features/customers/types/customer";
 
@@ -94,8 +96,8 @@ export function AddCustomerDialog({
     if (!form.name.trim()) {
       nextErrors.name = "Customer name is required";
     }
-    if (!form.phone.trim()) {
-      nextErrors.phone = "Phone is required";
+    if (!isValidPhoneNumberInput(form.phone, { required: true })) {
+      nextErrors.phone = "Please enter a valid mobile number.";
     }
     if (!isValidEmail(form.email)) {
       nextErrors.email = "Enter a valid email address";
@@ -107,6 +109,8 @@ export function AddCustomerDialog({
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
+
+  const isPhoneValid = isValidPhoneNumberInput(form.phone, { required: true });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,14 +209,13 @@ export function AddCustomerDialog({
               <Label htmlFor="phone">
                 Phone <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <PhoneNumberInput
                 id="phone"
                 value={form.phone}
-                onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="+91 98765 43210"
-                aria-invalid={Boolean(errors.phone)}
-                aria-describedby={errors.phone ? "phone-error" : undefined}
-                className="rounded-xl"
+                onChange={(value) => updateField("phone", value)}
+                placeholder="Enter mobile number"
+                ariaInvalid={Boolean(errors.phone)}
+                ariaDescribedBy={errors.phone ? "phone-error" : undefined}
                 disabled={saving}
               />
               {errors.phone && (
@@ -315,7 +318,7 @@ export function AddCustomerDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !isPhoneValid}>
               {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Customer"}
             </Button>
           </DialogFooter>

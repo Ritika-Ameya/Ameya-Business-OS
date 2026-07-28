@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
-import { formatCurrency, formatDate } from "@/shared/utils";
+import { formatCurrency, formatDate, formatPhoneForDisplay } from "@/shared/utils";
 import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 
@@ -104,7 +104,7 @@ export function CustomerTable({
                 {customer.company || "—"}
               </TableCell>
               <TableCell className="hidden text-muted-foreground md:table-cell">
-                {customer.phone}
+                {formatPhoneForDisplay(customer.phone)}
               </TableCell>
               <TableCell>
                 <span

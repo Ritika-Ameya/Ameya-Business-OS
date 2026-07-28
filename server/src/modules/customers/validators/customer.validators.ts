@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizePhoneToE164 } from '../../../utils/phone.util';
 
 const optionalEmailSchema = z
   .string()
@@ -21,15 +22,31 @@ const optionalWebsiteSchema = z
 const phoneSchema = z
   .string()
   .min(1, 'Phone is required')
-  .refine((value) => /^[+]?[\d\s()-]{7,20}$/.test(value), {
-    message: 'Invalid phone number',
+  .transform((value, ctx) => {
+    try {
+      return normalizePhoneToE164(value, { required: true });
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: (error as Error).message || 'Please enter a valid mobile number.',
+      });
+      return z.NEVER;
+    }
   });
 
 const optionalPhoneSchema = z
   .string()
   .default('')
-  .refine((value) => value === '' || /^[+]?[\d\s()-]{7,20}$/.test(value), {
-    message: 'Invalid phone number',
+  .transform((value, ctx) => {
+    try {
+      return normalizePhoneToE164(value);
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: (error as Error).message || 'Please enter a valid mobile number.',
+      });
+      return z.NEVER;
+    }
   });
 
 const optionalGstinSchema = z

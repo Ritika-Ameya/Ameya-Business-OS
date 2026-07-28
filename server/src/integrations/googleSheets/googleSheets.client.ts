@@ -131,7 +131,8 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
           {
             spreadsheetId: this.config.sheetId,
             range,
-            valueInputOption: 'USER_ENTERED',
+            // Store all values as plain text/raw values to prevent spreadsheet formula evaluation.
+            valueInputOption: 'RAW',
             insertDataOption: 'INSERT_ROWS',
             requestBody: { values },
           },
@@ -155,7 +156,8 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
           {
             spreadsheetId: this.config.sheetId,
             range,
-            valueInputOption: 'USER_ENTERED',
+            // Store all values as plain text/raw values to prevent spreadsheet formula evaluation.
+            valueInputOption: 'RAW',
             requestBody: { values },
           },
           { timeout: this.requestOptions.timeout },

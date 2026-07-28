@@ -34,6 +34,12 @@ import type {
   StateMasterDto,
 } from "@/features/settings/api/master.dto";
 import { slugifyName } from "@/features/settings/utils/app-config-utils";
+import { normalizePhoneToE164 } from "@/shared/utils/phone";
+
+const toOptionalPhoneForTransport = (value: string): string => {
+  const normalized = normalizePhoneToE164(value);
+  return normalized === "__INVALID__" ? value.trim() : normalized;
+};
 
 export const toFrontendStatus = (isActive: boolean): SettingsEntityStatus =>
   isActive ? "active" : "inactive";
@@ -58,7 +64,7 @@ export const mapCompanyToDto = (data: CompanySettings): Omit<CompanyMasterDto, k
   gstin: data.gstin,
   pan: data.pan,
   email: data.email,
-  phone: data.phone,
+  phone: toOptionalPhoneForTransport(data.phone),
   website: data.website,
   address: data.address,
   currency: data.currency,
