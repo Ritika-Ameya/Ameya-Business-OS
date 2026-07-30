@@ -25,6 +25,11 @@ export class GoogleDriveOAuthService {
     );
   }
 
+  async hasStoredRefreshToken(): Promise<boolean> {
+    const record = await googleDriveTokenStore.load();
+    return Boolean(record?.refreshToken);
+  }
+
   private createOAuthClient() {
     if (!this.isConfigured()) {
       throw new ValidationError(
@@ -93,9 +98,17 @@ export class GoogleDriveOAuthService {
   }
 
   async getAuthorizedClient(): Promise<InstanceType<typeof google.auth.OAuth2>> {
+    if (!this.isConfigured()) {
+      throw new ValidationError(
+        'Google Drive OAuth is not configured. Set Drive OAuth client credentials.',
+      );
+    }
+
     const record = await googleDriveTokenStore.load();
     if (!record?.refreshToken) {
-      throw new ValidationError('Google Drive is not connected');
+      throw new ValidationError(
+        'Google Drive is not connected. A Super Admin must connect Google Drive in Settings → Company.',
+      );
     }
 
     this.assertAllowedEmail(record.email);

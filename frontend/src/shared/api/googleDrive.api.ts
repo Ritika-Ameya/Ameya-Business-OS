@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "@/shared/api/config";
 import { apiRequest } from "@/shared/api/client";
 
 export interface GoogleDriveStatusDto {
@@ -6,9 +5,21 @@ export interface GoogleDriveStatusDto {
   email: string;
   folderId: string;
   folderName: string;
+  oauthConfigured: boolean;
+}
+
+export interface GoogleDriveConnectDto {
+  alreadyConnected: boolean;
+  authorizationUrl: string | null;
+  status: GoogleDriveStatusDto;
 }
 
 export const googleDriveApi = {
   status: () => apiRequest<GoogleDriveStatusDto>("/google-drive/status"),
-  getConnectUrl: () => `${API_BASE_URL}/google-drive/connect`,
+
+  /** Authenticated Super Admin call — returns Google OAuth URL to open. */
+  connect: () =>
+    apiRequest<GoogleDriveConnectDto>("/google-drive/connect", {
+      method: "GET",
+    }),
 };

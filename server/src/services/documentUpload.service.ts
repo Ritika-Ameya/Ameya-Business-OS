@@ -39,7 +39,9 @@ export const uploadDocumentToDrive = async (
   input: DocumentUploadInput,
 ): Promise<DriveFileMetadata> => {
   if (!googleDriveService.isConfigured()) {
-    throw new ValidationError('Google Drive is not configured');
+    throw new ValidationError(
+      'Google Drive OAuth is not configured. Set GOOGLE_DRIVE_OAUTH_CLIENT_ID, CLIENT_SECRET, and REDIRECT_URI.',
+    );
   }
 
   const content = decodeBase64Content(input.contentBase64);
