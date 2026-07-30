@@ -17,8 +17,19 @@ const envSchema = z.object({
   GOOGLE_DRIVE_FOLDER_ID: z.string().min(1, 'GOOGLE_DRIVE_FOLDER_ID is required'),
   GOOGLE_DRIVE_OAUTH_CLIENT_ID: z.string().default(''),
   GOOGLE_DRIVE_OAUTH_CLIENT_SECRET: z.string().default(''),
-  GOOGLE_DRIVE_OAUTH_REDIRECT_URI: z.string().url().optional(),
-  GOOGLE_DRIVE_ADMIN_EMAIL: z.string().email().default(''),
+  GOOGLE_DRIVE_OAUTH_REDIRECT_URI: z
+    .string()
+    .default('')
+    .refine((value) => value === '' || /^https?:\/\/.+/i.test(value), {
+      message: 'GOOGLE_DRIVE_OAUTH_REDIRECT_URI must be a valid URL when set',
+    }),
+  // Allow empty until single-admin Drive OAuth is configured.
+  GOOGLE_DRIVE_ADMIN_EMAIL: z
+    .string()
+    .default('')
+    .refine((value) => value === '' || z.string().email().safeParse(value).success, {
+      message: 'GOOGLE_DRIVE_ADMIN_EMAIL must be a valid email when set',
+    }),
   GOOGLE_DRIVE_TOKEN_ENCRYPTION_KEY: z.string().default(''),
   GOOGLE_DRIVE_TOKEN_STORE_PATH: z.string().default('data/google-drive-token.enc'),
   GOOGLE_REQUEST_TIMEOUT_MS: z.coerce
