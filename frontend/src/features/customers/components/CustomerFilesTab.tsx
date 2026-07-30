@@ -1,11 +1,11 @@
-import { FileText, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ExternalLink, FileText, Trash2, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { customersApi } from "@/features/customers/api/customers.api";
 import type { CustomerDocumentDto } from "@/features/customers/api/customer.dto";
 import { CustomerEmptyState } from "@/features/customers/components/CustomerEmptyState";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
-import { formatDate } from "@/shared/utils";
+import { fileToUploadPayload, formatDate, getDriveFileUrl } from "@/shared/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import type { Customer } from "@/features/customers/types/customer";
@@ -16,10 +16,11 @@ interface CustomerFilesTabProps {
 
 export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
   const { refreshCustomers } = useCustomers();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<CustomerDocumentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   const loadFiles = useCallback(async () => {
@@ -42,15 +43,16 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
     void loadFiles();
   }, [loadFiles]);
 
-  const handleAddPlaceholder = async () => {
-    const name = fileName.trim();
-    if (!name) return;
+  const handleUpload = async () => {
+    if (!selectedFile) return;
 
     setSaving(true);
     setError(null);
     try {
-      await customersApi.addFile(customer.id, { name });
-      setFileName("");
+      const payload = await fileToUploadPayload(selectedFile);
+      await customersApi.addFile(customer.id, payload);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       await loadFiles();
       await refreshCustomers();
     } catch (err) {
@@ -77,25 +79,25 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/50 p-4 sm:flex-row sm:items-end">
         <div className="flex-1 space-y-2">
-          <p className="text-sm font-medium">Document metadata</p>
+          <p className="text-sm font-medium">Upload document</p>
           <p className="text-xs text-muted-foreground">
-            Upload placeholder — file content is not stored in Drive yet. Metadata is linked to this record.
+            Files are stored in Google Drive and linked to this customer. Max 6 MB.
           </p>
           <Input
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            placeholder="e.g. Master Service Agreement.pdf"
+            ref={fileInputRef}
+            type="file"
             className="rounded-xl"
             disabled={saving}
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
           />
         </div>
         <Button
           className="rounded-xl"
-          onClick={() => void handleAddPlaceholder()}
-          disabled={saving || !fileName.trim()}
+          onClick={() => void handleUpload()}
+          disabled={saving || !selectedFile}
         >
-          <Plus />
-          Add File Metadata
+          <Upload />
+          {saving ? "Uploading…" : "Upload"}
         </Button>
       </div>
 
@@ -128,7 +130,21 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
             <tbody>
               {files.map((file) => (
                 <tr key={file.id} className="border-b border-border/40 last:border-0">
-                  <td className="px-4 py-3 font-medium">{file.name}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {file.driveFileId ? (
+                      <a
+                        href={getDriveFileUrl(file.driveFileId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 hover:underline"
+                      >
+                        {file.name}
+                        <ExternalLink className="size-3.5 text-muted-foreground" />
+                      </a>
+                    ) : (
+                      file.name
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {file.fileType || "—"}
                   </td>

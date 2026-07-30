@@ -91,6 +91,7 @@ export const expenseDocumentCreateSchema = z.object({
   fileType: z.string().default(''),
   mimeType: z.string().default(''),
   size: z.coerce.number().int().min(0).default(0),
+  contentBase64: z.string().min(1, 'File content is required'),
 });
 
 export const expenseIdParamSchema = z.object({

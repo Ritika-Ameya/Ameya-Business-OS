@@ -1,6 +1,11 @@
 import type { PaginatedResult, QueryOptions } from '../../../types';
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from '../../../constants';
 import { BaseService } from '../../../services/base.service';
+import {
+  deleteDriveFileQuietly,
+  deriveFileType,
+  uploadDocumentToDrive,
+} from '../../../services/documentUpload.service';
 import { NotFoundError, ValidationError } from '../../../utils/AppError';
 import { assertForeignKeys } from '../../../utils/foreignKey.util';
 import { assertUniqueField } from '../../../utils/uniqueness.util';
@@ -376,16 +381,19 @@ export class CustomerService extends BaseService {
   ): Promise<{ document: DocumentEntity; customer: CustomerEntity }> {
     const existing = await this.getById(customerId);
 
-    const fileType =
-      input.fileType.trim() ||
-      (input.name.includes('.') ? (input.name.split('.').pop()?.toLowerCase() ?? '') : '');
+    const uploaded = await uploadDocumentToDrive({
+      name: input.name,
+      mimeType: input.mimeType,
+      contentBase64: input.contentBase64,
+    });
+    const fileType = deriveFileType(input.name, input.fileType);
 
     const document = await documentRepository.create({
       name: input.name.trim(),
       fileType,
-      mimeType: input.mimeType.trim(),
-      size: input.size,
-      driveFileId: '',
+      mimeType: input.mimeType.trim() || uploaded.mimeType,
+      size: input.size || uploaded.size || 0,
+      driveFileId: uploaded.id,
       entityType: DOCUMENT_ENTITY_TYPE,
       entityId: customerId,
       uploadedBy: '',
@@ -420,6 +428,7 @@ export class CustomerService extends BaseService {
     ) {
       throw new NotFoundError('Document not found');
     }
+    await deleteDriveFileQuietly(document.driveFileId);
     await documentRepository.deleteOrThrow(fileId, 'Document');
   }
 

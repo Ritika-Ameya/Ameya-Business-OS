@@ -8,7 +8,9 @@ import { UpdateRecurringTemplateDialog } from "@/features/expenses/components/Up
 import { StatCard } from "@/shared/components/PageHeader";
 import { Button } from "@/shared/ui/button";
 import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { expensesApi } from "@/features/expenses/api/expenses.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
+import { fileToUploadPayload } from "@/shared/utils";
 import {
   computeRegisterStats,
   defaultRegisterFilters,
@@ -47,6 +49,7 @@ export function ExpenseRegisterTab({
     addVendor,
     addEmployee,
     addMaster,
+    refreshExpenses,
   } = useExpenses();
 
   const [query, setQuery] = useState("");
@@ -123,16 +126,23 @@ export function ExpenseRegisterTab({
     setDialogOpen(true);
   };
 
-  const handleSave = (data: ExpenseTransactionFormData) => {
-    void (async () => {
+  const handleSave = (data: ExpenseTransactionFormData, attachment?: File | null) => {
+    return (async () => {
       setSaveError(null);
       try {
+        let expenseId = editingTransaction?.id;
+
         if (editingTransaction) {
           const newAmount = parseAmount(data.amount);
           if (
             editingTransaction.masterTemplateId &&
             editingTransaction.amount !== newAmount
           ) {
+            if (attachment) {
+              const payload = await fileToUploadPayload(attachment);
+              await expensesApi.addFile(editingTransaction.id, payload);
+              await refreshExpenses();
+            }
             setTemplatePrompt({
               data,
               oldAmount: editingTransaction.amount,
@@ -143,12 +153,20 @@ export function ExpenseRegisterTab({
           }
           await updateTransaction(editingTransaction.id, data);
           setEditingTransaction(undefined);
-          return;
+        } else {
+          const created = await addTransaction(data);
+          expenseId = created.id;
+          setEditingTransaction(undefined);
         }
-        await addTransaction(data);
-        setEditingTransaction(undefined);
+
+        if (attachment && expenseId) {
+          const payload = await fileToUploadPayload(attachment);
+          await expensesApi.addFile(expenseId, payload);
+          await refreshExpenses();
+        }
       } catch (err) {
         setSaveError(getErrorMessage(err));
+        throw err;
       }
     })();
   };

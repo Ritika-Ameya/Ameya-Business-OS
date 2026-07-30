@@ -20,7 +20,9 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
+import { fileToUploadPayload } from "@/shared/utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import type { PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
 
@@ -51,6 +53,7 @@ export function RecordPaymentDialog({
   const { recordPayment } = useRevenue();
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [form, setForm] = useState<PaymentFormData>(emptyForm);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +64,7 @@ export function RecordPaymentDialog({
         paymentDate: new Date().toISOString().split("T")[0]!,
         mode: (activePaymentMethods[0]?.slug as PaymentMode) || "upi",
       });
+      setAttachmentFile(null);
       setError(null);
     }
     onOpenChange(nextOpen);
@@ -86,8 +90,13 @@ export function RecordPaymentDialog({
     setError(null);
     try {
       await recordPayment(invoiceId, form);
+      if (attachmentFile) {
+        const payload = await fileToUploadPayload(attachmentFile);
+        await invoicesApi.addFile(invoiceId, payload);
+      }
       onOpenChange(false);
       setForm(emptyForm);
+      setAttachmentFile(null);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -219,11 +228,14 @@ export function RecordPaymentDialog({
               <Input
                 id="attachment"
                 type="file"
-                disabled
                 className="rounded-xl"
+                disabled={saving}
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
               />
               <p className="text-xs text-muted-foreground">
-                File upload placeholder — metadata only in documents tab.
+                {attachmentFile
+                  ? `Selected: ${attachmentFile.name}`
+                  : "Optional proof of payment. Stored on the invoice documents. Max 6 MB."}
               </p>
             </div>
           </div>

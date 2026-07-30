@@ -26,6 +26,7 @@ export const infrastructureHealthService = new InfrastructureHealthService(
 export { googleAuthService, GoogleAuthService } from './google';
 export { GoogleSheetsClient, createGoogleSheetsClient } from './googleSheets';
 export { GoogleDriveClient, createGoogleDriveClient } from './googleDrive';
+export { googleDriveOAuthService, GoogleDriveOAuthService } from './googleDrive';
 export { BootstrapService } from '../services/sheets/bootstrap.service';
 export { HeaderManager } from '../services/sheets/headerManager.service';
 

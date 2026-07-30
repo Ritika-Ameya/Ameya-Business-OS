@@ -1,6 +1,8 @@
 import { ImageIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/shared/ui/button";
+import { googleDriveApi, type GoogleDriveStatusDto } from "@/shared/api/googleDrive.api";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { PhoneNumberInput } from "@/shared/components/PhoneNumberInput";
@@ -12,16 +14,28 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
+import { uploadsApi } from "@/shared/api/uploads.api";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { currencyOptions, financialYearOptions } from "@/features/settings/utils/settings-utils";
-import { isValidPhoneNumberInput } from "@/shared/utils/phone";
+import { fileToUploadPayload, isValidPhoneNumberInput } from "@/shared/utils";
 import type { CompanySettings } from "@/features/settings/types/settings";
 
 export function CompanySettingsPage() {
-  const { company, updateCompany, loading, saving } = useAppConfig();
+  const { user } = useAuth();
+  const { company, branding, updateCompany, updateBranding, loading, saving } =
+    useAppConfig();
   const [draft, setDraft] = useState<CompanySettings | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [driveStatus, setDriveStatus] = useState<GoogleDriveStatusDto | null>(null);
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const form = draft ?? company;
   const isPhoneValid = isValidPhoneNumberInput(form.phone);
+  const logoUrl = branding.logoUrl;
+  const isSuperAdmin = user?.role === "super_admin";
 
   const updateField = <K extends keyof CompanySettings>(
     field: K,
@@ -35,6 +49,40 @@ export function CompanySettingsPage() {
     setDraft(null);
   };
 
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file) return;
+    setLogoUploading(true);
+    setLogoError(null);
+    try {
+      const payload = await fileToUploadPayload(file);
+      const uploaded = await uploadsApi.upload({ ...payload, makePublic: true });
+      await updateBranding({ ...branding, logoUrl: uploaded.url });
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    } catch (err) {
+      setLogoError(getErrorMessage(err));
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const loadDriveStatus = useCallback(async () => {
+    if (!isSuperAdmin) return;
+    setDriveLoading(true);
+    setDriveError(null);
+    try {
+      setDriveStatus(await googleDriveApi.status());
+    } catch (err) {
+      setDriveError(getErrorMessage(err));
+      setDriveStatus(null);
+    } finally {
+      setDriveLoading(false);
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    void loadDriveStatus();
+  }, [loadDriveStatus]);
+
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading company settings...</p>;
   }
@@ -47,6 +95,57 @@ export function CompanySettingsPage() {
           Your organization profile and legal identifiers.
         </p>
       </div>
+
+      {isSuperAdmin && (
+        <div className="rounded-2xl border border-border/70 bg-card p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold">Google Drive Connection</h3>
+              <p className="text-sm text-muted-foreground">
+                One-time admin connection for all CRM attachment uploads.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => {
+                window.location.href = googleDriveApi.getConnectUrl();
+              }}
+            >
+              {driveStatus?.connected ? "Reconnect" : "Connect Google Drive"}
+            </Button>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Status</p>
+              <p className="mt-1 text-sm font-medium">
+                {driveLoading
+                  ? "Checking..."
+                  : driveStatus?.connected
+                    ? "Connected"
+                    : "Not connected"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Connected Gmail</p>
+              <p className="mt-1 text-sm font-medium">{driveStatus?.email || "—"}</p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Drive Folder</p>
+              <p className="mt-1 text-sm font-medium">
+                {driveStatus?.folderName || driveStatus?.folderId || "—"}
+              </p>
+            </div>
+          </div>
+
+          {driveError && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              {driveError}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border/70 bg-card p-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -62,15 +161,34 @@ export function CompanySettingsPage() {
 
           <div className="space-y-2 sm:col-span-2">
             <Label>Company Logo</Label>
-            <div className="flex items-center gap-4 rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6">
-              <div className="flex size-14 items-center justify-center rounded-xl bg-muted">
-                <ImageIcon className="size-6 text-muted-foreground" />
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 sm:flex-row sm:items-center">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Company logo" className="size-full object-contain" />
+                ) : (
+                  <ImageIcon className="size-6 text-muted-foreground" />
+                )}
               </div>
-              <div>
-                <p className="text-sm font-medium">Logo upload placeholder</p>
-                <p className="text-xs text-muted-foreground">
-                  PNG or SVG, recommended 256×256
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-sm font-medium">
+                  {logoUrl ? "Logo uploaded" : "Upload company logo"}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG, or SVG recommended. Max 6 MB. Saved to branding settings.
+                </p>
+                <Input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="rounded-xl"
+                  disabled={logoUploading || saving}
+                  onChange={(e) => void handleLogoUpload(e.target.files?.[0] ?? null)}
+                />
+                {logoError && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {logoError}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -185,7 +303,7 @@ export function CompanySettingsPage() {
           <Button
             className="rounded-xl"
             onClick={() => void handleSave()}
-            disabled={saving || !isPhoneValid}
+            disabled={saving || logoUploading || !isPhoneValid}
           >
             {saving ? "Saving..." : "Save Changes"}
           </Button>

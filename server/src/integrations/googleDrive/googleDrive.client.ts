@@ -2,14 +2,12 @@ import { Readable } from 'stream';
 
 import { google, type drive_v3 } from 'googleapis';
 
-import { GOOGLE_SCOPES } from '../../constants';
 import type { GoogleDriveClientInterface, GoogleDriveConfig } from '../../interfaces';
 import type { DriveFileMetadata, DriveFolderOptions, DriveUploadOptions } from '../../types';
-import type { GoogleAuthService } from '../google/googleAuth.service';
-import { googleAuthService } from '../google/googleAuth.service';
 import { getGoogleRequestOptions } from '../google/googleAccount.config';
 import { wrapGoogleOperation } from '../google/googleError.mapper';
 import { withGoogleRetry } from '../google/googleRetry.util';
+import type { GoogleDriveOAuthService } from './googleDriveOAuth.service';
 
 const mapDriveFile = (file: drive_v3.Schema$File): DriveFileMetadata => ({
   id: file.id ?? '',
@@ -24,26 +22,21 @@ const mapDriveFile = (file: drive_v3.Schema$File): DriveFileMetadata => ({
 
 export class GoogleDriveClient implements GoogleDriveClientInterface {
   private readonly config: GoogleDriveConfig;
-  private readonly authService: GoogleAuthService;
+  private readonly oauthService: GoogleDriveOAuthService;
   private readonly requestOptions: ReturnType<typeof getGoogleRequestOptions>;
 
-  constructor(config: GoogleDriveConfig, authService: GoogleAuthService = googleAuthService) {
+  constructor(config: GoogleDriveConfig, oauthService: GoogleDriveOAuthService) {
     this.config = config;
-    this.authService = authService;
+    this.oauthService = oauthService;
     this.requestOptions = getGoogleRequestOptions();
   }
 
   isConfigured(): boolean {
-    return Boolean(
-      this.config.projectId &&
-        this.config.clientEmail &&
-        this.config.privateKey &&
-        this.config.folderId,
-    );
+    return this.oauthService.isConfigured();
   }
 
-  private getDriveApi(): drive_v3.Drive {
-    const auth = this.authService.getJwtClient([GOOGLE_SCOPES.DRIVE]);
+  private async getDriveApi(): Promise<drive_v3.Drive> {
+    const auth = await this.oauthService.getAuthorizedClient();
     return google.drive({ version: 'v3', auth: auth });
   }
 
@@ -63,7 +56,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
   async upload(options: DriveUploadOptions): Promise<DriveFileMetadata> {
     return wrapGoogleOperation(`Google Drive upload(${options.name})`, async () =>
       withGoogleRetry(async () => {
-        const drive = this.getDriveApi();
+        const drive = await this.getDriveApi();
         const content =
           typeof options.content === 'string' ? Buffer.from(options.content) : options.content;
 
@@ -83,7 +76,22 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
           { timeout: this.requestOptions.timeout },
         );
 
-        return mapDriveFile(response.data);
+        const uploaded = mapDriveFile(response.data);
+
+        if (options.makePublic && uploaded.id) {
+          await drive.permissions.create(
+            {
+              fileId: uploaded.id,
+              requestBody: {
+                role: 'reader',
+                type: 'anyone',
+              },
+            },
+            { timeout: this.requestOptions.timeout },
+          );
+        }
+
+        return uploaded;
       }, { maxRetries: this.requestOptions.maxRetries }),
     );
   }
@@ -91,7 +99,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
   async delete(fileId: string): Promise<void> {
     await wrapGoogleOperation(`Google Drive delete(${fileId})`, async () =>
       withGoogleRetry(async () => {
-        const drive = this.getDriveApi();
+        const drive = await this.getDriveApi();
         await drive.files.delete({ fileId }, { timeout: this.requestOptions.timeout });
       }, { maxRetries: this.requestOptions.maxRetries }),
     );
@@ -100,7 +108,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
   async getMetadata(fileId: string): Promise<DriveFileMetadata> {
     return wrapGoogleOperation(`Google Drive getMetadata(${fileId})`, async () =>
       withGoogleRetry(async () => {
-        const drive = this.getDriveApi();
+        const drive = await this.getDriveApi();
         const response = await drive.files.get(
           {
             fileId,
@@ -117,7 +125,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
   async createFolder(options: DriveFolderOptions): Promise<DriveFileMetadata> {
     return wrapGoogleOperation(`Google Drive createFolder(${options.name})`, async () =>
       withGoogleRetry(async () => {
-        const drive = this.getDriveApi();
+        const drive = await this.getDriveApi();
         const response = await drive.files.create(
           {
             requestBody: {
@@ -140,7 +148,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
 
     return wrapGoogleOperation(`Google Drive listFolder(${targetFolderId})`, async () =>
       withGoogleRetry(async () => {
-        const drive = this.getDriveApi();
+        const drive = await this.getDriveApi();
         const response = await drive.files.list(
           {
             q: `'${targetFolderId}' in parents and trashed = false`,
