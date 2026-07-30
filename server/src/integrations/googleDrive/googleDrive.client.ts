@@ -41,15 +41,27 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
   }
 
   async validateConnection(): Promise<boolean> {
-    if (!this.isConfigured()) {
-      return false;
+    if (!this.oauthService.isConfigured()) {
+      throw new Error(
+        'Google Drive OAuth credentials are not configured (CLIENT_ID / CLIENT_SECRET / REDIRECT_URI)',
+      );
+    }
+
+    const hasToken = await this.oauthService.hasStoredRefreshToken();
+    if (!hasToken) {
+      throw new Error(
+        'Google Drive is not connected — Super Admin must complete OAuth in Settings → Company',
+      );
     }
 
     try {
       await this.listFolder(this.config.folderId);
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      throw new Error(
+        `Google Drive folder check failed for GOOGLE_DRIVE_FOLDER_ID (${this.config.folderId}): ${detail}`,
+      );
     }
   }
 

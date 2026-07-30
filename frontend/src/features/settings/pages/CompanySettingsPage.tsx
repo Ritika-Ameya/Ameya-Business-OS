@@ -83,6 +83,34 @@ export function CompanySettingsPage() {
     void loadDriveStatus();
   }, [loadDriveStatus]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("driveConnected") === "1") {
+      void loadDriveStatus();
+      params.delete("driveConnected");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", next);
+    }
+  }, [loadDriveStatus]);
+
+  const handleConnectDrive = async () => {
+    setDriveError(null);
+    setDriveLoading(true);
+    try {
+      const result = await googleDriveApi.connect();
+      if (result.alreadyConnected) {
+        setDriveStatus(result.status);
+        return;
+      }
+      if (!result.authorizationUrl) {
+        throw new Error("Google authorization URL was not returned by the server.");
+      }
+      window.location.href = result.authorizationUrl;
+    } catch (err) {
+      setDriveError(getErrorMessage(err));
+      setDriveLoading(false);
+    }
+  };
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading company settings...</p>;
   }
@@ -108,9 +136,8 @@ export function CompanySettingsPage() {
             <Button
               variant="outline"
               className="rounded-xl"
-              onClick={() => {
-                window.location.href = googleDriveApi.getConnectUrl();
-              }}
+              disabled={driveLoading}
+              onClick={() => void handleConnectDrive()}
             >
               {driveStatus?.connected ? "Reconnect" : "Connect Google Drive"}
             </Button>
@@ -124,7 +151,9 @@ export function CompanySettingsPage() {
                   ? "Checking..."
                   : driveStatus?.connected
                     ? "Connected"
-                    : "Not connected"}
+                    : driveStatus?.oauthConfigured === false
+                      ? "OAuth not configured"
+                      : "Not connected"}
               </p>
             </div>
             <div className="rounded-xl border border-border/70 bg-muted/20 p-3">

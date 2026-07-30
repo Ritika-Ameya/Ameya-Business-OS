@@ -28,21 +28,21 @@ const CALLBACK_HTML = `<!doctype html>
 </html>`;
 
 export class GoogleDriveController {
-  readonly connect = asyncHandler(async (_req: Request, res: Response): Promise<void> => {
-    const status = await googleDriveConnectionService.getStatus();
-    if (status.connected) {
-      ApiResponse.success(
-        res,
-        status,
-        'Google Drive already connected',
-        HTTP_STATUS.OK,
-        getResponseMeta(_req),
-      );
-      return;
-    }
-
-    const authUrl = googleDriveConnectionService.getConnectUrl();
-    res.redirect(authUrl);
+  /**
+   * Starts single-admin OAuth. Requires Super Admin JWT.
+   * Returns JSON with Google authorizationUrl (browser cannot send Bearer on raw redirects).
+   */
+  readonly connect = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const result = await googleDriveConnectionService.startConnect();
+    ApiResponse.success(
+      res,
+      result,
+      result.alreadyConnected
+        ? 'Google Drive already connected'
+        : 'Google Drive authorization URL ready',
+      HTTP_STATUS.OK,
+      getResponseMeta(req),
+    );
   });
 
   readonly callback = asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -53,6 +53,13 @@ export class GoogleDriveController {
     const code = String(req.query.code ?? '');
     const state = String(req.query.state ?? '');
     await googleDriveConnectionService.completeOAuthCallback(code, state);
+
+    const returnUrl = googleDriveConnectionService.getPostConnectRedirectUrl();
+    if (returnUrl) {
+      res.redirect(returnUrl);
+      return;
+    }
+
     res.status(HTTP_STATUS.OK).type('html').send(CALLBACK_HTML);
   });
 
