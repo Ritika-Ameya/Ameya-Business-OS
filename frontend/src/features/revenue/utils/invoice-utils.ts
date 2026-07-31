@@ -124,6 +124,13 @@ export function getInvoiceById(
   return invoices.find((invoice) => invoice.id === id);
 }
 
+export function getInvoicesByCustomerId(
+  invoices: Invoice[],
+  customerId: string
+): Invoice[] {
+  return invoices.filter((invoice) => invoice.customerId === customerId);
+}
+
 export function getUniqueCustomers(invoices: Invoice[]) {
   const map = new Map<string, { id: string; name: string }>();
   for (const invoice of invoices) {
