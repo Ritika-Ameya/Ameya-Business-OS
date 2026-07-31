@@ -31,6 +31,7 @@ interface RevenueContextValue {
   getInvoicesByDealId: (dealId: string) => Invoice[];
   getPaymentsByInvoiceId: (invoiceId: string) => Payment[];
   recordPayment: (invoiceId: string, data: PaymentFormData) => Promise<Payment>;
+  cancelInvoice: (invoiceId: string, reason: string) => Promise<Invoice>;
 }
 
 const RevenueContext = createContext<RevenueContextValue | null>(null);
@@ -119,6 +120,13 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const cancelInvoice = useCallback(async (invoiceId: string, reason: string) => {
+    const dto = await invoicesApi.cancel(invoiceId, reason);
+    const invoice = mapInvoiceFromDto(dto);
+    setInvoices((prev) => upsertInvoice(prev, invoice));
+    return invoice;
+  }, []);
+
   const getInvoice = useCallback(
     (id: string) => invoices.find((invoice) => invoice.id === id),
     [invoices]
@@ -154,6 +162,7 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
       getInvoicesByDealId,
       getPaymentsByInvoiceId,
       recordPayment,
+      cancelInvoice,
     }),
     [
       invoices,
@@ -169,6 +178,7 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
       getInvoicesByDealId,
       getPaymentsByInvoiceId,
       recordPayment,
+      cancelInvoice,
     ]
   );
 

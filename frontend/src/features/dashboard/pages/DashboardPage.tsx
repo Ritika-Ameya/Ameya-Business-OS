@@ -7,6 +7,7 @@ import { PendingCollectionsCard } from "@/features/dashboard/components/PendingC
 import { RecentActivityFeed } from "@/features/dashboard/components/RecentActivityFeed";
 import { RevenueExpenseChart } from "@/features/dashboard/components/RevenueExpenseChart";
 import { UpcomingRenewalsCard } from "@/features/dashboard/components/UpcomingRenewalsCard";
+import { UpcomingRevenueCard } from "@/features/dashboard/components/UpcomingRevenueCard";
 
 export function DashboardPage() {
   return (
@@ -33,6 +34,10 @@ export function DashboardPage() {
           <PendingCollectionsCard />
           <UpcomingRenewalsCard />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <UpcomingRevenueCard />
       </section>
 
       <section className="space-y-4">

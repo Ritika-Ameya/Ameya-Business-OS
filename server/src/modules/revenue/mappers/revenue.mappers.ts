@@ -3,6 +3,7 @@ import type { InvoiceTimelineEntry } from '../../../types/entity.contracts';
 import { createBaseEntityMapper } from '../../../utils/entityMapper.util';
 import { parseNumberField } from '../../../utils/sheetMapper.util';
 import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
+import { normalizeInvoiceStatus } from '../utils/invoiceCalculation.util';
 
 const str = (record: Record<string, string>, key: string, fallback = ''): string =>
   record[key] ?? fallback;
@@ -55,7 +56,7 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     customerName: str(record, 'customerName'),
     dealId: str(record, 'dealId'),
     dealTitle: str(record, 'dealTitle'),
-    status: (str(record, 'status', 'draft') as InvoiceEntity['status']),
+    status: normalizeInvoiceStatus(str(record, 'status', 'draft')),
     issueDate: str(record, 'issueDate'),
     dueDate: str(record, 'dueDate'),
     subtotal: num(record, 'subtotal'),
@@ -68,6 +69,9 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     componentIds: parseJsonArray(str(record, 'componentIds')),
     notes: str(record, 'notes'),
     timeline: parseTimeline(str(record, 'timeline')),
+    cancelledReason: str(record, 'cancelledReason'),
+    cancelledAt: str(record, 'cancelledAt'),
+    cancelledBy: str(record, 'cancelledBy'),
   }),
   (entity) => ({
     invoiceNumber: rowStr(entity, 'invoiceNumber'),
@@ -88,6 +92,9 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     componentIds: JSON.stringify(entity.componentIds ?? []),
     notes: rowStr(entity, 'notes'),
     timeline: JSON.stringify(entity.timeline ?? []),
+    cancelledReason: rowStr(entity, 'cancelledReason'),
+    cancelledAt: rowStr(entity, 'cancelledAt'),
+    cancelledBy: rowStr(entity, 'cancelledBy'),
   }),
 );
 

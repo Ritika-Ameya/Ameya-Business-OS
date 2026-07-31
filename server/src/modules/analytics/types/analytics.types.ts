@@ -160,10 +160,13 @@ export interface FollowUpItem {
 }
 
 export type ActivityType =
+  | 'customer_created'
+  | 'opportunity_created'
   | 'invoice_generated'
-  | 'payment_recorded'
-  | 'deal_created'
-  | 'expense_added';
+  | 'payment_received'
+  | 'renewal_added'
+  | 'customer_updated'
+  | 'entity_deleted';
 
 export interface ActivityItem {
   id: string;
@@ -171,6 +174,15 @@ export interface ActivityItem {
   title: string;
   description: string;
   timestamp: string;
+}
+
+export interface UpcomingRevenueRow {
+  id: string;
+  customer: string;
+  invoiceNumber: string;
+  dueDate: string;
+  amount: number;
+  status: string;
 }
 
 export interface DashboardSummary {
@@ -184,6 +196,10 @@ export interface DashboardSummary {
   insight: { message: string };
   pendingCollections: PendingCollectionRow[];
   upcomingRenewalsList: UpcomingRenewalRow[];
+  upcomingRevenue: {
+    items: UpcomingRevenueRow[];
+    totalExpectedRevenue: number;
+  };
   chart: {
     points: ChartMonthPoint[];
     expenseStats: DashboardExpenseStats;

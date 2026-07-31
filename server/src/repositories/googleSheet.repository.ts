@@ -102,10 +102,14 @@ export abstract class GoogleSheetRepository<
     return { sheetHeaders, headerIndexByName, dataRows };
   }
 
-  protected parseEntities(sheetHeaders: string[], rows: string[][]): TEntity[] {
+  protected parseEntities(
+    sheetHeaders: string[],
+    rows: string[][],
+    includeDeleted = false,
+  ): TEntity[] {
     return rows
       .map((row) => this.mapper.toEntity(rowToRecord(sheetHeaders, row)))
-      .filter((entity) => !entity.isDeleted);
+      .filter((entity) => includeDeleted || !entity.isDeleted);
   }
 
   protected findRowIndex(
@@ -140,9 +144,9 @@ export abstract class GoogleSheetRepository<
     return base;
   }
 
-  async findAll(_options?: QueryOptions): Promise<TEntity[]> {
+  async findAll(options?: QueryOptions): Promise<TEntity[]> {
     const { sheetHeaders, dataRows } = await this.loadMappedSheetData();
-    return this.parseEntities(sheetHeaders, dataRows);
+    return this.parseEntities(sheetHeaders, dataRows, options?.includeDeleted === true);
   }
 
   async findById(id: string): Promise<TEntity | null> {

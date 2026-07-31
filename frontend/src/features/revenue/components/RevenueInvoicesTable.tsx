@@ -1,4 +1,4 @@
-import { Eye, Receipt } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Eye, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
@@ -17,18 +17,22 @@ import {
   formatInvoiceDate,
 } from "@/features/revenue/utils/invoice-utils";
 import { cn } from "@/shared/utils";
-import type { Invoice } from "@/features/revenue/types/invoice";
+import type { Invoice, InvoiceNumberSort } from "@/features/revenue/types/invoice";
 
 interface RevenueInvoicesTableProps {
   invoices: Invoice[];
   isFiltered?: boolean;
   onResetFilters?: () => void;
+  numberSort: InvoiceNumberSort;
+  onNumberSortChange: (sort: InvoiceNumberSort) => void;
 }
 
 export function RevenueInvoicesTable({
   invoices,
   isFiltered = false,
   onResetFilters,
+  numberSort,
+  onNumberSortChange,
 }: RevenueInvoicesTableProps) {
   if (invoices.length === 0) {
     return (
@@ -42,12 +46,30 @@ export function RevenueInvoicesTable({
     );
   }
 
+  const toggleSort = () => {
+    onNumberSortChange(numberSort === "asc" ? "desc" : "asc");
+  };
+
   return (
     <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="pl-4">Invoice Number</TableHead>
+            <TableHead className="pl-4">
+              <button
+                type="button"
+                onClick={toggleSort}
+                className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                aria-label={`Sort by invoice number ${numberSort === "asc" ? "descending" : "ascending"}`}
+              >
+                Invoice Number
+                {numberSort === "asc" ? (
+                  <ArrowUpAZ className="size-3.5" />
+                ) : (
+                  <ArrowDownAZ className="size-3.5" />
+                )}
+              </button>
+            </TableHead>
             <TableHead>Customer</TableHead>
             <TableHead className="hidden md:table-cell">Deal</TableHead>
             <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
@@ -88,7 +110,7 @@ export function RevenueInvoicesTable({
                 <span
                   className={cn(
                     "font-medium",
-                    invoice.outstanding > 0
+                    invoice.outstanding > 0 && invoice.status !== "cancelled"
                       ? "text-amber-700 dark:text-amber-400"
                       : "text-muted-foreground"
                   )}

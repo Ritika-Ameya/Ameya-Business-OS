@@ -29,6 +29,9 @@ export interface InvoiceDto extends BaseEntityDto {
   componentIds: string[];
   notes: string;
   timeline: InvoiceTimelineEntryDto[];
+  cancelledReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 export interface PaymentDto extends BaseEntityDto {

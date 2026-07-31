@@ -46,18 +46,20 @@ const optionalPhoneSchema = z
 const optionalGstinSchema = z
   .string()
   .default('')
+  .transform((value) => value.trim().toUpperCase())
   .refine(
     (value) =>
       value === '' ||
-      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(value.trim()),
-    { message: 'Invalid GSTIN format' },
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(value),
+    { message: 'Invalid GSTIN format. Expected: 22AAAAA0000A1Z5' },
   );
 
 const optionalPanSchema = z
   .string()
   .default('')
-  .refine((value) => value === '' || /^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(value.trim()), {
-    message: 'Invalid PAN format',
+  .transform((value) => value.trim().toUpperCase())
+  .refine((value) => value === '' || /^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(value), {
+    message: 'Invalid PAN format. Expected: ABCDE1234F',
   });
 
 const hexColor = (fallback: string) =>

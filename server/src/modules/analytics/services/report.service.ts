@@ -153,7 +153,18 @@ export const filterOutstandingForReport = (
   ).filter((invoice) => {
     if (filters.status === 'all') return true;
     if (filters.status === 'pending') {
-      return invoice.status === 'sent' || invoice.status === 'partial';
+      return (
+        invoice.status === 'due' ||
+        invoice.status === 'partially_paid' ||
+        (invoice.status as string) === 'sent' ||
+        (invoice.status as string) === 'partial'
+      );
+    }
+    if (filters.status === 'due') {
+      return invoice.status === 'due' || (invoice.status as string) === 'sent' || (invoice.status as string) === 'overdue';
+    }
+    if (filters.status === 'partially_paid') {
+      return invoice.status === 'partially_paid' || (invoice.status as string) === 'partial';
     }
     return invoice.status === filters.status;
   });
@@ -248,7 +259,15 @@ export class ReportService extends BaseService {
       filtered.reduce((sum, invoice) => sum + Number(invoice.outstanding || 0), 0),
     );
     const invoicesPending = filtered.length;
-    const overdueInvoices = filtered.filter((invoice) => invoice.status === 'overdue').length;
+    const overdueInvoices = filtered.filter((invoice) => {
+      if (!invoice.dueDate || Number(invoice.outstanding || 0) <= 0) return false;
+      if ((invoice.status as string) === 'overdue') return true;
+      const due = new Date(invoice.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    }).length;
     const averageOutstanding =
       invoicesPending > 0 ? Math.round(outstandingAmount / invoicesPending) : 0;
 

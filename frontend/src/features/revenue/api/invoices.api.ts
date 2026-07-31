@@ -15,7 +15,7 @@ const LIST_LIMIT = 200;
 export const invoicesApi = {
   list: async (): Promise<InvoiceDto[]> => {
     const result = await apiRequest<PaginatedData<InvoiceDto>>(INVOICES_BASE, {
-      params: { page: 1, limit: LIST_LIMIT, sort: "issueDate:desc" },
+      params: { page: 1, limit: LIST_LIMIT, sort: "invoiceNumber:asc" },
     });
     return result.items;
   },
@@ -38,6 +38,12 @@ export const invoicesApi = {
     apiRequest<InvoiceDto>(`${INVOICES_BASE}/${id}/status`, {
       method: "PATCH",
       body: { status },
+    }),
+
+  cancel: (id: string, reason: string) =>
+    apiRequest<InvoiceDto>(`${INVOICES_BASE}/${id}/cancel`, {
+      method: "POST",
+      body: { reason },
     }),
 
   listPayments: (id: string) =>

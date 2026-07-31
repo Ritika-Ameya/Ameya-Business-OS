@@ -9,6 +9,7 @@ router.post('/', ...invoiceController.create);
 
 router.post('/:id/restore', ...invoiceController.restore);
 router.patch('/:id/status', ...invoiceController.changeStatus);
+router.post('/:id/cancel', ...invoiceController.cancel);
 
 router.get('/:id/payments', ...invoiceController.listPayments);
 router.post('/:id/payments', ...invoiceController.addPayment);

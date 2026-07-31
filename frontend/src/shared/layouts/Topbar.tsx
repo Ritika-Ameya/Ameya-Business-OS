@@ -1,9 +1,14 @@
 import { Bell, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/utils";
+import {
+  getCompanyDisplayName,
+  resolveLogoDisplayUrl,
+} from "@/shared/utils/company-brand";
 import { Breadcrumb } from "./Breadcrumb";
 
 type TopbarProps = {
@@ -14,7 +19,10 @@ type TopbarProps = {
 
 export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarProps) {
   const { user, logout } = useAuth();
+  const { company, branding } = useAppConfig();
   const navigate = useNavigate();
+  const companyName = getCompanyDisplayName(company.companyName);
+  const logoUrl = resolveLogoDisplayUrl(branding.logoUrl);
 
   const handleLogout = async () => {
     await logout();
@@ -50,6 +58,16 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
           >
             <Menu />
           </Button>
+          <div className="flex min-w-0 items-center gap-2">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt=""
+                className="size-7 shrink-0 rounded object-contain lg:size-8"
+              />
+            ) : null}
+            <span className="truncate text-sm font-semibold lg:hidden">{companyName}</span>
+          </div>
           <div className="hidden md:block">
             <Breadcrumb />
           </div>

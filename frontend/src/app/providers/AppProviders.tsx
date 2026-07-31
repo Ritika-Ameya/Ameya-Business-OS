@@ -9,18 +9,19 @@ import { ExpensesProvider } from "@/features/expenses/hooks/ExpensesContext";
 import { RevenueProvider } from "@/features/revenue/hooks/RevenueContext";
 
 function BusinessProviders({ children }: { children: ReactNode }) {
+  // AppConfig first so company name/logo are available to the shell immediately.
   return (
-    <CustomersProvider>
-      <DealsProvider>
-        <RevenueProvider>
-          <AppConfigProvider>
+    <AppConfigProvider>
+      <CustomersProvider>
+        <DealsProvider>
+          <RevenueProvider>
             <ExpensesProvider>
               <DashboardProvider>{children}</DashboardProvider>
             </ExpensesProvider>
-          </AppConfigProvider>
-        </RevenueProvider>
-      </DealsProvider>
-    </CustomersProvider>
+          </RevenueProvider>
+        </DealsProvider>
+      </CustomersProvider>
+    </AppConfigProvider>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Input } from "@/shared/ui/input";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,10 @@ import {
   renewalStatusLabels,
   renewalTypeLabels,
 } from "@/features/revenue/utils/revenue-utils";
-import { invoiceDateLabels } from "@/features/revenue/utils/invoice-utils";
+import {
+  buildQuarterOptions,
+  renewalDatePresetLabels,
+} from "@/features/revenue/utils/renewal-date-utils";
 import type { RenewalFilters } from "@/features/revenue/types/revenue";
 
 interface RevenueRenewalsFiltersProps {
@@ -34,11 +38,21 @@ export function RevenueRenewalsFilters({
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [deals]);
 
+  const quarterOptions = useMemo(() => buildQuarterOptions(), []);
+
   const hasActiveFilters =
     filters.customer !== defaultRenewalFilters.customer ||
     filters.renewalType !== defaultRenewalFilters.renewalType ||
     filters.date !== defaultRenewalFilters.date ||
-    filters.status !== defaultRenewalFilters.status;
+    filters.status !== defaultRenewalFilters.status ||
+    filters.customFrom !== defaultRenewalFilters.customFrom ||
+    filters.customTo !== defaultRenewalFilters.customTo ||
+    filters.selectedMonth !== defaultRenewalFilters.selectedMonth ||
+    filters.selectedQuarter !== defaultRenewalFilters.selectedQuarter;
+
+  const statusOptions = Object.entries(renewalStatusLabels).filter(
+    ([value]) => value !== "overdue"
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -87,20 +101,87 @@ export function RevenueRenewalsFilters({
       <Select
         value={filters.date}
         onValueChange={(value) =>
-          onFiltersChange({ ...filters, date: value as RenewalFilters["date"] })
+          onFiltersChange({
+            ...filters,
+            date: value as RenewalFilters["date"],
+            selectedMonth:
+              value === "month-wise"
+                ? filters.selectedMonth || new Date().toISOString().slice(0, 7)
+                : filters.selectedMonth,
+            selectedQuarter:
+              value === "quarter-wise"
+                ? filters.selectedQuarter ||
+                  `${new Date().getFullYear()}-Q${Math.floor(new Date().getMonth() / 3) + 1}`
+                : filters.selectedQuarter,
+          })
         }
       >
-        <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+        <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
           <SelectValue placeholder="Date Range" />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(invoiceDateLabels).map(([value, label]) => (
+          {Object.entries(renewalDatePresetLabels).map(([value, label]) => (
             <SelectItem key={value} value={value}>
               {label}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+
+      {filters.date === "custom" && (
+        <>
+          <Input
+            type="date"
+            value={filters.customFrom}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, customFrom: e.target.value })
+            }
+            className="h-8 w-[140px] rounded-xl"
+            aria-label="Custom from date"
+          />
+          <Input
+            type="date"
+            value={filters.customTo}
+            onChange={(e) =>
+              onFiltersChange({ ...filters, customTo: e.target.value })
+            }
+            className="h-8 w-[140px] rounded-xl"
+            aria-label="Custom to date"
+          />
+        </>
+      )}
+
+      {filters.date === "month-wise" && (
+        <Input
+          type="month"
+          value={filters.selectedMonth}
+          onChange={(e) =>
+            onFiltersChange({ ...filters, selectedMonth: e.target.value })
+          }
+          className="h-8 w-[150px] rounded-xl"
+          aria-label="Select month"
+        />
+      )}
+
+      {filters.date === "quarter-wise" && (
+        <Select
+          value={filters.selectedQuarter}
+          onValueChange={(value) =>
+            onFiltersChange({ ...filters, selectedQuarter: value })
+          }
+        >
+          <SelectTrigger size="sm" className="min-w-[120px] rounded-xl">
+            <SelectValue placeholder="Quarter" />
+          </SelectTrigger>
+          <SelectContent>
+            {quarterOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Select
         value={filters.status}
@@ -115,7 +196,7 @@ export function RevenueRenewalsFilters({
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(renewalStatusLabels).map(([value, label]) => (
+          {statusOptions.map(([value, label]) => (
             <SelectItem key={value} value={value}>
               {label}
             </SelectItem>

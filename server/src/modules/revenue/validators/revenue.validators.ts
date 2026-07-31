@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-export const invoiceStatusSchema = z.enum(['draft', 'sent', 'partial', 'paid', 'overdue']);
+export const invoiceStatusSchema = z.enum([
+  'draft',
+  'due',
+  'partially_paid',
+  'paid',
+  'cancelled',
+]);
 export const paymentStatusSchema = z.enum(['received', 'pending', 'failed']);
 
 export const invoiceCreateSchema = z.object({
@@ -30,6 +36,10 @@ export const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({
 
 export const invoiceStatusChangeSchema = z.object({
   status: invoiceStatusSchema,
+});
+
+export const invoiceCancelSchema = z.object({
+  reason: z.string().trim().min(1, 'Cancellation reason is required').max(2000),
 });
 
 export const paymentCreateSchema = z.object({
@@ -70,6 +80,7 @@ export const invoiceFileParamsSchema = z.object({
 
 export type InvoiceCreateInput = z.infer<typeof invoiceCreateSchema>;
 export type InvoiceUpdateInput = z.infer<typeof invoiceUpdateSchema>;
+export type InvoiceCancelInput = z.infer<typeof invoiceCancelSchema>;
 export type PaymentCreateInput = z.infer<typeof paymentCreateSchema>;
 export type PaymentUpdateInput = z.infer<typeof paymentUpdateSchema>;
 export type InvoiceDocumentCreateInput = z.infer<typeof invoiceDocumentCreateSchema>;

@@ -4,23 +4,28 @@ import { InvoiceStatsCards } from "@/features/revenue/components/invoices/Invoic
 import { RevenueInvoicesTable } from "@/features/revenue/components/RevenueInvoicesTable";
 import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
-import { defaultInvoiceFilters, filterInvoices } from "@/features/revenue/utils/invoice-utils";
-import type { InvoiceFilters } from "@/features/revenue/types/invoice";
+import {
+  defaultInvoiceFilters,
+  filterInvoices,
+  sortInvoicesByNumber,
+} from "@/features/revenue/utils/invoice-utils";
+import type { InvoiceFilters, InvoiceNumberSort } from "@/features/revenue/types/invoice";
 
 export function RevenueInvoicesTab() {
   const { invoices, loading: invoicesLoading, error } = useRevenue();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<InvoiceFilters>(defaultInvoiceFilters);
+  const [numberSort, setNumberSort] = useState<InvoiceNumberSort>("asc");
   const deferredQuery = useDeferredValue(query);
   const deferredFilters = useDeferredValue(filters);
 
   const loading =
     invoicesLoading || query !== deferredQuery || filters !== deferredFilters;
 
-  const filteredInvoices = useMemo(
-    () => filterInvoices(invoices, deferredQuery, deferredFilters),
-    [invoices, deferredQuery, deferredFilters]
-  );
+  const filteredInvoices = useMemo(() => {
+    const filtered = filterInvoices(invoices, deferredQuery, deferredFilters);
+    return sortInvoicesByNumber(filtered, numberSort);
+  }, [invoices, deferredQuery, deferredFilters, numberSort]);
 
   const hasActiveFilters =
     deferredQuery.trim().length > 0 ||
@@ -55,6 +60,8 @@ export function RevenueInvoicesTab() {
           invoices={filteredInvoices}
           isFiltered={hasActiveFilters}
           onResetFilters={resetFilters}
+          numberSort={numberSort}
+          onNumberSortChange={setNumberSort}
         />
       )}
     </div>

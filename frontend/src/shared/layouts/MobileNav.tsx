@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { isNavItemActive } from "@/shared/utils/navigation-utils";
 import { cn } from "@/shared/utils";
+import { CompanyBrandMark } from "./CompanyBrandMark";
 import { navItems } from "./navigation";
 
 type MobileNavProps = {
@@ -28,11 +29,8 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Ameya</p>
-            <h2 className="text-lg font-semibold">Business OS</h2>
-          </div>
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <CompanyBrandMark showSubtitleSplit titleClassName="text-lg" />
           <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close menu">
             <X />
           </Button>

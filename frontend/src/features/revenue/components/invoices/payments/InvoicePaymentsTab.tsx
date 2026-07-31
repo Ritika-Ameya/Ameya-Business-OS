@@ -16,6 +16,9 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
 
   const invoice = getInvoice(invoiceId);
   const payments = getPaymentsByInvoiceId(invoiceId);
+  const isCancelled = invoice?.status === "cancelled";
+  const canRecordPayment =
+    Boolean(invoice) && !isCancelled && (invoice?.outstanding ?? 0) > 0;
 
   return (
     <div className="space-y-8">
@@ -23,12 +26,20 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
         title="Payments"
         subtitle="Track all payments received against this invoice."
         action={
-          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
-            <Plus />
-            Record Payment
-          </Button>
+          canRecordPayment ? (
+            <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+              <Plus />
+              Record Payment
+            </Button>
+          ) : undefined
         }
       />
+
+      {isCancelled && (
+        <p className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">
+          This invoice is cancelled and cannot accept payments.
+        </p>
+      )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading payments…</p>
@@ -41,21 +52,25 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             Payments recorded for this invoice will appear here.
           </p>
-          <Button className="mt-6 rounded-xl" onClick={() => setDialogOpen(true)}>
-            <Plus />
-            Record First Payment
-          </Button>
+          {canRecordPayment && (
+            <Button className="mt-6 rounded-xl" onClick={() => setDialogOpen(true)}>
+              <Plus />
+              Record First Payment
+            </Button>
+          )}
         </div>
       ) : (
         <PaymentTable payments={payments} />
       )}
 
-      <RecordPaymentDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        invoiceId={invoiceId}
-        maxAmount={invoice?.outstanding}
-      />
+      {canRecordPayment && (
+        <RecordPaymentDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          invoiceId={invoiceId}
+          maxAmount={invoice?.outstanding}
+        />
+      )}
     </div>
   );
 }

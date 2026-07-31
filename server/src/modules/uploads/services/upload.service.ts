@@ -1,4 +1,5 @@
 import {
+  buildDriveImageUrl,
   buildDriveViewUrl,
   uploadDocumentToDrive,
 } from '../../../services/documentUpload.service';
@@ -13,6 +14,9 @@ export class UploadService {
       makePublic: input.makePublic,
     });
 
+    // Prefer a direct image URL so <img> previews work (webViewLink is an HTML page).
+    const imageUrl = buildDriveImageUrl(uploaded.id);
+
     return {
       id: uploaded.id,
       name: uploaded.name,
@@ -20,7 +24,7 @@ export class UploadService {
       size: uploaded.size ?? input.size,
       webViewLink: uploaded.webViewLink ?? buildDriveViewUrl(uploaded.id),
       webContentLink: uploaded.webContentLink ?? '',
-      url: uploaded.webViewLink ?? buildDriveViewUrl(uploaded.id),
+      url: imageUrl,
     };
   }
 }

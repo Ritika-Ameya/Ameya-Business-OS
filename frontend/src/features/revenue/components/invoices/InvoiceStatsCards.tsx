@@ -8,8 +8,8 @@ interface InvoiceStatsCardsProps {
 
 export function InvoiceStatsCards({ invoices }: InvoiceStatsCardsProps) {
   const paid = invoices.filter((i) => i.status === "paid").length;
-  const partial = invoices.filter((i) => i.status === "partial").length;
-  const overdue = invoices.filter((i) => i.status === "overdue").length;
+  const partiallyPaid = invoices.filter((i) => i.status === "partially_paid").length;
+  const due = invoices.filter((i) => i.status === "due").length;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -26,16 +26,16 @@ export function InvoiceStatsCards({ invoices }: InvoiceStatsCardsProps) {
         accent="bg-emerald-500/10"
       />
       <StatCard
-        label="Partial"
-        value={String(partial)}
+        label="Partially Paid"
+        value={String(partiallyPaid)}
         icon={<Clock className="size-5 text-amber-600 dark:text-amber-400" />}
         accent="bg-amber-500/10"
       />
       <StatCard
-        label="Overdue"
-        value={String(overdue)}
-        icon={<AlertCircle className="size-5 text-red-600 dark:text-red-400" />}
-        accent="bg-red-500/10"
+        label="Due"
+        value={String(due)}
+        icon={<AlertCircle className="size-5 text-blue-600 dark:text-blue-400" />}
+        accent="bg-blue-500/10"
       />
     </div>
   );

@@ -1,4 +1,9 @@
-export type InvoiceStatus = "paid" | "partial" | "overdue" | "draft" | "sent";
+export type InvoiceStatus =
+  | "draft"
+  | "due"
+  | "partially_paid"
+  | "paid"
+  | "cancelled";
 
 export interface InvoiceTimelineEntry {
   id: string;
@@ -25,10 +30,14 @@ export interface Invoice {
   componentIds: string[];
   notes?: string;
   timeline?: InvoiceTimelineEntry[];
+  cancelledReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 export type InvoiceStatusFilter = "all" | InvoiceStatus;
 export type InvoiceDateFilter = "all" | "this-month" | "last-month" | "overdue";
+export type InvoiceNumberSort = "asc" | "desc";
 
 export interface InvoiceFilters {
   status: InvoiceStatusFilter;

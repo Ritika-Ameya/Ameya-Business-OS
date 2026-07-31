@@ -2,7 +2,6 @@ import { Eye, IndianRupee } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
-import { InvoiceStatusBadge } from "@/features/revenue/components/invoices/InvoiceStatusBadge";
 import { Button } from "@/shared/ui/button";
 import {
   Table,
@@ -14,11 +13,9 @@ import {
 } from "@/shared/ui/table";
 import {
   formatInvoiceCurrency,
-  formatInvoiceDate,
 } from "@/features/revenue/utils/invoice-utils";
 import { formatPaymentDate } from "@/features/revenue/utils/payment-utils";
 import type { CollectionRow } from "@/features/revenue/utils/revenue-utils";
-import { cn } from "@/shared/utils";
 
 interface RevenueCollectionsTableProps {
   rows: CollectionRow[];
@@ -43,68 +40,100 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Customer</TableHead>
-            <TableHead>Invoice Number</TableHead>
-            <TableHead>Outstanding</TableHead>
-            <TableHead className="hidden md:table-cell">Due Date</TableHead>
-            <TableHead className="hidden lg:table-cell">Days Overdue</TableHead>
-            <TableHead className="hidden lg:table-cell">Last Payment</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Invoice No</TableHead>
+            <TableHead>Invoice Amount</TableHead>
+            <TableHead>Collected Amount</TableHead>
+            <TableHead>Balance Amount</TableHead>
+            <TableHead className="hidden lg:table-cell">Payment Mode</TableHead>
+            <TableHead className="hidden md:table-cell">Payment Date</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map(({ invoice, daysOverdue, lastPaymentDate }) => (
-            <TableRow
-              key={invoice.id}
-              className="cursor-pointer"
-              onClick={() =>
-                navigate(`/invoices/${invoice.id}?tab=payments`)
-              }
-            >
-              <TableCell className="pl-4 text-muted-foreground">
-                {invoice.customerName}
-              </TableCell>
-              <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
-              <TableCell>
-                <span className="font-medium text-amber-700 dark:text-amber-400">
-                  {formatInvoiceCurrency(invoice.outstanding)}
-                </span>
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">
-                {formatInvoiceDate(invoice.dueDate)}
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <span
-                  className={cn(
-                    daysOverdue > 0
-                      ? "font-medium text-red-700 dark:text-red-400"
-                      : "text-muted-foreground"
+          {rows.map((row) => {
+            const { invoice, payments, invoiceAmount, collectedAmount, balanceAmount } =
+              row;
+
+            return (
+              <TableRow
+                key={invoice.id}
+                className="cursor-pointer align-top"
+                onClick={() => navigate(`/invoices/${invoice.id}?tab=payments`)}
+              >
+                <TableCell className="pl-4 text-muted-foreground">
+                  {invoice.customerName}
+                </TableCell>
+                <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
+                <TableCell className="font-medium">
+                  {formatInvoiceCurrency(invoiceAmount)}
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {payments.length === 0 ? (
+                      <span className="text-muted-foreground">
+                        {formatInvoiceCurrency(collectedAmount)}
+                      </span>
+                    ) : (
+                      <>
+                        {payments.map((payment, index) => (
+                          <p key={payment.id} className="text-sm">
+                            Payment {index + 1}: {formatInvoiceCurrency(payment.amount)}
+                          </p>
+                        ))}
+                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                          Total Paid: {formatInvoiceCurrency(collectedAmount)}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="font-medium text-amber-700 dark:text-amber-400">
+                    {formatInvoiceCurrency(balanceAmount)}
+                  </span>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {payments.length === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <div className="space-y-1">
+                      {payments.map((payment) => (
+                        <p key={`${payment.id}-mode`} className="text-sm text-muted-foreground">
+                          {payment.mode || "—"}
+                        </p>
+                      ))}
+                    </div>
                   )}
-                >
-                  {daysOverdue > 0 ? `${daysOverdue} days` : "—"}
-                </span>
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {lastPaymentDate ? formatPaymentDate(lastPaymentDate) : "—"}
-              </TableCell>
-              <TableCell>
-                <InvoiceStatusBadge status={invoice.status} />
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="View invoice payments"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/invoices/${invoice.id}?tab=payments`);
-                  }}
-                >
-                  <Eye />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {payments.length === 0 ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <div className="space-y-1">
+                      {payments.map((payment) => (
+                        <p key={`${payment.id}-date`} className="text-sm text-muted-foreground">
+                          {formatPaymentDate(payment.paymentDate)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="pr-4 text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="View invoice payments"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/invoices/${invoice.id}?tab=payments`);
+                    }}
+                  >
+                    <Eye />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </ResponsiveTableFrame>

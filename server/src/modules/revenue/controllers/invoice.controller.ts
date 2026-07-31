@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 
 import { HTTP_STATUS, MESSAGES } from '../../../constants';
+import type { AuthenticatedRequest } from '../../../interfaces/authenticatedRequest.interface';
 import { validate } from '../../../middlewares';
 import { asyncHandler } from '../../../utils/asyncHandler.util';
 import { ApiResponse } from '../../../utils/apiResponse.util';
@@ -9,6 +10,7 @@ import { parseQueryParams, toQueryOptions } from '../../../utils/queryParser.uti
 import { getRouteParam } from '../../../utils/routeParams.util';
 import { invoiceService } from '../services/invoice.service';
 import {
+  invoiceCancelSchema,
   invoiceCreateSchema,
   invoiceDocumentCreateSchema,
   invoiceFileParamsSchema,
@@ -88,6 +90,22 @@ export class InvoiceController {
       const entity = await invoiceService.changeStatus(
         getRouteParam(req.params.id),
         req.body.status,
+      );
+      ApiResponse.updated(res, entity, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly cancel = [
+    validate({ params: invoiceIdParamSchema, body: invoiceCancelSchema }),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+      const actor =
+        req.user?.email ||
+        req.user?.id ||
+        'system';
+      const entity = await invoiceService.cancel(
+        getRouteParam(req.params.id),
+        req.body,
+        actor,
       );
       ApiResponse.updated(res, entity, MESSAGES.UPDATED, getResponseMeta(req));
     }),

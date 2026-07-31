@@ -156,7 +156,7 @@ export function GenerateInvoiceDialog({
         customerName: context?.customerName ?? selectedCustomer?.name,
         dealId,
         dealTitle: context?.dealTitle ?? selectedDeal?.title,
-        status: "sent",
+        status: "due",
         issueDate: invoiceDate,
         dueDate,
         subtotal: summary.subtotal,
