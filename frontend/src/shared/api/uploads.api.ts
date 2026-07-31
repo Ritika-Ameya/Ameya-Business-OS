@@ -7,6 +7,7 @@ export type UploadResultDto = {
   mimeType: string;
   size: number;
   webViewLink: string;
+  webContentLink: string;
   url: string;
 };
 

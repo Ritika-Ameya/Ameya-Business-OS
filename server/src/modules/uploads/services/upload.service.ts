@@ -1,5 +1,4 @@
 import {
-  buildDriveImageUrl,
   buildDriveViewUrl,
   uploadDocumentToDrive,
 } from '../../../services/documentUpload.service';
@@ -20,9 +19,8 @@ export class UploadService {
       mimeType: uploaded.mimeType,
       size: uploaded.size ?? input.size,
       webViewLink: uploaded.webViewLink ?? buildDriveViewUrl(uploaded.id),
-      url: input.makePublic
-        ? buildDriveImageUrl(uploaded.id)
-        : (uploaded.webViewLink ?? buildDriveViewUrl(uploaded.id)),
+      webContentLink: uploaded.webContentLink ?? '',
+      url: uploaded.webViewLink ?? buildDriveViewUrl(uploaded.id),
     };
   }
 }

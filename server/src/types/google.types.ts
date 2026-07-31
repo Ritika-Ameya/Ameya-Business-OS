@@ -44,6 +44,7 @@ export interface DriveFileMetadata {
   createdTime?: string;
   modifiedTime?: string;
   webViewLink?: string;
+  webContentLink?: string;
   parents?: string[];
 }
 
@@ -52,7 +53,7 @@ export interface DriveUploadOptions {
   mimeType: string;
   content: Buffer | string;
   folderId?: string;
-  /** When true, grants anyone-with-link reader access (needed for logo/img URLs). */
+  /** @deprecated Permissions are always applied after upload (anyone / writer). */
   makePublic?: boolean;
 }
 
