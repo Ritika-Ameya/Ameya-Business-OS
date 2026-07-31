@@ -17,8 +17,12 @@ const mapDriveFile = (file: drive_v3.Schema$File): DriveFileMetadata => ({
   createdTime: file.createdTime ?? undefined,
   modifiedTime: file.modifiedTime ?? undefined,
   webViewLink: file.webViewLink ?? undefined,
+  webContentLink: file.webContentLink ?? undefined,
   parents: file.parents ?? undefined,
 });
+
+const DRIVE_FILE_FIELDS =
+  'id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,parents';
 
 export class GoogleDriveClient implements GoogleDriveClientInterface {
   private readonly config: GoogleDriveConfig;
@@ -83,27 +87,37 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
               mimeType: options.mimeType,
               body: Readable.from(content),
             },
-            fields: 'id,name,mimeType,size,createdTime,modifiedTime,webViewLink,parents',
+            fields: DRIVE_FILE_FIELDS,
           },
           { timeout: this.requestOptions.timeout },
         );
 
-        const uploaded = mapDriveFile(response.data);
-
-        if (options.makePublic && uploaded.id) {
-          await drive.permissions.create(
-            {
-              fileId: uploaded.id,
-              requestBody: {
-                role: 'reader',
-                type: 'anyone',
-              },
-            },
-            { timeout: this.requestOptions.timeout },
-          );
+        const fileId = response.data.id;
+        if (!fileId) {
+          throw new Error('Google Drive upload did not return a file ID');
         }
 
-        return uploaded;
+        // Anyone with the link can open, edit, and download (no "Request Access").
+        await drive.permissions.create(
+          {
+            fileId,
+            requestBody: {
+              type: 'anyone',
+              role: 'writer',
+            },
+          },
+          { timeout: this.requestOptions.timeout },
+        );
+
+        const metadataResponse = await drive.files.get(
+          {
+            fileId,
+            fields: DRIVE_FILE_FIELDS,
+          },
+          { timeout: this.requestOptions.timeout },
+        );
+
+        return mapDriveFile(metadataResponse.data);
       }, { maxRetries: this.requestOptions.maxRetries }),
     );
   }
@@ -124,7 +138,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
         const response = await drive.files.get(
           {
             fileId,
-            fields: 'id,name,mimeType,size,createdTime,modifiedTime,webViewLink,parents',
+            fields: DRIVE_FILE_FIELDS,
           },
           { timeout: this.requestOptions.timeout },
         );
@@ -145,7 +159,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
               mimeType: 'application/vnd.google-apps.folder',
               parents: [options.parentFolderId ?? this.config.folderId],
             },
-            fields: 'id,name,mimeType,createdTime,modifiedTime,webViewLink,parents',
+            fields: 'id,name,mimeType,createdTime,modifiedTime,webViewLink,webContentLink,parents',
           },
           { timeout: this.requestOptions.timeout },
         );
@@ -164,7 +178,7 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
         const response = await drive.files.list(
           {
             q: `'${targetFolderId}' in parents and trashed = false`,
-            fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,parents)',
+            fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,webContentLink,parents)',
             pageSize: 100,
             orderBy: 'name',
           },
