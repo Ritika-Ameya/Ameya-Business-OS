@@ -67,6 +67,9 @@ export function mapOutstandingRow(dto: OutstandingReportItemDto): {
 }
 
 export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
+  const status =
+    dto.status === "overdue" ? "expired" : (dto.status as CompanyRenewalRow["status"]);
+
   return {
     id: dto.id,
     dealId: dto.dealId,
@@ -76,8 +79,10 @@ export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
     dealTitle: dto.dealTitle,
     renewalDate: dto.renewalDate,
     amount: dto.amount > 0 ? formatInvoiceCurrency(dto.amount) : "—",
-    status: dto.status,
+    amountValue: dto.amount,
+    status,
     renewalType: dto.renewalType,
+    wasRenewed: status === "renewed",
   };
 }
 

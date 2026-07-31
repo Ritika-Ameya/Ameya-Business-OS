@@ -6,7 +6,6 @@ import type {
   CollectionFilters,
   CollectionStatusFilter,
   RenewalFilters,
-  RenewalStatusFilter,
 } from "@/features/revenue/types/revenue";
 import {
   getCurrentQuarterIndex,
