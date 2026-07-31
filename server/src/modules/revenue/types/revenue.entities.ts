@@ -32,6 +32,9 @@ export interface InvoiceEntity extends RevenueEntityBase {
   componentIds: string[];
   notes: string;
   timeline: InvoiceTimelineEntry[];
+  cancelledReason: string;
+  cancelledAt: string;
+  cancelledBy: string;
 }
 
 export interface PaymentEntity extends RevenueEntityBase {
@@ -55,7 +58,8 @@ export type InvoiceTimelineAction =
   | 'payment_recorded'
   | 'outstanding_updated'
   | 'status_changed'
-  | 'renewal_updated';
+  | 'renewal_updated'
+  | 'cancelled';
 
 export const INVOICE_TIMELINE_LABELS: Record<InvoiceTimelineAction, string> = {
   created: 'Invoice Created',
@@ -65,6 +69,7 @@ export const INVOICE_TIMELINE_LABELS: Record<InvoiceTimelineAction, string> = {
   outstanding_updated: 'Outstanding Updated',
   status_changed: 'Status Changed',
   renewal_updated: 'Renewal Updated',
+  cancelled: 'Invoice Cancelled',
 };
 
 export const INVOICE_SEARCH_FIELDS = [

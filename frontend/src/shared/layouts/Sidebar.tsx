@@ -3,6 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { isNavItemActive } from "@/shared/utils/navigation-utils";
 import { cn } from "@/shared/utils";
+import { CompanyBrandMark } from "./CompanyBrandMark";
 import { navItems } from "./navigation";
 
 type SidebarProps = {
@@ -21,15 +22,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
     >
       <div className="flex h-16 items-center justify-between border-b border-border/70 px-4">
-        <div
-          className={cn(
-            "overflow-hidden transition-all duration-300",
-            collapsed ? "w-0 opacity-0" : "w-auto opacity-100"
-          )}
-        >
-          <p className="text-sm text-muted-foreground">Ameya</p>
-          <h1 className="text-lg font-semibold">Business OS</h1>
-        </div>
+        <CompanyBrandMark collapsed={collapsed} showSubtitleSplit />
         <Button
           variant="ghost"
           size="icon-sm"

@@ -132,7 +132,7 @@ export interface DealComponentEntity extends BaseEntity {
   renewalDate: string;
 }
 
-export type InvoiceStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
+export type InvoiceStatus = 'draft' | 'due' | 'partially_paid' | 'paid' | 'cancelled';
 
 export interface InvoiceTimelineEntry {
   id: string;
@@ -161,6 +161,9 @@ export interface InvoiceEntity extends BaseEntity {
   componentIds: string[];
   notes: string;
   timeline: InvoiceTimelineEntry[];
+  cancelledReason: string;
+  cancelledAt: string;
+  cancelledBy: string;
 }
 
 export type PaymentStatus = 'received' | 'pending' | 'failed';

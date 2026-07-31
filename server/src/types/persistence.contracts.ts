@@ -141,6 +141,9 @@ export const INVOICES_CONTRACT: PersistenceContract = {
     'componentIds',
     'notes',
     'timeline',
+    'cancelledReason',
+    'cancelledAt',
+    'cancelledBy',
   ]),
 };
 

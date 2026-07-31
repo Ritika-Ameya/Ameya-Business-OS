@@ -24,18 +24,39 @@ export function RevenueRenewalsTab() {
 
   const loading = !ready || filters !== deferredFilters;
 
-  const filteredRenewals = useMemo(() => {
-    return filterCompanyRenewals(getCompanyRenewals(deals), deferredFilters);
-  }, [deals, deferredFilters]);
+  const allRenewals = useMemo(() => getCompanyRenewals(deals), [deals]);
+
+  const filteredRenewals = useMemo(
+    () => filterCompanyRenewals(allRenewals, deferredFilters),
+    [allRenewals, deferredFilters]
+  );
+
+  const hasActiveFilters =
+    deferredFilters.customer !== defaultRenewalFilters.customer ||
+    deferredFilters.renewalType !== defaultRenewalFilters.renewalType ||
+    deferredFilters.date !== defaultRenewalFilters.date ||
+    deferredFilters.status !== defaultRenewalFilters.status ||
+    deferredFilters.customFrom !== defaultRenewalFilters.customFrom ||
+    deferredFilters.customTo !== defaultRenewalFilters.customTo ||
+    deferredFilters.selectedMonth !== defaultRenewalFilters.selectedMonth ||
+    deferredFilters.selectedQuarter !== defaultRenewalFilters.selectedQuarter;
 
   return (
     <div className="space-y-6">
-      {loading ? <StatsSkeleton /> : <RevenueRenewalsStats />}
+      {loading ? (
+        <StatsSkeleton />
+      ) : (
+        <RevenueRenewalsStats filters={filters} onFiltersChange={setFilters} />
+      )}
       <RevenueRenewalsFilters filters={filters} onFiltersChange={setFilters} />
       {loading ? (
         <TableSkeleton />
       ) : (
-        <RevenueRenewalsTable renewals={filteredRenewals} />
+        <RevenueRenewalsTable
+          renewals={filteredRenewals}
+          isFiltered={hasActiveFilters}
+          onResetFilters={() => setFilters(defaultRenewalFilters)}
+        />
       )}
     </div>
   );

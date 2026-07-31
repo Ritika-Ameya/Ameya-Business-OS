@@ -40,11 +40,12 @@ const expenseStatusOptions = [
 const outstandingStatusOptions = [
   ["all", "All Status"],
   ["pending", "Pending"],
-  ["partial", "Partial"],
-  ["overdue", "Overdue"],
-  ["sent", "Sent"],
+  ["partially_paid", "Partially Paid"],
+  ["due", "Due"],
 ];
-const renewalStatusOptions = Object.entries(renewalStatusLabels);
+const renewalStatusOptions = Object.entries(renewalStatusLabels).filter(
+  ([value]) => value === "all" || value === "upcoming" || value === "overdue" || value === "renewed"
+);
 
 function getStatusOptions(tab: ReportTab) {
   switch (tab) {

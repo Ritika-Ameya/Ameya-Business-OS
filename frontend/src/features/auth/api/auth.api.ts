@@ -26,7 +26,11 @@ export interface RefreshResponse {
 
 export const authApi = {
   login: (data: LoginRequest) =>
-    apiRequest<LoginResponse>("/auth/login", { method: "POST", body: data }),
+    apiRequest<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: data,
+      skipAuth: true,
+    }),
 
   refresh: (refreshToken: string) =>
     apiRequest<RefreshResponse>("/auth/refresh", {

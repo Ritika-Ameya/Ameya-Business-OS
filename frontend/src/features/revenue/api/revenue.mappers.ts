@@ -6,6 +6,7 @@ import type {
   PaymentCreateBody,
   PaymentDto,
 } from "@/features/revenue/api/revenue.dto";
+import { normalizeInvoiceStatus } from "@/features/revenue/utils/invoice-utils";
 
 export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
   return {
@@ -20,7 +21,7 @@ export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
     outstanding: dto.outstanding,
     invoiceDate: dto.issueDate,
     dueDate: dto.dueDate,
-    status: dto.status,
+    status: normalizeInvoiceStatus(dto.status),
     gstPercent: dto.taxPercent,
     componentIds: Array.isArray(dto.componentIds) ? dto.componentIds : [],
     notes: dto.notes || undefined,
@@ -33,6 +34,9 @@ export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
           timestamp: entry.timestamp,
         }))
       : [],
+    cancelledReason: dto.cancelledReason || undefined,
+    cancelledAt: dto.cancelledAt || undefined,
+    cancelledBy: dto.cancelledBy || undefined,
   };
 }
 

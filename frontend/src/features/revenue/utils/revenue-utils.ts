@@ -6,14 +6,26 @@ import type {
   CollectionFilters,
   CollectionStatusFilter,
   RenewalFilters,
+  RenewalStatusFilter,
 } from "@/features/revenue/types/revenue";
+import {
+  getCurrentQuarterIndex,
+  getRenewalDateRange,
+  isDateInRenewalRange,
+  isRenewalInMonth,
+  isRenewalInQuarter,
+} from "@/features/revenue/utils/renewal-date-utils";
 
-export type CompanyRenewalStatus = "upcoming" | "overdue" | "renewed";
+export type CompanyRenewalStatus = "upcoming" | "expired" | "renewed";
 
 export interface CollectionRow {
   invoice: Invoice;
-  daysOverdue: number;
-  lastPaymentDate?: string;
+  payments: Payment[];
+  invoiceAmount: number;
+  collectedAmount: number;
+  balanceAmount: number;
+  paymentModes: string[];
+  paymentDates: string[];
 }
 
 export interface CompanyRenewalRow {
@@ -25,8 +37,11 @@ export interface CompanyRenewalRow {
   dealTitle: string;
   renewalDate: string;
   amount: string;
+  amountValue: number;
   status: CompanyRenewalStatus;
   renewalType: "annual" | "quarterly" | "monthly";
+  /** True when the deal timeline recorded at least one renewal update. */
+  wasRenewed: boolean;
 }
 
 export const defaultCollectionFilters: CollectionFilters = {
@@ -40,13 +55,16 @@ export const defaultRenewalFilters: RenewalFilters = {
   renewalType: "all",
   date: "all",
   status: "all",
+  customFrom: "",
+  customTo: "",
+  selectedMonth: "",
+  selectedQuarter: "",
 };
 
 export const collectionStatusLabels: Record<CollectionStatusFilter, string> = {
   all: "All Status",
-  partial: "Partial",
-  overdue: "Overdue",
-  sent: "Sent",
+  partially_paid: "Partially Paid",
+  due: "Due",
   pending: "Pending",
 };
 
@@ -57,15 +75,17 @@ export const renewalTypeLabels: Record<RenewalFilters["renewalType"], string> = 
   monthly: "Monthly",
 };
 
-export const renewalStatusLabels: Record<RenewalFilters["status"], string> = {
+export const renewalStatusLabels: Record<string, string> = {
   all: "All Status",
   upcoming: "Upcoming",
-  overdue: "Overdue",
+  expired: "Expired",
+  overdue: "Expired",
   renewed: "Renewed",
 };
 
-export const companyRenewalStatusStyles: Record<CompanyRenewalStatus, string> = {
+export const companyRenewalStatusStyles: Record<string, string> = {
   upcoming: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  expired: "bg-red-500/10 text-red-700 dark:text-red-400",
   overdue: "bg-red-500/10 text-red-700 dark:text-red-400",
   renewed: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
 };
@@ -73,10 +93,12 @@ export const companyRenewalStatusStyles: Record<CompanyRenewalStatus, string> = 
 export function getCollectionInvoices(invoices: Invoice[]): Invoice[] {
   return invoices.filter(
     (invoice) =>
-      invoice.outstanding > 0 ||
-      invoice.status === "partial" ||
-      invoice.status === "overdue" ||
-      invoice.status === "sent"
+      invoice.status !== "cancelled" &&
+      invoice.status !== "draft" &&
+      invoice.status !== "paid" &&
+      (invoice.outstanding > 0 ||
+        invoice.status === "partially_paid" ||
+        invoice.status === "due")
   );
 }
 
@@ -89,28 +111,39 @@ export function getDaysOverdue(dueDate: string): number {
   return diff > 0 ? diff : 0;
 }
 
-export function getLastPaymentDate(
+export function getInvoicePayments(
   invoiceId: string,
   payments: Payment[]
-): string | undefined {
-  const matched = payments
+): Payment[] {
+  return payments
     .filter((payment) => payment.invoiceId === invoiceId)
     .sort(
       (a, b) =>
-        new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
+        new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()
     );
-  return matched[0]?.paymentDate;
 }
 
 export function buildCollectionRows(
   invoices: Invoice[],
   payments: Payment[]
 ): CollectionRow[] {
-  return invoices.map((invoice) => ({
-    invoice,
-    daysOverdue: getDaysOverdue(invoice.dueDate),
-    lastPaymentDate: getLastPaymentDate(invoice.id, payments),
-  }));
+  return invoices.map((invoice) => {
+    const invoicePayments = getInvoicePayments(invoice.id, payments);
+    const collectedAmount =
+      invoicePayments.length > 0
+        ? invoicePayments.reduce((sum, payment) => sum + payment.amount, 0)
+        : invoice.received;
+
+    return {
+      invoice,
+      payments: invoicePayments,
+      invoiceAmount: invoice.amount,
+      collectedAmount,
+      balanceAmount: invoice.outstanding,
+      paymentModes: invoicePayments.map((payment) => payment.mode || "—"),
+      paymentDates: invoicePayments.map((payment) => payment.paymentDate),
+    };
+  });
 }
 
 export function filterCollectionRows(
@@ -127,9 +160,16 @@ export function filterCollectionRows(
       filters.status === "all" ||
       invoice.status === filters.status ||
       (filters.status === "pending" &&
-        (invoice.status === "sent" || invoice.status === "partial"));
+        (invoice.status === "due" || invoice.status === "partially_paid"));
 
     const invoiceDate = new Date(invoice.invoiceDate);
+    const due = new Date(invoice.dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    const isPastDue =
+      Boolean(invoice.dueDate) && due < today && invoice.outstanding > 0;
+
     const matchesDate =
       filters.date === "all" ||
       (filters.date === "this-month" &&
@@ -137,7 +177,7 @@ export function filterCollectionRows(
         invoiceDate.getFullYear() === now.getFullYear()) ||
       (filters.date === "last-month" &&
         invoiceDate.getMonth() === (now.getMonth() + 11) % 12) ||
-      (filters.date === "overdue" && invoice.status === "overdue");
+      (filters.date === "overdue" && isPastDue);
 
     return matchesCustomer && matchesStatus && matchesDate;
   });
@@ -150,7 +190,13 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     0
   );
   const pendingCount = collectionInvoices.filter((i) => i.outstanding > 0).length;
-  const overdueCount = collectionInvoices.filter((i) => i.status === "overdue").length;
+  const overdueCount = collectionInvoices.filter((invoice) => {
+    const due = new Date(invoice.dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    return Boolean(invoice.dueDate) && due < today && invoice.outstanding > 0;
+  }).length;
 
   const now = new Date();
   const collectedThisMonth = payments
@@ -182,6 +228,10 @@ function mapRenewalType(frequency?: RenewalFrequency): CompanyRenewalRow["renewa
   }
 }
 
+function dealWasRenewed(deal: Deal): boolean {
+  return (deal.timeline ?? []).some((entry) => entry.action === "renewal_updated");
+}
+
 export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -191,8 +241,15 @@ export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
     .map((deal) => {
       const renewalDate = new Date(deal.nextRenewal!);
       renewalDate.setHours(0, 0, 0, 0);
-      const status: CompanyRenewalStatus =
-        renewalDate < now ? "overdue" : "upcoming";
+      const wasRenewed = dealWasRenewed(deal);
+      const isExpired = renewalDate < now;
+      const status: CompanyRenewalStatus = isExpired
+        ? "expired"
+        : wasRenewed
+          ? "renewed"
+          : "upcoming";
+
+      const amountValue = Number(deal.contractValue || 0);
 
       return {
         id: `renewal-${deal.id}`,
@@ -202,11 +259,11 @@ export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
         renewalLabel: `${deal.title} Renewal`,
         dealTitle: deal.title,
         renewalDate: deal.nextRenewal!,
-        amount: deal.contractValue
-          ? formatInvoiceCurrency(deal.contractValue)
-          : "—",
+        amount: amountValue ? formatInvoiceCurrency(amountValue) : "—",
+        amountValue,
         status,
         renewalType: mapRenewalType(deal.renewalFrequency),
+        wasRenewed,
       };
     })
     .sort(
@@ -215,55 +272,140 @@ export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
     );
 }
 
+/** Customer + type only — used as the base for period cards. */
+export function filterRenewalsByScope(
+  renewals: CompanyRenewalRow[],
+  filters: Pick<RenewalFilters, "customer" | "renewalType">
+): CompanyRenewalRow[] {
+  return renewals.filter((renewal) => {
+    const matchesCustomer =
+      filters.customer === "all" || renewal.customerId === filters.customer;
+    const matchesType =
+      filters.renewalType === "all" || renewal.renewalType === filters.renewalType;
+    return matchesCustomer && matchesType;
+  });
+}
+
 export function filterCompanyRenewals(
   renewals: CompanyRenewalRow[],
   filters: RenewalFilters
 ): CompanyRenewalRow[] {
-  const now = new Date();
+  const scoped = filterRenewalsByScope(renewals, filters);
+  const { from, to } = getRenewalDateRange(filters);
 
-  return renewals.filter((renewal) => {
-    const matchesCustomer =
-      filters.customer === "all" || renewal.customerId === filters.customer;
-
-    const matchesType =
-      filters.renewalType === "all" || renewal.renewalType === filters.renewalType;
-
+  return scoped.filter((renewal) => {
     const matchesStatus =
-      filters.status === "all" || renewal.status === filters.status;
+      filters.status === "all" ||
+      (filters.status === "upcoming" &&
+        (renewal.status === "upcoming" || renewal.status === "renewed")) ||
+      (filters.status === "expired" && renewal.status === "expired") ||
+      (filters.status === "renewed" && renewal.wasRenewed);
 
-    const renewalDate = new Date(renewal.renewalDate);
-    const matchesDate =
-      filters.date === "all" ||
-      (filters.date === "this-month" &&
-        renewalDate.getMonth() === now.getMonth() &&
-        renewalDate.getFullYear() === now.getFullYear()) ||
-      (filters.date === "last-month" &&
-        renewalDate.getMonth() === (now.getMonth() + 11) % 12) ||
-      (filters.date === "overdue" && renewal.status === "overdue");
+    const matchesDate = isDateInRenewalRange(renewal.renewalDate, from, to);
 
-    return matchesCustomer && matchesType && matchesStatus && matchesDate;
+    return matchesStatus && matchesDate;
   });
 }
 
-export function getRenewalStats(renewals: CompanyRenewalRow[]) {
-  const now = new Date();
-  const upcomingThisMonth = renewals.filter((renewal) => {
-    const date = new Date(renewal.renewalDate);
-    return (
-      renewal.status === "upcoming" &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear()
-    );
-  }).length;
+export interface RenewalPeriodStats {
+  upcomingThisMonth: string;
+  nextMonth: string;
+  quarter: string;
+  nextQuarter: string;
+  expired: string;
+  renewed: string;
+}
 
-  const overdue = renewals.filter((r) => r.status === "overdue").length;
+/** Period cards from scoped renewals (customer/type), independent of date/status filters. */
+export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodStats {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const quarter = getCurrentQuarterIndex(now);
+  const nextMonthDate = new Date(year, month + 1, 1);
+  const nextQuarterDate = new Date(year, quarter * 3 + 3, 1);
+
+  const upcoming = renewals.filter((r) => r.status === "upcoming" || r.status === "renewed");
+  const upcomingThisMonth = upcoming.filter((r) =>
+    isRenewalInMonth(r.renewalDate, year, month)
+  ).length;
+  const nextMonth = upcoming.filter((r) =>
+    isRenewalInMonth(r.renewalDate, nextMonthDate.getFullYear(), nextMonthDate.getMonth())
+  ).length;
+  const quarterCount = upcoming.filter((r) =>
+    isRenewalInQuarter(r.renewalDate, year, quarter)
+  ).length;
+  const nextQuarter = upcoming.filter((r) =>
+    isRenewalInQuarter(
+      r.renewalDate,
+      nextQuarterDate.getFullYear(),
+      getCurrentQuarterIndex(nextQuarterDate)
+    )
+  ).length;
+  const expired = renewals.filter((r) => r.status === "expired").length;
+  const renewed = renewals.filter((r) => r.wasRenewed).length;
 
   return {
     upcomingThisMonth: String(upcomingThisMonth),
-    overdue: String(overdue),
-    renewed: "0",
-    renewalValue: "—",
+    nextMonth: String(nextMonth),
+    quarter: String(quarterCount),
+    nextQuarter: String(nextQuarter),
+    expired: String(expired),
+    renewed: String(renewed),
   };
+}
+
+export type RenewalCardKey =
+  | "upcomingThisMonth"
+  | "nextMonth"
+  | "quarter"
+  | "nextQuarter"
+  | "expired"
+  | "renewed";
+
+/** Map a period card click to the matching renewals filter. */
+export function filtersForRenewalCard(
+  card: RenewalCardKey,
+  current: RenewalFilters
+): RenewalFilters {
+  switch (card) {
+    case "upcomingThisMonth":
+      return { ...current, date: "this-month", status: "upcoming" };
+    case "nextMonth":
+      return { ...current, date: "next-month", status: "upcoming" };
+    case "quarter":
+      return { ...current, date: "quarter", status: "upcoming" };
+    case "nextQuarter":
+      return { ...current, date: "next-quarter", status: "upcoming" };
+    case "expired":
+      return { ...current, date: "all", status: "expired" };
+    case "renewed":
+      return { ...current, date: "all", status: "renewed" };
+    default:
+      return current;
+  }
+}
+
+export function isRenewalCardActive(
+  card: RenewalCardKey,
+  filters: RenewalFilters
+): boolean {
+  switch (card) {
+    case "upcomingThisMonth":
+      return filters.date === "this-month" && filters.status === "upcoming";
+    case "nextMonth":
+      return filters.date === "next-month" && filters.status === "upcoming";
+    case "quarter":
+      return filters.date === "quarter" && filters.status === "upcoming";
+    case "nextQuarter":
+      return filters.date === "next-quarter" && filters.status === "upcoming";
+    case "expired":
+      return filters.status === "expired" && filters.date === "all";
+    case "renewed":
+      return filters.status === "renewed" && filters.date === "all";
+    default:
+      return false;
+  }
 }
 
 export function getRevenueCustomers(invoices: Invoice[]) {

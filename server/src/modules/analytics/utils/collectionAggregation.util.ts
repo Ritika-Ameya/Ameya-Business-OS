@@ -4,10 +4,16 @@ import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
 export const getCollectionInvoices = (invoices: InvoiceEntity[]): InvoiceEntity[] =>
   invoices.filter(
     (invoice) =>
-      invoice.outstanding > 0 ||
-      invoice.status === 'partial' ||
-      invoice.status === 'overdue' ||
-      invoice.status === 'sent',
+      invoice.status !== 'cancelled' &&
+      invoice.status !== 'draft' &&
+      invoice.status !== 'paid' &&
+      (invoice.outstanding > 0 ||
+        invoice.status === 'partially_paid' ||
+        invoice.status === 'due' ||
+        // legacy sheet values before migration
+        (invoice.status as string) === 'partial' ||
+        (invoice.status as string) === 'overdue' ||
+        (invoice.status as string) === 'sent'),
   );
 
 /** Port of frontend `getDaysOverdue`. */

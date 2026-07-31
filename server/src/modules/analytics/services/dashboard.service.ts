@@ -25,6 +25,7 @@ import {
 } from '../utils/collectionAggregation.util';
 import { isInCalendarMonth } from '../utils/dateRange.util';
 import { getCompanyRenewals } from '../utils/renewalAggregation.util';
+import { buildUpcomingRevenue } from '../utils/upcomingRevenueAggregation.util';
 
 const getReminderOffsetDays = (offset: StageReminderOffset | string): number => {
   switch (offset) {
@@ -210,13 +211,18 @@ export class DashboardService extends BaseService {
   async getSummary(): Promise<DashboardSummary> {
     this.logInfo('Building dashboard summary');
 
-    const [customers, deals, invoices, payments, expenses] = await Promise.all([
-      customerRepository.findAll(),
-      dealRepository.findAll(),
-      invoiceRepository.findAll(),
-      paymentRepository.findAll(),
-      expenseRepository.findAll(),
-    ]);
+    const [customersWithDeleted, dealsWithDeleted, invoicesWithDeleted, payments, expenses] =
+      await Promise.all([
+        customerRepository.findAll({ includeDeleted: true }),
+        dealRepository.findAll({ includeDeleted: true }),
+        invoiceRepository.findAll({ includeDeleted: true }),
+        paymentRepository.findAll(),
+        expenseRepository.findAll(),
+      ]);
+
+    const customers = customersWithDeleted.filter((customer) => !customer.isDeleted);
+    const deals = dealsWithDeleted.filter((deal) => !deal.isDeleted);
+    const invoices = invoicesWithDeleted.filter((invoice) => !invoice.isDeleted);
 
     let stages: StageMasterEntity[] = [];
     try {
@@ -303,12 +309,19 @@ export class DashboardService extends BaseService {
           dueDate: renewal.renewalDate,
           amount: renewal.amount,
         })),
+      upcomingRevenue: buildUpcomingRevenue(invoices, now),
       chart: {
         points: buildRevenueExpenseChart(invoices, expenses),
         expenseStats,
       },
       followUps: buildFollowUps(customers, deals, stages),
-      activity: buildRecentActivity(invoices, payments, deals, expenses, 15),
+      activity: buildRecentActivity(
+        customersWithDeleted,
+        dealsWithDeleted,
+        invoicesWithDeleted,
+        payments,
+        20,
+      ),
       pipeline: {
         totalValue: pipelineValue,
         byStatus,

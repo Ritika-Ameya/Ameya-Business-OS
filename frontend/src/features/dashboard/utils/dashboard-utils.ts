@@ -136,6 +136,36 @@ export function getUpcomingRenewalsTop5(summary: DashboardSummaryDto | null) {
   }));
 }
 
+export function getUpcomingRevenue(summary: DashboardSummaryDto | null): {
+  items: Array<{
+    id: string;
+    customer: string;
+    invoiceNumber: string;
+    dueDate: string;
+    amount: string;
+    status: string;
+  }>;
+  totalExpectedRevenue: string;
+} {
+  if (!summary?.upcomingRevenue) {
+    return { items: [], totalExpectedRevenue: formatInvoiceCurrency(0) };
+  }
+
+  return {
+    items: summary.upcomingRevenue.items.map((item) => ({
+      id: item.id,
+      customer: item.customer,
+      invoiceNumber: item.invoiceNumber,
+      dueDate: formatInvoiceDate(item.dueDate),
+      amount: formatInvoiceCurrency(item.amount),
+      status: item.status,
+    })),
+    totalExpectedRevenue: formatInvoiceCurrency(
+      summary.upcomingRevenue.totalExpectedRevenue
+    ),
+  };
+}
+
 export function getRecentActivity(
   summary: DashboardSummaryDto | null
 ): DashboardActivity[] {

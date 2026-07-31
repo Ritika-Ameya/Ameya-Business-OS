@@ -5,7 +5,7 @@ import type { InvoiceStatus } from "@/features/revenue/types/invoice";
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
   return (
-    <Badge variant="secondary" className={cn("capitalize", invoiceStatusStyles[status])}>
+    <Badge variant="secondary" className={cn(invoiceStatusStyles[status])}>
       {invoiceStatusLabels[status]}
     </Badge>
   );

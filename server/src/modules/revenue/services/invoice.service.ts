@@ -18,6 +18,7 @@ import type { DocumentEntity } from '../../customers';
 import { dealRepository } from '../../deals';
 import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
 import type {
+  InvoiceCancelInput,
   InvoiceCreateInput,
   InvoiceDocumentCreateInput,
   InvoiceUpdateInput,
@@ -32,11 +33,17 @@ import {
 } from '../utils/invoiceSearch.util';
 import {
   applyBalance,
+  normalizeInvoiceStatus,
   resolveCreateAmounts,
   resolveUpdateAmounts,
   roundMoney,
 } from '../utils/invoiceCalculation.util';
+import {
+  hasInvoiceNumberFormatting,
+  incrementFormattedInvoiceNumber,
+} from '../utils/invoiceNumber.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
+import { toISOString } from '../../../utils/date.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
 
@@ -113,7 +120,7 @@ export class InvoiceService extends BaseService {
       customerName: input.customerName.trim() || customer.contactPerson || customer.companyName,
       dealId: deal.id,
       dealTitle: input.dealTitle.trim() || deal.title,
-      status: input.status,
+      status: normalizeInvoiceStatus(input.status),
       issueDate: input.issueDate,
       dueDate: input.dueDate,
       subtotal,
@@ -126,6 +133,9 @@ export class InvoiceService extends BaseService {
       componentIds: input.componentIds,
       notes: input.notes.trim(),
       timeline,
+      cancelledReason: '',
+      cancelledAt: '',
+      cancelledBy: '',
     } as Omit<InvoiceEntity, 'id'>);
 
     await this.syncCustomerOutstanding(created.customerId);
@@ -211,19 +221,26 @@ export class InvoiceService extends BaseService {
 
   async changeStatus(id: string, status: InvoiceEntity['status']): Promise<InvoiceEntity> {
     const existing = await this.getById(id);
+    if (normalizeInvoiceStatus(existing.status) === 'cancelled') {
+      throw new ValidationError('Cancelled invoices cannot change status');
+    }
+    if (status === 'cancelled') {
+      throw new ValidationError('Use Cancel Invoice to cancel an invoice');
+    }
+
     const payments = await this.listPaymentsForInvoice(id);
     const balance = applyBalance(existing, payments);
 
     // Never allow manual `paid` when balance says otherwise; never override
-    // payment-derived paid/partial with an arbitrary status.
-    let nextStatus = status;
+    // payment-derived paid/partially_paid with an arbitrary status.
+    let nextStatus = normalizeInvoiceStatus(status);
     if (balance.outstanding <= 0.001) {
       nextStatus = 'paid';
     } else if (status === 'paid') {
       throw new ValidationError('Cannot mark invoice as paid while outstanding balance remains', [
         `Outstanding balance is ${balance.outstanding}`,
       ]);
-    } else if (balance.received > 0 && (status === 'draft' || status === 'sent')) {
+    } else if (balance.received > 0 && (status === 'draft' || status === 'due')) {
       nextStatus = balance.status;
     }
 
@@ -248,6 +265,43 @@ export class InvoiceService extends BaseService {
     return updated;
   }
 
+  async cancel(
+    id: string,
+    input: InvoiceCancelInput,
+    cancelledBy: string,
+  ): Promise<InvoiceEntity> {
+    const existing = await this.getById(id);
+    if (normalizeInvoiceStatus(existing.status) === 'cancelled') {
+      throw new ValidationError('Invoice is already cancelled');
+    }
+
+    const cancelledAt = toISOString();
+    const actor = cancelledBy.trim() || 'system';
+    const reason = input.reason.trim();
+    const timeline = prependInvoiceTimeline(
+      existing.timeline,
+      createInvoiceTimelineEntry({
+        action: 'cancelled',
+        stageName: 'Cancelled',
+        notes: `Cancelled by ${actor}: ${reason}`,
+      }),
+    );
+
+    const updated = await invoiceRepository.updateOrThrow(
+      id,
+      {
+        status: 'cancelled',
+        cancelledReason: reason,
+        cancelledAt,
+        cancelledBy: actor,
+        timeline,
+      },
+      'Invoice',
+    );
+    await this.syncCustomerOutstanding(updated.customerId);
+    return updated;
+  }
+
   async listPayments(invoiceId: string): Promise<PaymentEntity[]> {
     await this.getById(invoiceId);
     return this.listPaymentsForInvoice(invoiceId);
@@ -258,6 +312,10 @@ export class InvoiceService extends BaseService {
     input: PaymentCreateInput,
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
     const invoice = await this.getById(invoiceId);
+    if (normalizeInvoiceStatus(invoice.status) === 'cancelled') {
+      throw new ValidationError('Cancelled invoices cannot accept payments');
+    }
+
     const existingPayments = await this.listPaymentsForInvoice(invoiceId);
     const { outstanding: nextOutstanding } = applyBalance(invoice, existingPayments);
 
@@ -295,6 +353,9 @@ export class InvoiceService extends BaseService {
     input: PaymentUpdateInput,
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
     const invoice = await this.getById(invoiceId);
+    if (normalizeInvoiceStatus(invoice.status) === 'cancelled') {
+      throw new ValidationError('Cancelled invoices cannot accept payment changes');
+    }
     const existing = await paymentRepository.findById(paymentId);
     if (!existing || existing.invoiceId !== invoiceId) {
       throw new NotFoundError('Payment not found');
@@ -492,7 +553,6 @@ export class InvoiceService extends BaseService {
     const config = configs[0];
     const prefix = config?.invoicePrefix?.trim() || 'INV';
     const configuredRaw = config?.nextInvoiceNumber?.trim() || '0001';
-    const width = configuredRaw.replace(/\D/g, '').length || 4;
 
     const existing = await invoiceRepository.findAll();
     const used = new Set(
@@ -501,21 +561,23 @@ export class InvoiceService extends BaseService {
         .filter(Boolean),
     );
 
-    let numeric = Number.parseInt(configuredRaw.replace(/\D/g, ''), 10);
-    if (Number.isNaN(numeric) || numeric < 1) numeric = 1;
+    // Preserve exact formatting from Settings (dashes, slashes, spaces, etc.).
+    // Digits-only sequences still use the legacy `${prefix}-${sequence}` shape.
+    const formatted = hasInvoiceNumberFormatting(configuredRaw);
+    const toInvoiceNumber = (sequence: string): string =>
+      formatted ? sequence : `${prefix}-${sequence}`;
 
-    // Advance past any numbers already used (config can drift after deletes / restores).
-    let invoiceNumber = `${prefix}-${String(numeric).padStart(width, '0')}`;
+    let sequence = configuredRaw;
+    let invoiceNumber = toInvoiceNumber(sequence);
     while (used.has(invoiceNumber.toUpperCase())) {
-      numeric += 1;
-      invoiceNumber = `${prefix}-${String(numeric).padStart(width, '0')}`;
+      sequence = incrementFormattedInvoiceNumber(sequence);
+      invoiceNumber = toInvoiceNumber(sequence);
     }
 
     if (config) {
-      const nextInvoiceNumber = String(numeric + 1).padStart(width, '0');
       await invoiceConfigurationRepository.updateOrThrow(
         config.id,
-        { nextInvoiceNumber },
+        { nextInvoiceNumber: incrementFormattedInvoiceNumber(sequence) },
         'Invoice Configuration',
       );
     }

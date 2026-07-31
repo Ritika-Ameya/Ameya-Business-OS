@@ -1,6 +1,9 @@
 import { Calendar, FileText, Handshake, User } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CancelInvoiceDialog } from "@/features/revenue/components/invoices/CancelInvoiceDialog";
 import { InvoiceStatusBadge } from "@/features/revenue/components/invoices/InvoiceStatusBadge";
+import { Button } from "@/shared/ui/button";
 import {
   formatInvoiceCurrency,
   formatInvoiceDate,
@@ -39,6 +42,9 @@ function HeroMetric({
 }
 
 export function InvoiceHero({ invoice }: InvoiceHeroProps) {
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const canCancel = invoice.status !== "cancelled" && invoice.status !== "paid";
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20">
       <div className="p-6 sm:p-8">
@@ -46,7 +52,7 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <InvoiceStatusBadge status={invoice.status} />
-              {invoice.outstanding > 0 && (
+              {invoice.outstanding > 0 && invoice.status !== "cancelled" && (
                 <span className="rounded-full border border-amber-500/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   {formatInvoiceCurrency(invoice.outstanding)} due
                 </span>
@@ -83,6 +89,34 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
                 Due {formatInvoiceDate(invoice.dueDate)}
               </span>
             </div>
+
+            {invoice.status === "cancelled" && (
+              <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-sm">
+                <p className="font-medium text-rose-700 dark:text-rose-400">Cancelled</p>
+                {invoice.cancelledReason && (
+                  <p className="mt-1 text-muted-foreground">
+                    Reason: {invoice.cancelledReason}
+                  </p>
+                )}
+                <p className="mt-1 text-muted-foreground">
+                  {invoice.cancelledBy ? `By ${invoice.cancelledBy}` : null}
+                  {invoice.cancelledAt
+                    ? ` · ${formatInvoiceDate(invoice.cancelledAt)}`
+                    : null}
+                </p>
+              </div>
+            )}
+
+            {canCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-destructive hover:text-destructive"
+                onClick={() => setCancelOpen(true)}
+              >
+                Cancel Invoice
+              </Button>
+            )}
           </div>
 
           <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-lg lg:grid-cols-2">
@@ -97,7 +131,7 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
             <HeroMetric
               label="Outstanding"
               value={formatInvoiceCurrency(invoice.outstanding)}
-              highlight={invoice.outstanding > 0}
+              highlight={invoice.outstanding > 0 && invoice.status !== "cancelled"}
             />
             <HeroMetric
               label="Due Date"
@@ -106,6 +140,13 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
           </div>
         </div>
       </div>
+
+      <CancelInvoiceDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        invoiceId={invoice.id}
+        invoiceNo={invoice.invoiceNo}
+      />
     </div>
   );
 }

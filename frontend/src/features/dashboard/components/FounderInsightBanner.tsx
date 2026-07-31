@@ -5,10 +5,18 @@ import {
   getTimeOfDayGreeting,
 } from "@/features/dashboard/utils/dashboard-utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import {
+  getCompanyDisplayName,
+  resolveLogoDisplayUrl,
+} from "@/shared/utils/company-brand";
 
 export function FounderInsightBanner() {
   const { summary } = useDashboard();
+  const { company, branding } = useAppConfig();
   const insight = getFounderInsight(summary);
+  const companyName = getCompanyDisplayName(company.companyName);
+  const logoUrl = resolveLogoDisplayUrl(branding.logoUrl);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
@@ -17,9 +25,18 @@ export function FounderInsightBanner() {
 
       <div className="relative space-y-6">
         <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            Welcome to Ameya Business OS
-          </p>
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt=""
+                className="size-10 shrink-0 rounded-lg object-contain"
+              />
+            ) : null}
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Welcome to {companyName}
+            </p>
+          </div>
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {getTimeOfDayGreeting()}, Abhay 👋
           </h2>

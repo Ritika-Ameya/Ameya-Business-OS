@@ -41,17 +41,20 @@ function resolveEntityLabel(
   getInvoice: (id: string) => { invoiceNo: string } | undefined
 ): string | null {
   const segment = segments[index];
+  if (!segment) return null;
+
   const parent = segments[index - 1];
 
-  if (parent === "customers" && segment.startsWith("cust-")) {
+  // IDs are UUIDs (not legacy cust-/deal-/inv- prefixes) — resolve by lookup.
+  if (parent === "customers") {
     return getCustomer(segment)?.name ?? null;
   }
 
-  if (parent === "deals" && segment.startsWith("deal-")) {
+  if (parent === "deals") {
     return getDeal(segment)?.title ?? null;
   }
 
-  if (parent === "invoices" && segment.startsWith("inv-")) {
+  if (parent === "invoices") {
     return getInvoice(segment)?.invoiceNo ?? null;
   }
 

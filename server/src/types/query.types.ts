@@ -35,4 +35,6 @@ export interface QueryOptions {
   pagination?: PaginationParams;
   filters?: FilterCondition[];
   sort?: SortParams | null;
+  /** When true, soft-deleted rows are included (default: false). */
+  includeDeleted?: boolean;
 }

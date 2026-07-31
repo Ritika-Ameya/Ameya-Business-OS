@@ -1,9 +1,11 @@
 export type DashboardActivityType =
+  | "customer_created"
+  | "opportunity_created"
   | "invoice_generated"
-  | "payment_recorded"
-  | "deal_created"
-  | "renewal_completed"
-  | "expense_added";
+  | "payment_received"
+  | "renewal_added"
+  | "customer_updated"
+  | "entity_deleted";
 
 export interface DashboardActivity {
   id: string;
@@ -39,4 +41,13 @@ export interface FollowUpItem {
   dealTitle?: string;
   currentStage: string;
   nextActionDate: string;
+}
+
+export interface UpcomingRevenueItem {
+  id: string;
+  customer: string;
+  invoiceNumber: string;
+  dueDate: string;
+  amount: string;
+  status: string;
 }

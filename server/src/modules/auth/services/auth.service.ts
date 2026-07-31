@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { BaseService } from '../../../services/base.service';
 import { UnauthorizedError, ValidationError, ForbiddenError } from '../../../utils/AppError';
 import { toISOString } from '../../../utils/date.util';
+import { generateId } from '../../../utils/id.util';
 import type { UserEntity, SessionEntity } from '../../../types';
 import { userRepository } from '../repositories/user.repository';
 import { sessionRepository } from '../repositories/session.repository';
@@ -67,13 +68,21 @@ class AuthService extends BaseService {
       throw new UnauthorizedError('Invalid email or password');
     }
 
-    // Reset failed attempts on success
-    await userRepository.update(user.id, {
+    const needsSecurityReset =
+      (user.failedLoginAttempts || 0) > 0 || Boolean(user.lockedUntil);
+
+    const postLoginUserUpdate = {
       failedLoginAttempts: 0,
       lockedUntil: '',
       status: (user.status as string) === 'locked' ? 'active' : user.status,
       lastLoginAt: toISOString(),
-    } as Partial<UserEntity & Record<string, unknown>>);
+    } as Partial<UserEntity & Record<string, unknown>>;
+
+    // Security-critical unlock/reset must complete before tokens are issued.
+    // lastLoginAt alone is deferred to keep the critical path short.
+    if (needsSecurityReset) {
+      await userRepository.update(user.id, postLoginUserUpdate);
+    }
 
     // Enforce max sessions
     const existingSessions = await sessionRepository.findByUserId(user.id);
@@ -89,32 +98,34 @@ class AuthService extends BaseService {
       }
     }
 
-    // Create session
-    const session = await sessionRepository.create({
-      userId: user.id,
-      refreshTokenHash: '', // set after token generation
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      userAgent: userAgent.slice(0, 200),
-      ipAddress,
-      isRevoked: false,
-    } as Omit<SessionEntity & Record<string, unknown>, 'id'>);
-
+    // Create session once with refresh hash already set (avoids create + update round-trip).
+    const sessionId = generateId();
     const requestUser = {
       id: user.id,
       email: user.email,
       role: user.role,
       permissions: user.permissions ?? [],
     };
-
     const accessToken = generateAccessToken(requestUser);
-    const refreshToken = generateRefreshToken(user.id, session.id);
+    const refreshToken = generateRefreshToken(user.id, sessionId);
 
-    // Store hashed refresh token
-    await sessionRepository.update(session.id, {
+    await sessionRepository.create({
+      id: sessionId,
+      userId: user.id,
       refreshTokenHash: hashToken(refreshToken),
-    } as Partial<SessionEntity & Record<string, unknown>>);
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      userAgent: userAgent.slice(0, 200),
+      ipAddress,
+      isRevoked: false,
+    } as unknown as Omit<SessionEntity & Record<string, unknown>, 'id'>);
 
-    await this.auditLog('user', user.id, 'login', user.id, `IP: ${ipAddress}`);
+    if (!needsSecurityReset) {
+      void userRepository.update(user.id, postLoginUserUpdate).catch((err) => {
+        this.logError('Failed to update lastLoginAt after login', err);
+      });
+    }
+
+    void this.auditLog('user', user.id, 'login', user.id, `IP: ${ipAddress}`);
 
     return {
       accessToken,

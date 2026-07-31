@@ -1,8 +1,11 @@
 export type DashboardActivityTypeDto =
+  | "customer_created"
+  | "opportunity_created"
   | "invoice_generated"
-  | "payment_recorded"
-  | "deal_created"
-  | "expense_added";
+  | "payment_received"
+  | "renewal_added"
+  | "customer_updated"
+  | "entity_deleted";
 
 export interface DashboardActivityDto {
   id: string;
@@ -25,6 +28,15 @@ export interface UpcomingRenewalDto {
   renewal: string;
   dueDate: string;
   amount: number;
+}
+
+export interface UpcomingRevenueItemDto {
+  id: string;
+  customer: string;
+  invoiceNumber: string;
+  dueDate: string;
+  amount: number;
+  status: string;
 }
 
 export interface ChartMonthPointDto {
@@ -63,6 +75,10 @@ export interface DashboardSummaryDto {
   insight: { message: string };
   pendingCollections: PendingCollectionDto[];
   upcomingRenewalsList: UpcomingRenewalDto[];
+  upcomingRevenue: {
+    items: UpcomingRevenueItemDto[];
+    totalExpectedRevenue: number;
+  };
   chart: {
     points: ChartMonthPointDto[];
     expenseStats: DashboardExpenseStatsDto;

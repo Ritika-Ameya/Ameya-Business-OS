@@ -69,34 +69,49 @@ export const resolveUpdateAmounts = (
   return { subtotal, taxPercent, tax, total };
 };
 
+/** Map legacy sheet values to the current status vocabulary. */
+export const normalizeInvoiceStatus = (raw: string | undefined | null): InvoiceStatus => {
+  switch ((raw || '').trim().toLowerCase()) {
+    case 'sent':
+    case 'overdue':
+      return 'due';
+    case 'partial':
+      return 'partially_paid';
+    case 'draft':
+    case 'due':
+    case 'partially_paid':
+    case 'paid':
+    case 'cancelled':
+      return raw as InvoiceStatus;
+    default:
+      return 'draft';
+  }
+};
+
 export const resolveInvoiceStatus = (
   invoice: Pick<InvoiceEntity, 'status' | 'dueDate' | 'total'>,
   received: number,
 ): InvoiceStatus => {
+  const current = normalizeInvoiceStatus(invoice.status);
+  if (current === 'cancelled') {
+    return 'cancelled';
+  }
+
   const outstanding = computeOutstanding(invoice.total, received);
 
   if (outstanding <= 0.001) {
-    return 'paid';
+    return received > 0 || Number(invoice.total || 0) <= 0.001 ? 'paid' : current === 'draft' ? 'draft' : 'paid';
   }
 
   if (received > 0) {
-    return 'partial';
+    return 'partially_paid';
   }
 
-  const due = new Date(invoice.dueDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  due.setHours(0, 0, 0, 0);
-
-  if (invoice.dueDate && due < today && outstanding > 0) {
-    return 'overdue';
-  }
-
-  if (invoice.status === 'draft') {
+  if (current === 'draft') {
     return 'draft';
   }
 
-  return 'sent';
+  return 'due';
 };
 
 export const applyBalance = (

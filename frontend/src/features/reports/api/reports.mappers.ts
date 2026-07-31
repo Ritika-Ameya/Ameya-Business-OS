@@ -9,8 +9,8 @@ import type {
   ExpenseTransactionStatus,
   PayeeType,
 } from "@/features/expenses/types/expense";
-import type { Invoice, InvoiceStatus } from "@/features/revenue/types/invoice";
-import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
+import type { Invoice } from "@/features/revenue/types/invoice";
+import { formatInvoiceCurrency, normalizeInvoiceStatus } from "@/features/revenue/utils/invoice-utils";
 import type { CompanyRenewalRow } from "@/features/revenue/utils/revenue-utils";
 import { formatExpenseCurrency } from "@/features/expenses/utils/expense-utils";
 
@@ -27,7 +27,7 @@ export function mapReportInvoice(dto: ReportInvoiceItemDto): Invoice {
     outstanding: dto.outstanding,
     invoiceDate: dto.invoiceDate,
     dueDate: dto.dueDate,
-    status: dto.status as InvoiceStatus,
+    status: normalizeInvoiceStatus(dto.status),
     gstPercent: dto.gstPercent,
     componentIds: dto.componentIds ?? [],
     notes: dto.notes || undefined,
