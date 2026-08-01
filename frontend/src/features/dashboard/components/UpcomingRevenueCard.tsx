@@ -9,17 +9,19 @@ export function UpcomingRevenueCard() {
   const { items, totalExpectedRevenue } = getUpcomingRevenue(summary);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 px-5 py-4">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card accent-bar-orange dark:border-white/10">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-orange-500/10 to-amber-500/5 px-5 py-4">
         <div>
           <h3 className="text-sm font-semibold tracking-tight">Upcoming Revenue</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Revenue expected next month
           </p>
         </div>
-        <div className="text-right">
+        <div className="rounded-xl bg-orange-500/10 px-3 py-2 text-right ring-1 ring-orange-500/15">
           <p className="text-xs text-muted-foreground">Total Expected Revenue</p>
-          <p className="text-sm font-semibold">{totalExpectedRevenue}</p>
+          <p className="text-sm font-bold text-orange-700 dark:text-orange-300">
+            {totalExpectedRevenue}
+          </p>
         </div>
       </div>
 

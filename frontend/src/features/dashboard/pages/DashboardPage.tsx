@@ -9,6 +9,26 @@ import { RevenueExpenseChart } from "@/features/dashboard/components/RevenueExpe
 import { UpcomingRenewalsCard } from "@/features/dashboard/components/UpcomingRenewalsCard";
 import { UpcomingRevenueCard } from "@/features/dashboard/components/UpcomingRevenueCard";
 
+function SectionTitle({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="h-5 w-1 rounded-full bg-gradient-to-b from-blue-500 to-violet-500" />
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+      </div>
+      {subtitle ? (
+        <p className="pl-3 text-xs text-muted-foreground">{subtitle}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function DashboardPage() {
   return (
     <div className="space-y-8">
@@ -17,6 +37,7 @@ export function DashboardPage() {
       <FounderInsightBanner />
 
       <section className="space-y-4">
+        <SectionTitle title="Business Snapshot" subtitle="Live KPIs across revenue and operations" />
         <DashboardKpiCards />
       </section>
 
@@ -29,7 +50,7 @@ export function DashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-base font-semibold tracking-tight">Action Required</h2>
+        <SectionTitle title="Action Required" subtitle="Collections and renewals needing attention" />
         <div className="grid gap-4 lg:grid-cols-2">
           <PendingCollectionsCard />
           <UpcomingRenewalsCard />
@@ -45,7 +66,7 @@ export function DashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-base font-semibold tracking-tight">Quick Actions</h2>
+        <SectionTitle title="Quick Actions" subtitle="Jump into common workflows" />
         <DashboardQuickActions />
       </section>
     </div>

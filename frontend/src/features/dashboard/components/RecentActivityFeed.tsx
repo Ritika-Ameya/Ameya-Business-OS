@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  ChevronDown,
   FilePenLine,
   Receipt,
   RefreshCw,
@@ -7,6 +8,7 @@ import {
   UserPlus,
   Wallet,
 } from "lucide-react";
+import { useState } from "react";
 import {
   formatActivityTime,
   getRecentActivity,
@@ -59,47 +61,71 @@ const activityConfig: Record<
 export function RecentActivityFeed() {
   const { summary } = useDashboard();
   const activities = getRecentActivity(summary);
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card shadow-sm">
-      <div className="border-b border-border/50 px-5 py-4">
-        <h3 className="text-base font-semibold tracking-tight">Recent Actions</h3>
-      </div>
-
-      {activities.length === 0 ? (
-        <div className="px-5 py-10 text-center">
-          <p className="text-sm text-muted-foreground">No recent actions yet</p>
+    <div className="overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card accent-bar-indigo dark:border-white/10">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-indigo-500/10 to-blue-500/5 px-5 py-4 text-left transition-colors hover:from-indigo-500/15 hover:to-blue-500/10"
+      >
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">Recent Actions</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {activities.length === 0
+              ? "No recent activity"
+              : `${activities.length} recent ${activities.length === 1 ? "action" : "actions"}`}
+          </p>
         </div>
-      ) : (
-        <div className="divide-y divide-border/50">
-          {activities.map((activity) => {
-            const config = activityConfig[activity.type] ?? activityConfig.customer_updated;
-            const Icon = config.icon;
+        <ChevronDown
+          className={cn(
+            "size-5 shrink-0 text-muted-foreground transition-transform duration-200",
+            open && "rotate-180"
+          )}
+          aria-hidden
+        />
+      </button>
 
-            return (
-              <div key={activity.id} className="flex gap-4 px-5 py-4">
-                <div
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-xl",
-                    config.accent
-                  )}
-                >
-                  <Icon className={cn("size-4", config.iconColor)} />
-                </div>
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium">{activity.title}</p>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatActivityTime(activity.timestamp)}
-                    </span>
+      {open &&
+        (activities.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-muted-foreground">No recent actions yet</p>
+          </div>
+        ) : (
+          <div className="max-h-80 divide-y divide-border/50 overflow-y-auto">
+            {activities.map((activity) => {
+              const config =
+                activityConfig[activity.type] ?? activityConfig.customer_updated;
+              const Icon = config.icon;
+
+              return (
+                <div key={activity.id} className="flex gap-4 px-5 py-3.5">
+                  <div
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-xl",
+                      config.accent
+                    )}
+                  >
+                    <Icon className={cn("size-4", config.iconColor)} />
                   </div>
-                  <p className="text-sm text-muted-foreground">{activity.description}</p>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatActivityTime(activity.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {activity.description}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        ))}
     </div>
   );
 }

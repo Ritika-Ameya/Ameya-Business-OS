@@ -17,19 +17,19 @@ export function RevenueExpenseChart() {
   );
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
+    <div className="rounded-2xl border border-white/70 bg-card/95 p-5 shadow-card accent-bar-emerald sm:p-6 dark:border-white/10">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="text-base font-semibold tracking-tight">Revenue vs Expense</h3>
           <p className="text-sm text-muted-foreground">Last 6 months overview</p>
         </div>
-        <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex flex-wrap gap-4 text-xs font-medium">
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-emerald-500" />
+            <span className="size-2.5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shadow-sm" />
             Revenue
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-muted-foreground/40" />
+            <span className="size-2.5 rounded-full bg-gradient-to-br from-rose-400 to-orange-400 shadow-sm" />
             Expense
           </span>
         </div>
@@ -64,14 +64,14 @@ export function RevenueExpenseChart() {
                 <div className="flex h-40 w-full items-end justify-center gap-1 sm:gap-1.5">
                   <div
                     className={cn(
-                      "w-full max-w-5 rounded-t-md bg-emerald-500/80 transition-opacity group-hover:opacity-100",
-                      "opacity-90 dark:bg-emerald-500/70"
+                      "w-full max-w-5 rounded-t-lg bg-gradient-to-t from-emerald-600 to-teal-400 transition-all group-hover:brightness-110",
+                      "opacity-95 shadow-sm"
                     )}
                     style={{ height: `${revenueHeight}%` }}
                     title={`Revenue: ${formatInvoiceCurrency(point.revenue)}`}
                   />
                   <div
-                    className="w-full max-w-5 rounded-t-md bg-muted-foreground/25 transition-opacity group-hover:opacity-100"
+                    className="w-full max-w-5 rounded-t-lg bg-gradient-to-t from-rose-500 to-orange-300 opacity-90 shadow-sm transition-all group-hover:brightness-110"
                     style={{ height: `${Math.max(expenseHeight, 4)}%` }}
                     title={`Expense: ${formatInvoiceCurrency(point.expense)}`}
                   />
@@ -98,7 +98,7 @@ function ExpenseMetric({
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+    <div className="rounded-xl border border-border/50 bg-gradient-to-br from-muted/40 to-transparent px-4 py-3">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>

@@ -84,20 +84,6 @@ class AuthService extends BaseService {
       await userRepository.update(user.id, postLoginUserUpdate);
     }
 
-    // Enforce max sessions
-    const existingSessions = await sessionRepository.findByUserId(user.id);
-    if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
-      // Revoke oldest
-      const sorted = existingSessions.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
-      for (let i = 0; i <= sorted.length - MAX_SESSIONS_PER_USER; i++) {
-        await sessionRepository.update(sorted[i].id, {
-          isRevoked: true,
-        } as Partial<SessionEntity & Record<string, unknown>>);
-      }
-    }
-
     // Create session once with refresh hash already set (avoids create + update round-trip).
     const sessionId = generateId();
     const requestUser = {
@@ -119,13 +105,15 @@ class AuthService extends BaseService {
       isRevoked: false,
     } as unknown as Omit<SessionEntity & Record<string, unknown>, 'id'>);
 
-    if (!needsSecurityReset) {
-      void userRepository.update(user.id, postLoginUserUpdate).catch((err) => {
-        this.logError('Failed to update lastLoginAt after login', err);
-      });
-    }
-
-    void this.auditLog('user', user.id, 'login', user.id, `IP: ${ipAddress}`);
+    // Non-critical Sheets work (session cap + lastLoginAt + audit) runs after response
+    // so the client is not blocked on extra Google Sheets round-trips.
+    void this.finalizeSuccessfulLogin({
+      userId: user.id,
+      postLoginUserUpdate,
+      needsSecurityReset,
+      ipAddress,
+      keepSessionId: sessionId,
+    });
 
     return {
       accessToken,
@@ -138,6 +126,53 @@ class AuthService extends BaseService {
         permissions: user.permissions ?? [],
       },
     };
+  }
+
+  /** Background post-login housekeeping — never awaited on the login hot path. */
+  private async finalizeSuccessfulLogin(params: {
+    userId: string;
+    postLoginUserUpdate: Partial<UserEntity & Record<string, unknown>>;
+    needsSecurityReset: boolean;
+    ipAddress: string;
+    keepSessionId: string;
+  }): Promise<void> {
+    const { userId, postLoginUserUpdate, needsSecurityReset, ipAddress, keepSessionId } =
+      params;
+
+    try {
+      await this.enforceMaxSessions(userId, keepSessionId);
+    } catch (err) {
+      this.logError('Failed to enforce max sessions after login', err);
+    }
+
+    if (!needsSecurityReset) {
+      try {
+        await userRepository.update(userId, postLoginUserUpdate);
+      } catch (err) {
+        this.logError('Failed to update lastLoginAt after login', err);
+      }
+    }
+
+    void this.auditLog('user', userId, 'login', userId, `IP: ${ipAddress}`);
+  }
+
+  private async enforceMaxSessions(
+    userId: string,
+    keepSessionId: string,
+  ): Promise<void> {
+    const existingSessions = await sessionRepository.findByUserId(userId);
+    const active = existingSessions.filter((session) => session.id !== keepSessionId);
+    if (active.length < MAX_SESSIONS_PER_USER) return;
+
+    const sorted = active.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    const revokeCount = active.length - (MAX_SESSIONS_PER_USER - 1);
+    for (let i = 0; i < revokeCount; i++) {
+      await sessionRepository.update(sorted[i].id, {
+        isRevoked: true,
+      } as Partial<SessionEntity & Record<string, unknown>>);
+    }
   }
 
   async refresh(
@@ -202,6 +237,7 @@ class AuthService extends BaseService {
     if (refreshToken) {
       try {
         const payload = verifyRefreshToken(refreshToken);
+        // Revoke session; do not block the response on audit logging.
         await sessionRepository.update(payload.sessionId, {
           isRevoked: true,
         } as Partial<SessionEntity & Record<string, unknown>>);
@@ -209,7 +245,7 @@ class AuthService extends BaseService {
         // Token invalid/expired — no-op
       }
     }
-    await this.auditLog('user', userId, 'logout', userId);
+    void this.auditLog('user', userId, 'logout', userId);
   }
 
   async logoutAll(userId: string): Promise<void> {

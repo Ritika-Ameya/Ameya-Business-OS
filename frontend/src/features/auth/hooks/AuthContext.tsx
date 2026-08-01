@@ -46,14 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      const refreshToken = tokenStorage.getRefreshToken();
-      await authApi.logout(refreshToken ?? undefined);
-    } catch {
-      // Best-effort logout
-    }
+    const refreshToken = tokenStorage.getRefreshToken();
+    // Kick off server revoke while tokens are still available for Authorization,
+    // then clear local session immediately for instant UI logout.
+    const serverLogout = refreshToken
+      ? authApi.logout(refreshToken).catch(() => undefined)
+      : Promise.resolve();
     tokenStorage.clear();
     setUser(null);
+    void serverLogout;
   }, []);
 
   return (

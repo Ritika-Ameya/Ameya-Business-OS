@@ -42,7 +42,7 @@ export function CompanyBrandMark({
       <div className="min-w-0">
         {showSubtitleSplit && isDefaultName ? (
           <>
-            <p className="text-sm text-muted-foreground">Ameya</p>
+            <p className="text-sm opacity-60">Ameya</p>
             <h1 className={cn("truncate text-lg font-semibold", titleClassName)}>
               Business OS
             </h1>

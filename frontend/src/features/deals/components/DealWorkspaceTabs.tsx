@@ -38,40 +38,40 @@ export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorksp
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
-      <div className="overflow-x-auto pb-1">
+      <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/80 px-2 pt-1 shadow-card backdrop-blur-sm">
         <TabsList
           variant="line"
           className="h-auto w-max min-w-full justify-start gap-1 bg-transparent p-0"
         >
-          <TabsTrigger value="overview" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="overview" className="rounded-lg px-4 py-2.5">
             <LayoutGrid />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="components" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="components" className="rounded-lg px-4 py-2.5">
             <Layers />
             Components
           </TabsTrigger>
-          <TabsTrigger value="invoices" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="invoices" className="rounded-lg px-4 py-2.5">
             <Receipt />
             Invoices
           </TabsTrigger>
-          <TabsTrigger value="payments" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="payments" className="rounded-lg px-4 py-2.5">
             <Wallet />
             Payments
           </TabsTrigger>
-          <TabsTrigger value="renewals" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="renewals" className="rounded-lg px-4 py-2.5">
             <RefreshCw />
             Renewals
           </TabsTrigger>
-          <TabsTrigger value="documents" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="documents" className="rounded-lg px-4 py-2.5">
             <FileText />
             Documents
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="timeline" className="rounded-lg px-4 py-2.5">
             <History />
             Timeline
           </TabsTrigger>
-          <TabsTrigger value="notes" className="rounded-lg px-4 py-2">
+          <TabsTrigger value="notes" className="rounded-lg px-4 py-2.5">
             <StickyNote />
             Notes
           </TabsTrigger>
