@@ -45,7 +45,15 @@ interface DealsContextValue {
     payload: DealStageChangePayload,
     stages: SettingsStage[]
   ) => Promise<void>;
+  updateDeal: (id: string, data: DealFormData) => Promise<Deal>;
+  removeDeal: (id: string) => Promise<void>;
   addComponent: (dealId: string, data: ComponentFormData) => Promise<DealComponent>;
+  updateComponent: (
+    dealId: string,
+    componentId: string,
+    data: ComponentFormData
+  ) => Promise<DealComponent>;
+  removeComponent: (dealId: string, componentId: string) => Promise<void>;
   getComponentsByDeal: (dealId: string) => DealComponent[];
 }
 
@@ -71,8 +79,12 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const items = await dealsApi.list();
-      setDeals(items.map(mapDealFromDto));
+      const [dealItems, componentItems] = await Promise.all([
+        dealsApi.list(),
+        dealsApi.listAllComponents(),
+      ]);
+      setDeals(dealItems.map(mapDealFromDto));
+      setComponents(componentItems.map(mapComponentFromDto));
     } catch (err) {
       setError(getErrorMessage(err));
       setDeals([]);
@@ -129,6 +141,55 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateDeal = useCallback(async (id: string, data: DealFormData): Promise<Deal> => {
+    const updated = await dealsApi.update(id, {
+      title: data.title.trim(),
+      dealType: data.dealType,
+      contractValue: Number.parseFloat(data.contractValue.replace(/,/g, "")) || 0,
+      startDate: data.startDate,
+      description: data.description.trim(),
+    });
+    const deal = mapDealFromDto(updated);
+    setDeals((prev) => upsertDeal(prev, deal));
+    return deal;
+  }, []);
+
+  const removeDeal = useCallback(async (id: string) => {
+    await dealsApi.remove(id);
+    setDeals((prev) => prev.filter((deal) => deal.id !== id));
+    setComponents((prev) => prev.filter((component) => component.dealId !== id));
+  }, []);
+
+  const updateComponent = useCallback(
+    async (
+      dealId: string,
+      componentId: string,
+      data: ComponentFormData
+    ): Promise<DealComponent> => {
+      const updated = await dealsApi.updateComponent(
+        dealId,
+        componentId,
+        mapComponentFormToBody(data)
+      );
+      const component = mapComponentFromDto(updated);
+      setComponents((prev) => {
+        const index = prev.findIndex((item) => item.id === componentId);
+        if (index === -1) return [component, ...prev];
+        const next = [...prev];
+        next[index] = component;
+        return next;
+      });
+      return component;
+    },
+    []
+  );
+
+  const removeComponent = useCallback(async (dealId: string, componentId: string) => {
+    const deal = await dealsApi.removeComponent(dealId, componentId);
+    setComponents((prev) => prev.filter((component) => component.id !== componentId));
+    setDeals((prev) => upsertDeal(prev, mapDealFromDto(deal)));
+  }, []);
+
   const getDeal = useCallback(
     (id: string) => deals.find((deal) => deal.id === id),
     [deals]
@@ -148,9 +209,13 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       refreshDeals,
       loadComponentsForDeal,
       addDeal,
+      updateDeal,
+      removeDeal,
       getDeal,
       changeDealStage,
       addComponent,
+      updateComponent,
+      removeComponent,
       getComponentsByDeal,
     }),
     [
@@ -161,9 +226,13 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       refreshDeals,
       loadComponentsForDeal,
       addDeal,
+      updateDeal,
+      removeDeal,
       getDeal,
       changeDealStage,
       addComponent,
+      updateComponent,
+      removeComponent,
       getComponentsByDeal,
     ]
   );

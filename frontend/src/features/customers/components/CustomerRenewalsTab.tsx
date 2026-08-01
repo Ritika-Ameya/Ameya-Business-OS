@@ -9,8 +9,8 @@ interface CustomerRenewalsTabProps {
 }
 
 export function CustomerRenewalsTab({ customer }: CustomerRenewalsTabProps) {
-  const { deals } = useDeals();
-  const renewals = getCustomerRenewals(customer.id, deals);
+  const { deals, components } = useDeals();
+  const renewals = getCustomerRenewals(customer.id, deals, components);
 
   if (renewals.length === 0) {
     return (

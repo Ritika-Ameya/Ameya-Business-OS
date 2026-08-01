@@ -1,7 +1,7 @@
 import { Users } from "lucide-react";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
-import { Edit, Eye, MoreHorizontal } from "lucide-react";
+import { Edit, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
@@ -33,6 +33,7 @@ const statusStyles: Record<CustomerStatus, string> = {
 interface CustomerTableProps {
   customers: Customer[];
   onEdit: (customer: Customer) => void;
+  onDelete?: (customer: Customer) => void;
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
@@ -42,6 +43,7 @@ interface CustomerTableProps {
 export function CustomerTable({
   customers,
   onEdit,
+  onDelete,
   isFiltered = false,
   isEmpty = false,
   onAdd,
@@ -160,6 +162,18 @@ export function CustomerTable({
                         Create deal
                       </Link>
                     </DropdownMenuItem>
+                    {onDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => onDelete(customer)}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

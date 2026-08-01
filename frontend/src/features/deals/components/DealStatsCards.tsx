@@ -1,16 +1,21 @@
 import { CalendarClock, Handshake, Layers, Sparkles } from "lucide-react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { isRenewalThisMonth } from "@/shared/utils/format-date";
+import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
 import type { Deal } from "@/features/deals/types/deal";
+import type { DealComponent } from "@/features/deals/types/deal-component";
 
 interface DealStatsCardsProps {
   deals: Deal[];
+  components?: DealComponent[];
 }
 
-export function DealStatsCards({ deals }: DealStatsCardsProps) {
+export function DealStatsCards({ deals, components = [] }: DealStatsCardsProps) {
   const activeCount = deals.filter((deal) => deal.status === "active").length;
-  const renewalsThisMonth = deals.filter((deal) =>
-    isRenewalThisMonth(deal.nextRenewal)
+  const renewalsThisMonth = components.filter(
+    (component) =>
+      hasComponentRenewal(component.renewalFrequency) &&
+      isRenewalThisMonth(component.renewalDate)
   ).length;
 
   return (
@@ -29,7 +34,7 @@ export function DealStatsCards({ deals }: DealStatsCardsProps) {
       />
       <StatCard
         label="Components"
-        value="—"
+        value={String(components.length)}
         icon={<Layers className="size-5 text-amber-600 dark:text-amber-400" />}
         accent="bg-amber-500/10"
       />

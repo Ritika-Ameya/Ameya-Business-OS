@@ -60,7 +60,11 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
           )}
         </div>
       ) : (
-        <PaymentTable payments={payments} />
+        <PaymentTable
+          payments={payments}
+          invoiceId={invoiceId}
+          canModify={!isCancelled}
+        />
       )}
 
       {canRecordPayment && (

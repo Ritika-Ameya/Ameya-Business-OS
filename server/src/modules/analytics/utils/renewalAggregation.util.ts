@@ -1,43 +1,76 @@
-import type { DealEntity } from '../../deals/types/deal.entities';
+import type { DealComponentEntity, DealEntity } from '../../deals/types/deal.entities';
+import { hasRenewalFrequency } from '../../deals/utils/renewalHelpers.util';
+import { migrateDealRenewalsToComponents } from '../../deals/utils/renewalMigration.util';
+import { dealComponentRepository } from '../../deals/services/deal.repository';
 import type { RenewalRow, RenewalStatus, RenewalType } from '../types/analytics.types';
 
-const mapRenewalType = (frequency?: string): RenewalType => {
+export const mapComponentRenewalType = (frequency?: string): RenewalType => {
   switch (frequency) {
     case 'monthly':
       return 'monthly';
     case 'quarterly':
       return 'quarterly';
+    case 'half-yearly':
+      return 'half-yearly';
+    case 'biennial':
+      return 'biennial';
+    case 'custom':
+      return 'custom';
+    case 'yearly':
+    case 'annual':
     default:
-      return 'annual';
+      return 'yearly';
   }
 };
 
-/** Port of frontend `getCompanyRenewals` — amount as number. */
-export const getCompanyRenewals = (deals: DealEntity[]): RenewalRow[] => {
+/** Build renewal rows from Deal Components (not Deals). */
+export const getCompanyRenewals = (
+  deals: DealEntity[],
+  components: DealComponentEntity[],
+): RenewalRow[] => {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  return deals
-    .filter((deal) => Boolean(deal.nextRenewal) && deal.renewalFrequency !== 'none')
-    .map((deal) => {
-      const renewalDate = new Date(deal.nextRenewal);
+  const dealById = new Map(deals.map((deal) => [deal.id, deal]));
+
+  return components
+    .filter(
+      (component) =>
+        hasRenewalFrequency(component.renewalFrequency) &&
+        Boolean(component.renewalDate?.trim()),
+    )
+    .map((component) => {
+      const deal = dealById.get(component.dealId);
+      const renewalDate = new Date(component.renewalDate);
       renewalDate.setHours(0, 0, 0, 0);
       const status: RenewalStatus = renewalDate < now ? 'overdue' : 'upcoming';
 
       return {
-        id: `renewal-${deal.id}`,
-        dealId: deal.id,
-        customerId: deal.customerId,
-        customerName: deal.customerName,
-        renewalLabel: `${deal.title} Renewal`,
-        dealTitle: deal.title,
-        renewalDate: deal.nextRenewal,
-        amount: Number(deal.contractValue || 0),
+        id: `renewal-${component.id}`,
+        dealId: component.dealId,
+        componentId: component.id,
+        componentName: component.name,
+        customerId: deal?.customerId ?? '',
+        customerName: deal?.customerName ?? '',
+        renewalLabel: component.name,
+        dealTitle: deal?.title ?? '',
+        renewalStartDate: component.renewalStartDate || '',
+        renewalDate: component.renewalDate,
+        amount: Number(component.amount || 0),
         status,
-        renewalType: mapRenewalType(deal.renewalFrequency),
+        renewalType: mapComponentRenewalType(component.renewalFrequency),
+        renewalFrequency: component.renewalFrequency,
       };
     })
+    .filter((row) => Boolean(row.customerId))
     .sort(
       (a, b) => new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime(),
     );
+};
+
+/** Ensure migration ran, then aggregate from components. */
+export const loadCompanyRenewals = async (deals: DealEntity[]): Promise<RenewalRow[]> => {
+  await migrateDealRenewalsToComponents().catch(() => undefined);
+  const components = await dealComponentRepository.findAll();
+  return getCompanyRenewals(deals, components);
 };

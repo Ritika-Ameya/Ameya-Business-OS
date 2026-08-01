@@ -38,9 +38,13 @@ import {
 } from '../utils/dealSearch.util';
 import {
   assertStageChangeRequirements,
-  computeNextRenewal,
   getDefaultDealStage,
 } from '../utils/dealHelpers.util';
+import {
+  hasRenewalFrequency,
+  resolveComponentRenewalDate,
+} from '../utils/renewalHelpers.util';
+import { migrateDealRenewalsToComponents } from '../utils/renewalMigration.util';
 import { createDealTimelineEntry, prependDealTimelineEntry } from '../utils/timeline.util';
 
 const DOCUMENT_ENTITY_TYPE = 'deal';
@@ -108,11 +112,6 @@ export class DealService extends BaseService {
       ]);
     }
 
-    const renewalFrequency = input.renewalFrequency;
-    const nextRenewal =
-      input.nextRenewal.trim() ||
-      computeNextRenewal(input.startDate, renewalFrequency);
-
     const dealNumber =
       input.dealNumber.trim() || `DL-${generateShortId(8).toUpperCase()}`;
 
@@ -141,8 +140,8 @@ export class DealService extends BaseService {
       startDate: input.startDate,
       expectedCloseDate: input.expectedCloseDate,
       actualCloseDate: input.actualCloseDate,
-      nextRenewal,
-      renewalFrequency,
+      nextRenewal: '',
+      renewalFrequency: 'none',
       nextActionDate: input.nextActionDate,
       owner: input.owner.trim(),
       description: input.description.trim(),
@@ -171,10 +170,6 @@ export class DealService extends BaseService {
     let timeline = existing.timeline;
     const valueChanged =
       input.contractValue !== undefined && input.contractValue !== existing.contractValue;
-    const renewalChanged =
-      (input.nextRenewal !== undefined && input.nextRenewal !== existing.nextRenewal) ||
-      (input.renewalFrequency !== undefined &&
-        input.renewalFrequency !== existing.renewalFrequency);
 
     timeline = prependDealTimelineEntry(
       timeline,
@@ -197,27 +192,6 @@ export class DealService extends BaseService {
       );
     }
 
-    if (renewalChanged) {
-      timeline = prependDealTimelineEntry(
-        timeline,
-        createDealTimelineEntry({
-          action: 'renewal_updated',
-          stageId: existing.currentStageId,
-          stageName: 'Renewal Updated',
-        }),
-      );
-    }
-
-    const nextRenewal =
-      input.nextRenewal !== undefined
-        ? input.nextRenewal
-        : input.renewalFrequency !== undefined || input.startDate !== undefined
-          ? computeNextRenewal(
-              input.startDate ?? existing.startDate,
-              input.renewalFrequency ?? existing.renewalFrequency,
-            )
-          : existing.nextRenewal;
-
     return dealRepository.updateOrThrow(
       id,
       {
@@ -229,7 +203,9 @@ export class DealService extends BaseService {
         owner: input.owner?.trim(),
         description: input.description?.trim(),
         notes: input.notes?.trim(),
-        nextRenewal,
+        // Deal-level renewals are retired; keep sheet columns empty.
+        nextRenewal: '',
+        renewalFrequency: 'none',
         timeline,
       } as Partial<DealEntity>,
       'Deal',
@@ -237,7 +213,24 @@ export class DealService extends BaseService {
   }
 
   async remove(id: string): Promise<void> {
-    this.logInfo(`Soft-deleting deal ${id}`);
+    this.logInfo(`Soft-deleting deal ${id} and related components`);
+    await this.getById(id);
+    const [components, documents] = await Promise.all([
+      dealComponentRepository.findAll(),
+      documentRepository.findAll(),
+    ]);
+
+    for (const component of components.filter((item) => item.dealId === id)) {
+      await dealComponentRepository.deleteOrThrow(component.id, 'Component');
+    }
+
+    for (const document of documents.filter(
+      (item) => item.entityType === DOCUMENT_ENTITY_TYPE && item.entityId === id,
+    )) {
+      await deleteDriveFileQuietly(document.driveFileId);
+      await documentRepository.deleteOrThrow(document.id, 'Document');
+    }
+
     await dealRepository.deleteOrThrow(id, 'Deal');
   }
 
@@ -335,8 +328,18 @@ export class DealService extends BaseService {
     );
   }
 
+  async listAllComponents(): Promise<DealComponentEntity[]> {
+    await migrateDealRenewalsToComponents().catch((error) => {
+      this.logWarn('Deal→component renewal migration skipped', error);
+    });
+    return dealComponentRepository.findAll();
+  }
+
   async listComponents(dealId: string): Promise<DealComponentEntity[]> {
     await this.getById(dealId);
+    await migrateDealRenewalsToComponents().catch((error) => {
+      this.logWarn('Deal→component renewal migration skipped', error);
+    });
     const components = await dealComponentRepository.findAll();
     return components.filter((component) => component.dealId === dealId);
   }
@@ -347,6 +350,16 @@ export class DealService extends BaseService {
   ): Promise<{ component: DealComponentEntity; deal: DealEntity }> {
     const existing = await this.getById(dealId);
 
+    const renewalFrequency = input.renewalFrequency || 'none';
+    const renewalStartDate = hasRenewalFrequency(renewalFrequency)
+      ? input.renewalStartDate.trim()
+      : '';
+    const renewalDate = resolveComponentRenewalDate({
+      renewalFrequency,
+      renewalStartDate,
+      renewalDate: input.renewalDate,
+    });
+
     const component = await dealComponentRepository.create({
       dealId,
       name: input.name.trim(),
@@ -355,10 +368,12 @@ export class DealService extends BaseService {
       amount: input.amount,
       billingType: input.billingType,
       status: input.status,
-      renewalDate: input.renewalDate.trim(),
+      renewalFrequency,
+      renewalStartDate,
+      renewalDate,
     } as Omit<DealComponentEntity, 'id'>);
 
-    const timeline = prependDealTimelineEntry(
+    let timeline = prependDealTimelineEntry(
       existing.timeline,
       createDealTimelineEntry({
         action: 'component_added',
@@ -368,10 +383,24 @@ export class DealService extends BaseService {
       }),
     );
 
+    if (hasRenewalFrequency(renewalFrequency)) {
+      timeline = prependDealTimelineEntry(
+        timeline,
+        createDealTimelineEntry({
+          action: 'renewal_updated',
+          stageId: existing.currentStageId,
+          stageName: 'Renewal Updated',
+          notes: `${component.name}: ${renewalFrequency}`,
+        }),
+      );
+    }
+
     const deal = await dealRepository.updateOrThrow(
       dealId,
       {
         componentsCount: existing.componentsCount + 1,
+        nextRenewal: '',
+        renewalFrequency: 'none',
         timeline,
       },
       'Deal',
@@ -391,6 +420,21 @@ export class DealService extends BaseService {
       throw new NotFoundError('Component not found');
     }
 
+    const renewalFrequency = input.renewalFrequency ?? component.renewalFrequency ?? 'none';
+    const renewalStartDate = hasRenewalFrequency(renewalFrequency)
+      ? (input.renewalStartDate !== undefined
+          ? input.renewalStartDate.trim()
+          : component.renewalStartDate)
+      : '';
+    const renewalDate = hasRenewalFrequency(renewalFrequency)
+      ? resolveComponentRenewalDate({
+          renewalFrequency,
+          renewalStartDate,
+          renewalDate:
+            input.renewalDate !== undefined ? input.renewalDate : component.renewalDate,
+        })
+      : '';
+
     return dealComponentRepository.updateOrThrow(
       componentId,
       {
@@ -398,7 +442,9 @@ export class DealService extends BaseService {
         name: input.name?.trim(),
         category: input.category?.trim(),
         description: input.description?.trim(),
-        renewalDate: input.renewalDate?.trim(),
+        renewalFrequency,
+        renewalStartDate,
+        renewalDate,
       } as Partial<DealComponentEntity>,
       'Component',
     );

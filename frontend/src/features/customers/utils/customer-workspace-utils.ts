@@ -1,6 +1,14 @@
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
+import {
+  formatComponentCurrency,
+  hasComponentRenewal,
+} from "@/features/deals/utils/deal-component-utils";
 import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
 import type { Deal } from "@/features/deals/types/deal";
+import type {
+  ComponentRenewalFrequency,
+  DealComponent,
+} from "@/features/deals/types/deal-component";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment, PaymentMode, PaymentStatus } from "@/features/revenue/types/payment";
 
@@ -8,6 +16,7 @@ export interface CustomerPaymentHistoryItem {
   paymentId: string;
   invoiceId: string;
   invoiceNo: string;
+  dealId: string;
   dealTitle: string;
   paymentDate: string;
   amount: number;
@@ -20,11 +29,14 @@ export type CustomerRenewalStatus = "upcoming" | "overdue" | "scheduled";
 export interface CustomerRenewalItem {
   id: string;
   dealId: string;
+  componentName: string;
   renewalLabel: string;
   dealTitle: string;
   dueDate: string;
   amount: string;
   status: CustomerRenewalStatus;
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate: string;
 }
 
 export function getCustomerPaymentHistory(
@@ -43,6 +55,7 @@ export function getCustomerPaymentHistory(
         paymentId: payment.id,
         invoiceId: payment.invoiceId,
         invoiceNo: invoice.invoiceNo,
+        dealId: invoice.dealId,
         dealTitle: invoice.dealTitle,
         paymentDate: payment.paymentDate,
         amount: payment.amount,
@@ -58,26 +71,37 @@ export function getCustomerPaymentHistory(
 
 export function getCustomerRenewals(
   customerId: string,
-  deals: Deal[]
+  deals: Deal[],
+  components: DealComponent[] = []
 ): CustomerRenewalItem[] {
   const customerDeals = getDealsByCustomerId(deals, customerId);
+  const dealById = new Map(customerDeals.map((deal) => [deal.id, deal]));
   const now = new Date();
 
-  return customerDeals
-    .filter((deal) => deal.nextRenewal)
-    .map((deal) => {
-      const dueDate = new Date(deal.nextRenewal!);
+  return components
+    .filter(
+      (component) =>
+        dealById.has(component.dealId) &&
+        hasComponentRenewal(component.renewalFrequency) &&
+        Boolean(component.renewalDate)
+    )
+    .map((component) => {
+      const deal = dealById.get(component.dealId)!;
+      const dueDate = new Date(component.renewalDate!);
       const status: CustomerRenewalStatus =
         dueDate < now ? "overdue" : "upcoming";
 
       return {
-        id: `renewal-${deal.id}`,
+        id: `renewal-${component.id}`,
         dealId: deal.id,
-        renewalLabel: `${deal.title} Renewal`,
+        componentName: component.name,
+        renewalLabel: component.name,
         dealTitle: deal.title,
-        dueDate: deal.nextRenewal!,
-        amount: "—",
+        dueDate: component.renewalDate!,
+        amount: formatComponentCurrency(component.amount),
         status,
+        renewalFrequency: component.renewalFrequency,
+        renewalStartDate: component.renewalStartDate || "",
       };
     })
     .sort(

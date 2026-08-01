@@ -1,4 +1,6 @@
-import type { Deal, DealFilters, RenewalFrequency } from "@/features/deals/types/deal";
+import type { Deal, DealFilters } from "@/features/deals/types/deal";
+import type { DealComponent } from "@/features/deals/types/deal-component";
+import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
 import { isRenewalThisMonth, isUpcomingRenewal } from "@/shared/utils/format-date";
 
 export const defaultDealFilters: DealFilters = {
@@ -21,32 +23,38 @@ export const dealRenewalLabels: Record<DealFilters["renewal"], string> = {
   none: "No Renewal",
 };
 
-export const renewalFrequencyLabels: Record<RenewalFrequency, string> = {
-  none: "No Renewal",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  annual: "Annual",
-};
-
-export function computeNextRenewal(
-  startDate: string,
-  frequency: RenewalFrequency
-): string | undefined {
-  if (frequency === "none") return undefined;
-
-  const date = new Date(startDate);
-  if (frequency === "monthly") {
-    date.setMonth(date.getMonth() + 1);
-  } else if (frequency === "quarterly") {
-    date.setMonth(date.getMonth() + 3);
-  } else if (frequency === "annual") {
-    date.setFullYear(date.getFullYear() + 1);
-  }
-
-  return date.toISOString().split("T")[0];
+function getDealRenewalDates(
+  dealId: string,
+  components: DealComponent[]
+): string[] {
+  return components
+    .filter(
+      (component) =>
+        component.dealId === dealId &&
+        hasComponentRenewal(component.renewalFrequency) &&
+        Boolean(component.renewalDate)
+    )
+    .map((component) => component.renewalDate!)
+    .filter(Boolean);
 }
 
-export function filterDeals(deals: Deal[], query: string, filters: DealFilters): Deal[] {
+export function getEarliestComponentRenewal(
+  dealId: string,
+  components: DealComponent[]
+): string | undefined {
+  const dates = getDealRenewalDates(dealId, components)
+    .map((value) => ({ value, time: new Date(value).getTime() }))
+    .filter((item) => !Number.isNaN(item.time))
+    .sort((a, b) => a.time - b.time);
+  return dates[0]?.value;
+}
+
+export function filterDeals(
+  deals: Deal[],
+  query: string,
+  filters: DealFilters,
+  components: DealComponent[] = []
+): Deal[] {
   const normalizedQuery = query.trim().toLowerCase();
 
   return deals.filter((deal) => {
@@ -59,11 +67,14 @@ export function filterDeals(deals: Deal[], query: string, filters: DealFilters):
     const matchesStatus =
       filters.status === "all" || deal.status === filters.status;
 
+    const renewalDates = getDealRenewalDates(deal.id, components);
     const matchesRenewal =
       filters.renewal === "all" ||
-      (filters.renewal === "this-month" && isRenewalThisMonth(deal.nextRenewal)) ||
-      (filters.renewal === "upcoming" && isUpcomingRenewal(deal.nextRenewal)) ||
-      (filters.renewal === "none" && !deal.nextRenewal);
+      (filters.renewal === "this-month" &&
+        renewalDates.some((date) => isRenewalThisMonth(date))) ||
+      (filters.renewal === "upcoming" &&
+        renewalDates.some((date) => isUpcomingRenewal(date))) ||
+      (filters.renewal === "none" && renewalDates.length === 0);
 
     return matchesSearch && matchesStatus && matchesRenewal;
   });

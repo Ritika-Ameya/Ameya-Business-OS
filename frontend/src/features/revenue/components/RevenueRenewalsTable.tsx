@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { formatDate } from "@/shared/utils/format-date";
+import { componentRenewalFrequencyLabels } from "@/features/deals/utils/deal-component-utils";
 import {
   companyRenewalStatusStyles,
   renewalStatusLabels,
@@ -50,11 +51,12 @@ export function RevenueRenewalsTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="pl-4">Renewal</TableHead>
-            <TableHead>Customer</TableHead>
+            <TableHead className="pl-4">Customer</TableHead>
             <TableHead className="hidden md:table-cell">Deal</TableHead>
-            <TableHead>Renewal Date</TableHead>
-            <TableHead>Amount</TableHead>
+            <TableHead>Component</TableHead>
+            <TableHead className="hidden lg:table-cell">Start Date</TableHead>
+            <TableHead className="hidden lg:table-cell">Frequency</TableHead>
+            <TableHead>Next Renewal</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
           </TableRow>
@@ -68,17 +70,23 @@ export function RevenueRenewalsTable({
                 navigate(`/deals/${renewal.dealId}?tab=renewals`)
               }
             >
-              <TableCell className="pl-4 font-medium">{renewal.renewalLabel}</TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="pl-4 font-medium">
                 {renewal.customerName}
               </TableCell>
               <TableCell className="hidden max-w-[160px] truncate text-muted-foreground md:table-cell">
                 {renewal.dealTitle}
               </TableCell>
+              <TableCell>{renewal.componentName || renewal.renewalLabel}</TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
+                {formatDate(renewal.renewalStartDate)}
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
+                {componentRenewalFrequencyLabels[renewal.renewalFrequency] ||
+                  renewal.renewalType}
+              </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDate(renewal.renewalDate)}
               </TableCell>
-              <TableCell>{renewal.amount}</TableCell>
               <TableCell>
                 <Badge
                   variant="secondary"

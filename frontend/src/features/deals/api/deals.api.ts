@@ -47,6 +47,9 @@ export const dealsApi = {
   addTimelineNote: (id: string, body: { notes: string; nextActionDate?: string }) =>
     apiRequest<DealDto>(`${DEALS_BASE}/${id}/timeline`, { method: "POST", body }),
 
+  listAllComponents: () =>
+    apiRequest<DealComponentDto[]>(`${DEALS_BASE}/components`),
+
   listComponents: (id: string) =>
     apiRequest<DealComponentDto[]>(`${DEALS_BASE}/${id}/components`),
 
@@ -59,6 +62,12 @@ export const dealsApi = {
   removeComponent: (id: string, componentId: string) =>
     apiRequest<DealDto>(`${DEALS_BASE}/${id}/components/${componentId}`, {
       method: "DELETE",
+    }),
+
+  updateComponent: (id: string, componentId: string, body: DealComponentCreateBody) =>
+    apiRequest<DealComponentDto>(`${DEALS_BASE}/${id}/components/${componentId}`, {
+      method: "PUT",
+      body,
     }),
 
   listFiles: (id: string) =>

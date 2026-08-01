@@ -68,6 +68,7 @@ export interface CustomerCreateBody {
   stateId?: string;
   city?: string;
   pincode?: string;
+  allowDuplicateCompanyName?: boolean;
 }
 
 export interface CustomerStageChangeBody {

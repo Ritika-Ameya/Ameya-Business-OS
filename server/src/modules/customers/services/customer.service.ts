@@ -6,7 +6,7 @@ import {
   deriveFileType,
   uploadDocumentToDrive,
 } from '../../../services/documentUpload.service';
-import { NotFoundError, ValidationError } from '../../../utils/AppError';
+import { ConflictError, NotFoundError, ValidationError } from '../../../utils/AppError';
 import { assertForeignKeys } from '../../../utils/foreignKey.util';
 import { assertUniqueField } from '../../../utils/uniqueness.util';
 import { applyFilters } from '../../../utils/filtering.util';
@@ -19,6 +19,14 @@ import {
   stageMasterRepository,
   stateRepository,
 } from '../../masters/services/master.services';
+import {
+  dealComponentRepository,
+  dealRepository,
+} from '../../deals/services/deal.repository';
+import {
+  invoiceRepository,
+  paymentRepository,
+} from '../../revenue/services/revenue.repository';
 import type { CustomerEntity, DocumentEntity } from '../types/customer.entities';
 import type {
   CustomerCreateInput,
@@ -194,6 +202,7 @@ export class CustomerService extends BaseService {
       id,
       {
         ...input,
+        allowDuplicateCompanyName: undefined,
         companyName: input.companyName?.trim(),
         gstin: input.gstin?.trim().toUpperCase(),
         contactPerson: input.contactPerson?.trim(),
@@ -213,7 +222,50 @@ export class CustomerService extends BaseService {
   }
 
   async remove(id: string): Promise<void> {
-    this.logInfo(`Soft-deleting customer ${id}`);
+    this.logInfo(`Soft-deleting customer ${id} and related data`);
+    await this.getById(id);
+
+    const [deals, components, invoices, payments, documents] = await Promise.all([
+      dealRepository.findAll(),
+      dealComponentRepository.findAll(),
+      invoiceRepository.findAll(),
+      paymentRepository.findAll(),
+      documentRepository.findAll(),
+    ]);
+
+    const customerDeals = deals.filter((deal) => deal.customerId === id);
+    const customerInvoices = invoices.filter((invoice) => invoice.customerId === id);
+    const dealIds = new Set(customerDeals.map((deal) => deal.id));
+    const invoiceIds = new Set(customerInvoices.map((invoice) => invoice.id));
+
+    for (const component of components.filter((item) => dealIds.has(item.dealId))) {
+      await dealComponentRepository.deleteOrThrow(component.id, 'Component');
+    }
+
+    for (const payment of payments.filter((item) => invoiceIds.has(item.invoiceId))) {
+      await paymentRepository.deleteOrThrow(payment.id, 'Payment');
+    }
+
+    for (const document of documents) {
+      const isCustomerDoc =
+        document.entityType === DOCUMENT_ENTITY_TYPE && document.entityId === id;
+      const isDealDoc =
+        document.entityType === 'deal' && dealIds.has(document.entityId);
+      const isInvoiceDoc =
+        document.entityType === 'invoice' && invoiceIds.has(document.entityId);
+      if (!isCustomerDoc && !isDealDoc && !isInvoiceDoc) continue;
+      await deleteDriveFileQuietly(document.driveFileId);
+      await documentRepository.deleteOrThrow(document.id, 'Document');
+    }
+
+    for (const invoice of customerInvoices) {
+      await invoiceRepository.deleteOrThrow(invoice.id, 'Invoice');
+    }
+
+    for (const deal of customerDeals) {
+      await dealRepository.deleteOrThrow(deal.id, 'Deal');
+    }
+
     await customerRepository.deleteOrThrow(id, 'Customer');
   }
 
@@ -482,12 +534,33 @@ export class CustomerService extends BaseService {
     >;
 
     if ('companyName' in normalized) {
-      assertUniqueField(entities, {
-        field: 'companyName',
-        value: normalized.companyName,
-        label: 'Customer',
-        excludeId,
-      });
+      const allowDuplicate = Boolean(
+        (candidate as { allowDuplicateCompanyName?: boolean }).allowDuplicateCompanyName,
+      );
+      if (!allowDuplicate) {
+        const expected = String(normalized.companyName ?? '')
+          .trim()
+          .toLowerCase();
+        if (expected) {
+          const duplicate = entities.find((entity) => {
+            if (excludeId && entity.id === excludeId) return false;
+            return (
+              String(entity.companyName ?? '')
+                .trim()
+                .toLowerCase() === expected
+            );
+          });
+          if (duplicate) {
+            const existingName = String(
+              duplicate.contactPerson || duplicate.companyName || 'Unknown',
+            ).trim();
+            throw new ConflictError(
+              `Customer with companyName "${String(normalized.companyName).trim()}" already exists`,
+              [existingName],
+            );
+          }
+        }
+      }
     }
 
     if ('gstin' in normalized) {

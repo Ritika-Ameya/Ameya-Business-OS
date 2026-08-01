@@ -102,21 +102,6 @@ export const buildRecentActivity = (
         timestamp: entry.timestamp,
       });
     }
-
-    if (
-      renewalEntries.length === 0 &&
-      deal.nextRenewal &&
-      deal.renewalFrequency &&
-      deal.renewalFrequency !== 'none'
-    ) {
-      items.push({
-        id: `renewal-added-${deal.id}`,
-        type: 'renewal_added',
-        title: 'Renewal Added',
-        description: `${deal.title || deal.dealNumber} · ${deal.customerName || ''}`.trim(),
-        timestamp: deal.updatedAt || deal.createdAt,
-      });
-    }
   }
 
   for (const invoice of invoices) {

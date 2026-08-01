@@ -21,7 +21,9 @@ import {
 } from "@/shared/ui/table";
 import { formatDate } from "@/shared/utils/format-date";
 import { cn } from "@/shared/utils";
+import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
 import type { Deal, DealStatus } from "@/features/deals/types/deal";
+import type { DealComponent } from "@/features/deals/types/deal-component";
 
 const statusStyles: Record<DealStatus, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -32,18 +34,24 @@ const statusStyles: Record<DealStatus, string> = {
 
 interface DealTableProps {
   deals: Deal[];
+  components?: DealComponent[];
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
   onResetFilters?: () => void;
+  onEdit?: (deal: Deal) => void;
+  onDelete?: (deal: Deal) => void;
 }
 
 export function DealTable({
   deals,
+  components = [],
   isFiltered = false,
   isEmpty = false,
   onAdd,
   onResetFilters,
+  onEdit,
+  onDelete,
 }: DealTableProps) {
   if (deals.length === 0) {
     if (isEmpty) {
@@ -84,7 +92,9 @@ export function DealTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {deals.map((deal) => (
+          {deals.map((deal) => {
+            const nextRenewal = getEarliestComponentRenewal(deal.id, components);
+            return (
             <TableRow key={deal.id} className="group">
               <TableCell className="pl-4">
                 <Link
@@ -93,7 +103,7 @@ export function DealTable({
                 >
                   <p className="font-medium">{deal.title}</p>
                   <p className="text-xs text-muted-foreground lg:hidden">
-                    {formatDate(deal.nextRenewal)}
+                    {formatDate(nextRenewal)}
                   </p>
                 </Link>
               </TableCell>
@@ -113,7 +123,7 @@ export function DealTable({
                 {deal.componentsCount}
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {formatDate(deal.nextRenewal)}
+                {formatDate(nextRenewal)}
               </TableCell>
               <TableCell>
                 <Badge
@@ -130,7 +140,13 @@ export function DealTable({
                       <Eye />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit deal" disabled>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit deal"
+                    disabled={!onEdit}
+                    onClick={() => onEdit?.(deal)}
+                  >
                     <Edit />
                   </Button>
                   <DropdownMenu>
@@ -150,14 +166,29 @@ export function DealTable({
                       <DropdownMenuItem asChild>
                         <Link to={`/customers/${deal.customerId}`}>View customer</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Edit deal</DropdownMenuItem>
+                      {onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(deal)}>
+                          Edit deal
+                        </DropdownMenuItem>
+                      )}
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete(deal)}
+                          >
+                            Delete deal
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </ResponsiveTableFrame>

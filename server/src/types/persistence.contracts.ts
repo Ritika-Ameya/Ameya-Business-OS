@@ -115,6 +115,8 @@ export const DEAL_COMPONENTS_CONTRACT: PersistenceContract = {
     'amount',
     'billingType',
     'status',
+    'renewalFrequency',
+    'renewalStartDate',
     'renewalDate',
   ]),
 };

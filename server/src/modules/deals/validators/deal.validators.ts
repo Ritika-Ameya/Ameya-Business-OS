@@ -1,7 +1,7 @@
 import { z } from 'zod';
+import { hasRenewalFrequency } from '../utils/renewalHelpers.util';
 
 export const dealStatusSchema = z.enum(['draft', 'active', 'completed', 'on-hold']);
-export const renewalFrequencySchema = z.enum(['none', 'monthly', 'quarterly', 'annual']);
 export const billingTypeSchema = z.enum([
   'one-time',
   'monthly',
@@ -10,6 +10,15 @@ export const billingTypeSchema = z.enum([
   'yearly',
 ]);
 export const componentStatusSchema = z.enum(['pending', 'in-progress', 'completed']);
+export const componentRenewalFrequencySchema = z.enum([
+  'none',
+  'monthly',
+  'quarterly',
+  'half-yearly',
+  'yearly',
+  'biennial',
+  'custom',
+]);
 
 const optionalDateSchema = z.string().default('');
 
@@ -26,8 +35,6 @@ export const dealCreateSchema = z.object({
   startDate: z.string().min(1, 'Start date is required'),
   expectedCloseDate: optionalDateSchema,
   actualCloseDate: optionalDateSchema,
-  nextRenewal: optionalDateSchema,
-  renewalFrequency: renewalFrequencySchema.default('none'),
   nextActionDate: optionalDateSchema,
   owner: z.string().default(''),
   description: z.string().max(5000).default(''),
@@ -58,17 +65,61 @@ export const dealTimelineNoteSchema = z.object({
   nextActionDate: z.string().optional(),
 });
 
-export const dealComponentCreateSchema = z.object({
-  name: z.string().min(1, 'Component name is required'),
-  category: z.string().default(''),
-  description: z.string().default(''),
-  amount: z.coerce.number().min(0, 'Amount must be 0 or greater'),
-  billingType: billingTypeSchema.default('one-time'),
-  status: componentStatusSchema.default('pending'),
-  renewalDate: z.string().default(''),
-});
+const componentRenewalRefine = <T extends {
+  renewalFrequency?: string;
+  renewalStartDate?: string;
+  renewalDate?: string;
+}>(
+  data: T,
+  ctx: z.RefinementCtx,
+) => {
+  const frequency = data.renewalFrequency ?? 'none';
+  if (!hasRenewalFrequency(frequency)) return;
 
-export const dealComponentUpdateSchema = dealComponentCreateSchema.partial();
+  if (!String(data.renewalStartDate ?? '').trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Renewal start date is required when renewal frequency is selected',
+      path: ['renewalStartDate'],
+    });
+  }
+
+  if (frequency === 'custom' && !String(data.renewalDate ?? '').trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Custom renewal date is required when frequency is Custom Date',
+      path: ['renewalDate'],
+    });
+  }
+};
+
+export const dealComponentCreateSchema = z
+  .object({
+    name: z.string().min(1, 'Component name is required'),
+    category: z.string().default(''),
+    description: z.string().default(''),
+    amount: z.coerce.number().min(0, 'Amount must be 0 or greater'),
+    billingType: billingTypeSchema.default('one-time'),
+    status: componentStatusSchema.default('pending'),
+    renewalFrequency: componentRenewalFrequencySchema.default('none'),
+    renewalStartDate: z.string().default(''),
+    renewalDate: z.string().default(''),
+  })
+  .superRefine(componentRenewalRefine);
+
+export const dealComponentUpdateSchema = z
+  .object({
+    name: z.string().min(1, 'Component name is required').optional(),
+    category: z.string().optional(),
+    description: z.string().optional(),
+    amount: z.coerce.number().min(0, 'Amount must be 0 or greater').optional(),
+    billingType: billingTypeSchema.optional(),
+    status: componentStatusSchema.optional(),
+    renewalFrequency: componentRenewalFrequencySchema.optional(),
+    renewalStartDate: z.string().optional(),
+    renewalDate: z.string().optional(),
+  })
+  .superRefine(componentRenewalRefine);
 
 export const dealDocumentCreateSchema = z.object({
   name: z.string().min(1, 'File name is required'),

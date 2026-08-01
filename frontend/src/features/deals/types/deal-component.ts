@@ -7,6 +7,15 @@ export type BillingType =
 
 export type ComponentStatus = "pending" | "in-progress" | "completed";
 
+export type ComponentRenewalFrequency =
+  | "none"
+  | "monthly"
+  | "quarterly"
+  | "half-yearly"
+  | "yearly"
+  | "biennial"
+  | "custom";
+
 export interface DealComponent {
   id: string;
   dealId: string;
@@ -16,6 +25,8 @@ export interface DealComponent {
   amount: number;
   billingType: BillingType;
   status: ComponentStatus;
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate?: string;
   renewalDate?: string;
 }
 
@@ -28,7 +39,8 @@ export interface ComponentFormData {
   quantity: string;
   discount: string;
   billingType: BillingType;
-  renewalApplicable: boolean;
+  renewalFrequency: ComponentRenewalFrequency | "";
+  renewalStartDate: string;
   renewalDate: string;
   status: ComponentStatus;
 }

@@ -30,12 +30,19 @@ interface InvoiceTableProps {
   invoices: Invoice[];
   isFiltered?: boolean;
   onResetFilters?: () => void;
+  onEdit?: (invoice: Invoice) => void;
+  onDelete?: (invoice: Invoice) => void;
+  /** When true, hide Customer column (used on customer workspace). */
+  hideCustomerColumn?: boolean;
 }
 
 export function InvoiceTable({
   invoices,
   isFiltered = false,
   onResetFilters,
+  onEdit,
+  onDelete,
+  hideCustomerColumn = false,
 }: InvoiceTableProps) {
   if (invoices.length === 0) {
     return (
@@ -55,8 +62,8 @@ export function InvoiceTable({
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Invoice No</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead className="hidden md:table-cell">Deal</TableHead>
+            {!hideCustomerColumn && <TableHead>Customer</TableHead>}
+            <TableHead>Deal</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead className="hidden lg:table-cell">Received</TableHead>
             <TableHead>Outstanding</TableHead>
@@ -76,11 +83,24 @@ export function InvoiceTable({
                   {invoice.invoiceNo}
                 </Link>
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {invoice.customerName}
-              </TableCell>
-              <TableCell className="hidden max-w-[180px] truncate text-muted-foreground md:table-cell">
-                {invoice.dealTitle}
+              {!hideCustomerColumn && (
+                <TableCell className="text-muted-foreground">
+                  {invoice.customerName}
+                </TableCell>
+              )}
+              <TableCell className="max-w-[200px] truncate">
+                {invoice.dealId ? (
+                  <Link
+                    to={`/deals/${invoice.dealId}`}
+                    className="font-medium transition-colors hover:text-primary"
+                  >
+                    {invoice.dealTitle || "—"}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {invoice.dealTitle || "—"}
+                  </span>
+                )}
               </TableCell>
               <TableCell className="font-medium">
                 {formatInvoiceCurrency(invoice.amount)}
@@ -116,7 +136,13 @@ export function InvoiceTable({
                       <Eye />
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit invoice" disabled>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit invoice"
+                    disabled={!onEdit || invoice.status === "cancelled"}
+                    onClick={() => onEdit?.(invoice)}
+                  >
                     <Edit />
                   </Button>
                   <DropdownMenu>
@@ -133,9 +159,22 @@ export function InvoiceTable({
                       <DropdownMenuItem asChild>
                         <Link to={`/invoices/${invoice.id}`}>View workspace</Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled>Download PDF</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Send reminder</DropdownMenuItem>
+                      {onEdit && invoice.status !== "cancelled" && (
+                        <DropdownMenuItem onClick={() => onEdit(invoice)}>
+                          Edit invoice
+                        </DropdownMenuItem>
+                      )}
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete(invoice)}
+                          >
+                            Delete invoice
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

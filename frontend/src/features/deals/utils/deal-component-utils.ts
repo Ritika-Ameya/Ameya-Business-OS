@@ -1,4 +1,9 @@
-import type { BillingType, ComponentFormData, ComponentStatus } from "@/features/deals/types/deal-component";
+import type {
+  BillingType,
+  ComponentFormData,
+  ComponentRenewalFrequency,
+  ComponentStatus,
+} from "@/features/deals/types/deal-component";
 
 export function formatComponentCurrency(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
@@ -17,6 +22,53 @@ export function formatComponentDate(date?: string): string {
   }).format(new Date(date));
 }
 
+export function hasComponentRenewal(
+  frequency?: ComponentRenewalFrequency | "" | null
+): boolean {
+  return Boolean(frequency) && frequency !== "none";
+}
+
+export function computeComponentNextRenewal(
+  startDate: string,
+  frequency: ComponentRenewalFrequency,
+  customNextDate = ""
+): string {
+  if (!hasComponentRenewal(frequency)) return "";
+
+  if (frequency === "custom") {
+    return customNextDate.trim() || startDate.trim() || "";
+  }
+
+  if (!startDate.trim()) return "";
+
+  const date = new Date(startDate);
+  if (Number.isNaN(date.getTime())) return "";
+
+  if (frequency === "monthly") date.setMonth(date.getMonth() + 1);
+  else if (frequency === "quarterly") date.setMonth(date.getMonth() + 3);
+  else if (frequency === "half-yearly") date.setMonth(date.getMonth() + 6);
+  else if (frequency === "yearly") date.setFullYear(date.getFullYear() + 1);
+  else if (frequency === "biennial") date.setFullYear(date.getFullYear() + 2);
+
+  return date.toISOString().split("T")[0];
+}
+
+export function resolveComponentRenewalDate(input: {
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate: string;
+  renewalDate?: string;
+}): string {
+  const frequency = input.renewalFrequency || "none";
+  if (!hasComponentRenewal(frequency)) return "";
+
+  const explicit = (input.renewalDate ?? "").trim();
+  if (frequency === "custom") {
+    return explicit || input.renewalStartDate.trim();
+  }
+
+  return explicit || computeComponentNextRenewal(input.renewalStartDate, frequency);
+}
+
 export function validateComponentForm(
   data: ComponentFormData
 ): Partial<Record<keyof ComponentFormData, string>> {
@@ -30,6 +82,15 @@ export function validateComponentForm(
     errors.amount = "Amount is required";
   } else if (parseAmount(data.amount) <= 0) {
     errors.amount = "Enter a valid amount";
+  }
+
+  if (hasComponentRenewal(data.renewalFrequency)) {
+    if (!data.renewalStartDate.trim()) {
+      errors.renewalStartDate = "Renewal start date is required when frequency is selected";
+    }
+    if (data.renewalFrequency === "custom" && !data.renewalDate.trim()) {
+      errors.renewalDate = "Custom renewal date is required";
+    }
   }
 
   return errors;
@@ -46,6 +107,16 @@ export const billingTypeLabels: Record<BillingType, string> = {
   quarterly: "Quarterly",
   "half-yearly": "Half Yearly",
   yearly: "Yearly",
+};
+
+export const componentRenewalFrequencyLabels: Record<ComponentRenewalFrequency, string> = {
+  none: "No Renewal",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  "half-yearly": "Half Yearly",
+  yearly: "Yearly",
+  biennial: "Biennial",
+  custom: "Custom Date",
 };
 
 export const componentStatusLabels: Record<ComponentStatus, string> = {

@@ -60,6 +60,12 @@ export const invoicesApi = {
       method: "DELETE",
     }),
 
+  updatePayment: (id: string, paymentId: string, body: PaymentCreateBody) =>
+    apiRequest<{ payment: PaymentDto; invoice: InvoiceDto }>(
+      `${INVOICES_BASE}/${id}/payments/${paymentId}`,
+      { method: "PUT", body }
+    ),
+
   listFiles: (id: string) =>
     apiRequest<InvoiceDocumentDto[]>(`${INVOICES_BASE}/${id}/files`),
 

@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { formatDate } from "@/shared/utils/format-date";
+import { componentRenewalFrequencyLabels } from "@/features/deals/utils/deal-component-utils";
 import {
   customerRenewalStatusLabels,
   customerRenewalStatusStyles,
@@ -26,9 +27,10 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="pl-4">Renewal</TableHead>
+            <TableHead className="pl-4">Component</TableHead>
             <TableHead>Deal</TableHead>
-            <TableHead>Due Date</TableHead>
+            <TableHead className="hidden md:table-cell">Frequency</TableHead>
+            <TableHead>Next Renewal</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead className="pr-4">Status</TableHead>
           </TableRow>
@@ -41,11 +43,19 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
                   to={`/deals/${renewal.dealId}?tab=renewals`}
                   className="font-medium transition-colors hover:text-primary"
                 >
-                  {renewal.renewalLabel}
+                  {renewal.componentName || renewal.renewalLabel}
                 </Link>
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {renewal.dealTitle}
+              <TableCell>
+                <Link
+                  to={`/deals/${renewal.dealId}`}
+                  className="font-medium transition-colors hover:text-primary"
+                >
+                  {renewal.dealTitle || "—"}
+                </Link>
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">
+                {componentRenewalFrequencyLabels[renewal.renewalFrequency]}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDate(renewal.dueDate)}

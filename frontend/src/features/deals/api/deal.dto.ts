@@ -1,11 +1,8 @@
 import type { BaseEntityDto } from "@/shared/api/types";
-import type {
-  DealStatus,
-  DealTimelineEntry,
-  RenewalFrequency,
-} from "@/features/deals/types/deal";
+import type { DealStatus, DealTimelineEntry } from "@/features/deals/types/deal";
 import type {
   BillingType,
+  ComponentRenewalFrequency,
   ComponentStatus,
 } from "@/features/deals/types/deal-component";
 
@@ -23,8 +20,10 @@ export interface DealDto extends BaseEntityDto {
   startDate: string;
   expectedCloseDate: string;
   actualCloseDate: string;
-  nextRenewal: string;
-  renewalFrequency: RenewalFrequency;
+  /** @deprecated Kept for API back-compat; unused by UI. */
+  nextRenewal?: string;
+  /** @deprecated Kept for API back-compat; unused by UI. */
+  renewalFrequency?: string;
   nextActionDate: string;
   owner: string;
   description: string;
@@ -41,6 +40,8 @@ export interface DealComponentDto extends BaseEntityDto {
   amount: number;
   billingType: BillingType;
   status: ComponentStatus;
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate: string;
   renewalDate: string;
 }
 
@@ -62,7 +63,6 @@ export interface DealCreateBody {
   dealType: string;
   contractValue: number;
   startDate: string;
-  renewalFrequency: RenewalFrequency;
   description?: string;
   status?: DealStatus;
   currency?: string;
@@ -84,5 +84,7 @@ export interface DealComponentCreateBody {
   amount: number;
   billingType: BillingType;
   status: ComponentStatus;
+  renewalFrequency?: ComponentRenewalFrequency;
+  renewalStartDate?: string;
   renewalDate?: string;
 }

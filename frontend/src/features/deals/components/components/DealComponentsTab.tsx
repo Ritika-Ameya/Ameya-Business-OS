@@ -6,6 +6,7 @@ import { DealComponentsEmptyState } from "@/features/deals/components/components
 import { DealComponentsTable } from "@/features/deals/components/components/DealComponentsTable";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import type { DealComponent } from "@/features/deals/types/deal-component";
 
 interface DealComponentsTabProps {
   dealId: string;
@@ -13,13 +14,13 @@ interface DealComponentsTabProps {
 
 export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<DealComponent | null>(null);
   const [loading, setLoading] = useState(true);
-  const { getComponentsByDeal, loadComponentsForDeal } = useDeals();
+  const { getComponentsByDeal, loadComponentsForDeal, removeComponent } = useDeals();
   const components = getComponentsByDeal(dealId);
 
   useEffect(() => {
     let cancelled = false;
-    // Load components for this deal
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount / deal change
     setLoading(true);
     void loadComponentsForDeal(dealId).finally(() => {
@@ -30,13 +31,25 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
     };
   }, [dealId, loadComponentsForDeal]);
 
+  const handleDelete = async (component: DealComponent) => {
+    const confirmed = window.confirm(`Delete component "${component.name}"?`);
+    if (!confirmed) return;
+    await removeComponent(dealId, component.id);
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Deal Components"
         subtitle="Manage all billable components of this deal."
         action={
-          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+          <Button
+            className="rounded-xl"
+            onClick={() => {
+              setEditingComponent(null);
+              setDialogOpen(true);
+            }}
+          >
             <Plus />
             Add Component
           </Button>
@@ -46,15 +59,34 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading components…</p>
       ) : components.length === 0 ? (
-        <DealComponentsEmptyState onAddComponent={() => setDialogOpen(true)} />
+        <DealComponentsEmptyState
+          onAddComponent={() => {
+            setEditingComponent(null);
+            setDialogOpen(true);
+          }}
+        />
       ) : (
-        <DealComponentsTable components={components} />
+        <DealComponentsTable
+          components={components}
+          onEdit={(component) => {
+            setEditingComponent(component);
+            setDialogOpen(true);
+          }}
+          onDelete={(component) => {
+            void handleDelete(component);
+          }}
+        />
       )}
 
       <AddComponentDialog
+        key={`${editingComponent?.id ?? "new"}-${dialogOpen}`}
         dealId={dealId}
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingComponent(null);
+        }}
+        initialComponent={editingComponent}
       />
     </div>
   );

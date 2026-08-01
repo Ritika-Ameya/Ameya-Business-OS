@@ -1,5 +1,5 @@
 import { Receipt } from "lucide-react";
-import { InvoiceTable } from "@/features/revenue/components/invoices/InvoiceTable";
+import { InvoiceTableWithActions } from "@/features/revenue/components/invoices/InvoiceTableWithActions";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -25,5 +25,5 @@ export function CustomerInvoicesTab({ customer }: CustomerInvoicesTabProps) {
     );
   }
 
-  return <InvoiceTable invoices={customerInvoices} />;
+  return <InvoiceTableWithActions invoices={customerInvoices} hideCustomerColumn />;
 }

@@ -43,14 +43,25 @@ export interface OutstandingReportItemDto extends ReportInvoiceItemDto {
 export interface RenewalReportItemDto {
   id: string;
   dealId: string;
+  componentId?: string;
+  componentName?: string;
   customerId: string;
   customerName: string;
   renewalLabel: string;
   dealTitle: string;
+  renewalStartDate?: string;
   renewalDate: string;
   amount: number;
   status: "upcoming" | "overdue" | "renewed";
-  renewalType: "monthly" | "quarterly" | "annual";
+  renewalType:
+    | "monthly"
+    | "quarterly"
+    | "half-yearly"
+    | "yearly"
+    | "biennial"
+    | "custom"
+    | "annual";
+  renewalFrequency?: string;
 }
 
 export interface RevenueReportStatsDto {

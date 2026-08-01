@@ -24,7 +24,7 @@ import {
   getPendingCollectionsTopN,
 } from '../utils/collectionAggregation.util';
 import { isInCalendarMonth } from '../utils/dateRange.util';
-import { getCompanyRenewals } from '../utils/renewalAggregation.util';
+import { loadCompanyRenewals } from '../utils/renewalAggregation.util';
 import { buildUpcomingRevenue } from '../utils/upcomingRevenueAggregation.util';
 
 const getReminderOffsetDays = (offset: StageReminderOffset | string): number => {
@@ -157,12 +157,12 @@ const sumReceivedInMonth = (invoices: InvoiceEntity[], year: number, month: numb
       .reduce((sum, invoice) => sum + Number(invoice.received || 0), 0),
   );
 
-const buildInsightMessage = (
+const buildInsightMessage = async (
   invoices: InvoiceEntity[],
   deals: DealEntity[],
   revenueThisMonth: number,
   expensesThisMonth: number,
-): string => {
+): Promise<string> => {
   const outstanding = getCollectionInvoices(invoices).reduce(
     (sum, invoice) => sum + Number(invoice.outstanding || 0),
     0,
@@ -176,7 +176,7 @@ const buildInsightMessage = (
   const weekFromNow = new Date(now);
   weekFromNow.setDate(now.getDate() + 7);
 
-  const renewalsThisWeek = getCompanyRenewals(deals).filter((renewal) => {
+  const renewalsThisWeek = (await loadCompanyRenewals(deals)).filter((renewal) => {
     const date = new Date(renewal.renewalDate);
     return date >= now && date <= weekFromNow;
   });
@@ -253,7 +253,7 @@ export class DashboardService extends BaseService {
       (invoice) => invoice.outstanding > 0,
     ).length;
 
-    const renewals = getCompanyRenewals(deals);
+    const renewals = await loadCompanyRenewals(deals);
     const upcomingRenewals = renewals.filter((r) => r.status === 'upcoming').length;
 
     const totalReceived = roundMoney(
@@ -268,7 +268,7 @@ export class DashboardService extends BaseService {
 
     const expenseStats = getDashboardExpenseStats(expenses);
     const insight = {
-      message: buildInsightMessage(
+      message: await buildInsightMessage(
         invoices,
         deals,
         revenueThisMonth,
@@ -305,7 +305,7 @@ export class DashboardService extends BaseService {
         .map((renewal) => ({
           id: renewal.id,
           customer: renewal.customerName,
-          renewal: renewal.renewalLabel,
+          renewal: renewal.componentName || renewal.renewalLabel,
           dueDate: renewal.renewalDate,
           amount: renewal.amount,
         })),

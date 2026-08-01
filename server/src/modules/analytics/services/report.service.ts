@@ -22,7 +22,7 @@ import type {
 } from '../types/analytics.types';
 import { getDaysOverdue } from '../utils/collectionAggregation.util';
 import { isDateInRange, parseDatePreset } from '../utils/dateRange.util';
-import { getCompanyRenewals } from '../utils/renewalAggregation.util';
+import { loadCompanyRenewals } from '../utils/renewalAggregation.util';
 
 const matchesSearch = (values: string[], search: string): boolean => {
   const normalized = search.trim().toLowerCase();
@@ -185,7 +185,13 @@ export const filterRenewalsForReport = (
     .filter((renewal) => {
       const matchesDateRange = matchesDateFilter(renewal.renewalDate, filters);
       const matchesQuery = matchesSearch(
-        [renewal.customerName, renewal.dealTitle, renewal.renewalLabel],
+        [
+          renewal.customerName,
+          renewal.dealTitle,
+          renewal.renewalLabel,
+          renewal.componentName,
+          renewal.renewalDate,
+        ],
         filters.search,
       );
       const matchesDeal =
@@ -289,17 +295,14 @@ export class ReportService extends BaseService {
     filters: ReportFilters,
   ): Promise<ReportResult<RenewalReportStats, RenewalRow>> {
     this.logInfo('Building renewal report');
-    const [deals] = await Promise.all([dealRepository.findAll()]);
-    const renewals = filterRenewalsForReport(getCompanyRenewals(deals), filters);
+    const deals = await dealRepository.findAll();
+    const renewals = filterRenewalsForReport(await loadCompanyRenewals(deals), filters);
 
     const upcomingRenewals = renewals.filter((r) => r.status === 'upcoming').length;
     const overdueRenewals = renewals.filter((r) => r.status === 'overdue').length;
     const renewed = renewals.filter((r) => r.status === 'renewed').length;
     const renewalValue = roundMoney(
-      renewals.reduce((sum, renewal) => {
-        const deal = deals.find((item) => item.id === renewal.dealId);
-        return sum + Number(deal?.contractValue ?? renewal.amount ?? 0);
-      }, 0),
+      renewals.reduce((sum, renewal) => sum + Number(renewal.amount || 0), 0),
     );
 
     return {

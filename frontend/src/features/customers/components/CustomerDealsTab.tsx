@@ -11,7 +11,7 @@ interface CustomerDealsTabProps {
 }
 
 export function CustomerDealsTab({ customer }: CustomerDealsTabProps) {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const customerDeals = getDealsByCustomerId(deals, customer.id);
   const createDealPath = `/customers/${customer.id}/deals/new`;
 
@@ -45,7 +45,7 @@ export function CustomerDealsTab({ customer }: CustomerDealsTabProps) {
           </Link>
         </Button>
       </div>
-      <DealTable deals={customerDeals} />
+      <DealTable deals={customerDeals} components={components} />
     </div>
   );
 }

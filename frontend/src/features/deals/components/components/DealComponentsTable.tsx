@@ -28,9 +28,15 @@ import type { DealComponent } from "@/features/deals/types/deal-component";
 
 interface DealComponentsTableProps {
   components: DealComponent[];
+  onEdit?: (component: DealComponent) => void;
+  onDelete?: (component: DealComponent) => void;
 }
 
-export function DealComponentsTable({ components }: DealComponentsTableProps) {
+export function DealComponentsTable({
+  components,
+  onEdit,
+  onDelete,
+}: DealComponentsTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70">
       <Table>
@@ -69,7 +75,9 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
                 {formatComponentCurrency(component.amount)}
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {formatComponentDate(component.renewalDate)}
+                {component.renewalFrequency && component.renewalFrequency !== "none"
+                  ? formatComponentDate(component.renewalDate)
+                  : "—"}
               </TableCell>
               <TableCell>
                 <ComponentStatusBadge status={component.status} />
@@ -79,7 +87,13 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
                   <Button variant="ghost" size="icon-sm" aria-label="View component">
                     <Eye />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Edit component" disabled>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Edit component"
+                    disabled={!onEdit}
+                    onClick={() => onEdit?.(component)}
+                  >
                     <Edit />
                   </Button>
                   <DropdownMenu>
@@ -89,10 +103,22 @@ export function DealComponentsTable({ components }: DealComponentsTableProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem disabled>View details</DropdownMenuItem>
-                      <DropdownMenuItem disabled>Edit component</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled>Remove component</DropdownMenuItem>
+                      {onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(component)}>
+                          Edit component
+                        </DropdownMenuItem>
+                      )}
+                      {onDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => onDelete(component)}
+                          >
+                            Remove component
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

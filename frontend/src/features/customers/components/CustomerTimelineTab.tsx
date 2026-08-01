@@ -1,6 +1,6 @@
 import { GitBranch } from "lucide-react";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
-import { formatDate } from "@/shared/utils";
+import { formatDate, formatDateTime } from "@/shared/utils";
 import { getStageById, getStageColorStyle } from "@/features/customers/utils/stage-utils";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -63,7 +63,7 @@ export function CustomerTimelineTab({ customer }: CustomerTimelineTabProps) {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(entry.timestamp.split("T")[0])}
+                    {formatDateTime(entry.timestamp)}
                   </span>
                 </div>
               </div>
