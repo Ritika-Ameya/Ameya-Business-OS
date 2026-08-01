@@ -25,23 +25,23 @@ export function AppLayout() {
   }, [darkMode]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="flex min-h-screen">
+    <div className="h-svh overflow-hidden bg-background text-foreground">
+      <div className="flex h-full">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((value) => !value)}
         />
         <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <Topbar
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode((value) => !value)}
             onOpenMobileNav={() => setMobileNavOpen(true)}
           />
 
-          <main className="flex-1 p-3 sm:p-5 lg:p-6">
-            <div className="rounded-2xl border border-border/70 bg-card/50 p-4 shadow-sm backdrop-blur-sm dark:bg-card/40 sm:p-6 lg:p-8">
+          <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6">
+            <div className="page-enter mx-auto max-w-[1600px]">
               <Outlet />
             </div>
           </main>

@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
 import { getUpcomingRenewalsTop5 } from "@/features/dashboard/utils/dashboard-utils";
@@ -9,9 +9,15 @@ export function UpcomingRenewalsCard() {
   const items = getUpcomingRenewalsTop5(summary);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm">
-      <div className="border-b border-border/50 px-5 py-4">
-        <h3 className="text-sm font-semibold tracking-tight">Upcoming Renewals</h3>
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card transition-shadow duration-300 hover:shadow-elevated accent-bar-teal dark:border-white/10">
+      <div className="flex items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-teal-500/10 to-cyan-500/5 px-5 py-4">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">Upcoming Renewals</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Renewals coming up this period</p>
+        </div>
+        <div className="flex size-10 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">
+          <RefreshCw className="size-5" />
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -23,9 +29,9 @@ export function UpcomingRenewalsCard() {
           {items.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 px-5 py-3 text-sm sm:grid-cols-[1fr_auto_auto]"
+              className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 px-5 py-3.5 text-sm transition-colors hover:bg-teal-500/[0.04] sm:grid-cols-[1fr_auto_auto]"
             >
-              <span className="font-medium truncate">{item.customer}</span>
+              <span className="truncate font-medium">{item.customer}</span>
               <span className="truncate text-muted-foreground sm:max-w-[140px] sm:text-right">
                 {item.renewal}
               </span>

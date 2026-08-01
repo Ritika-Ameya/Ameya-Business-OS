@@ -30,14 +30,8 @@ import {
   recordTypeLabels,
 } from "@/features/customers/utils/stage-utils";
 import { cn } from "@/shared/utils";
-import type { Customer, CustomerStatus, RecordType } from "@/features/customers/types/customer";
+import type { Customer, RecordType } from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
-
-const statusStyles: Record<CustomerStatus, string> = {
-  active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-  inactive: "bg-muted text-muted-foreground",
-  prospect: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-};
 
 interface CustomerHeroProps {
   customer: Customer;
@@ -53,14 +47,14 @@ function HeroMetric({
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 shadow-sm backdrop-blur-md">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-white/70">
         {label}
       </p>
       <p
         className={cn(
-          "mt-1 text-sm font-semibold sm:text-base",
-          highlight && "text-amber-700 dark:text-amber-400"
+          "mt-1 text-sm font-bold tabular-nums text-white sm:text-base",
+          highlight && "text-amber-200"
         )}
       >
         {value}
@@ -120,51 +114,72 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/20">
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="overflow-hidden rounded-3xl border border-white/70 bg-card/95 shadow-elevated dark:border-white/10">
+        <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-6 text-white sm:p-8">
+          <div
+            className="pointer-events-none absolute -right-8 -top-10 size-44 rounded-full bg-white/15 blur-2xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute bottom-0 left-1/3 size-40 rounded-full bg-teal-300/20 blur-3xl"
+            aria-hidden
+          />
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className={cn("capitalize", statusStyles[customer.status])}
+              <div className="flex items-start gap-4">
+                <div
+                  className="grid size-16 shrink-0 place-items-center rounded-2xl bg-white/20 text-xl font-bold shadow-lg ring-2 ring-white/40 backdrop-blur-sm"
+                  aria-hidden
                 >
-                  {customer.status}
-                </Badge>
-                {customer.outstanding > 0 && (
-                  <Badge variant="outline" className="border-amber-500/30 text-amber-700 dark:text-amber-400">
-                    Outstanding
-                  </Badge>
-                )}
-                {activeDealsCount > 0 && (
-                  <Badge variant="outline">
-                    {activeDealsCount} active {activeDealsCount === 1 ? "deal" : "deals"}
-                  </Badge>
-                )}
-              </div>
+                  {(customer.company || customer.name)
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+                <div className="min-w-0 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="capitalize border-white/25 bg-white/15 text-white">
+                      {customer.status}
+                    </Badge>
+                    {customer.outstanding > 0 && (
+                      <Badge className="border-amber-300/40 bg-amber-400/20 text-amber-50">
+                        Outstanding
+                      </Badge>
+                    )}
+                    {activeDealsCount > 0 && (
+                      <Badge className="border-white/25 bg-white/15 text-white">
+                        {activeDealsCount} active{" "}
+                        {activeDealsCount === 1 ? "deal" : "deals"}
+                      </Badge>
+                    )}
+                  </div>
 
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                  {customer.name}
-                </h1>
-                {customer.company && (
-                  <p className="mt-1 flex items-center gap-2 text-muted-foreground">
-                    <Building2 className="size-4" />
-                    {customer.company}
-                  </p>
-                )}
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                      {customer.name}
+                    </h1>
+                    {customer.company && (
+                      <p className="mt-1 flex items-center gap-2 text-white/80">
+                        <Building2 className="size-4" />
+                        {customer.company}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:max-w-lg">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
                     Record Type
                   </p>
                   <Select
                     value={customer.recordType}
                     onValueChange={(value) => handleRecordTypeChange(value as RecordType)}
                   >
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl border-white/20 bg-white/15 text-white backdrop-blur-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -177,14 +192,14 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
                     Current Stage
                   </p>
                   <Select
                     value={customer.currentStageId ?? ""}
                     onValueChange={handleStageSelect}
                   >
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger className="rounded-xl border-white/20 bg-white/15 text-white backdrop-blur-sm">
                       <SelectValue placeholder="Select stage">
                         {currentStage && (
                           <span
@@ -213,7 +228,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/85">
                 <span className="flex items-center gap-2">
                   <Phone className="size-4" />
                   {formatPhoneForDisplay(customer.phone)}

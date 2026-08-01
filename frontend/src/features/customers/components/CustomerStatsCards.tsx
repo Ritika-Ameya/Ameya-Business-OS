@@ -16,6 +16,7 @@ function BreakdownCard({
   value,
   icon,
   accentClass,
+  barClass,
   items,
   emptyLabel,
 }: {
@@ -23,31 +24,35 @@ function BreakdownCard({
   value: number;
   icon: React.ReactNode;
   accentClass: string;
+  barClass: string;
   items: Array<{ key: string; name: string; color: string; count: number }>;
   emptyLabel: string;
 }) {
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 transition-all duration-300",
-        "hover:border-border hover:shadow-md"
+        "group relative overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-5 shadow-card transition-all duration-300 dark:border-white/10",
+        "hover:-translate-y-1 hover:shadow-elevated",
+        barClass
       )}
     >
       <div
         className={cn(
-          "absolute -right-3 -top-3 size-20 rounded-full opacity-40 blur-2xl transition-opacity group-hover:opacity-60",
+          "absolute -right-3 -top-3 size-24 rounded-full opacity-50 blur-2xl transition-opacity group-hover:opacity-80",
           accentClass
         )}
       />
       <div className="relative space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-2xl font-semibold tracking-tight">{value}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {label}
+            </p>
+            <p className="text-2xl font-bold tracking-tight tabular-nums">{value}</p>
           </div>
           <div
             className={cn(
-              "flex size-10 items-center justify-center rounded-xl",
+              "flex size-11 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10",
               accentClass
             )}
           >
@@ -69,7 +74,7 @@ function BreakdownCard({
                   />
                   <span className="truncate">{item.name}</span>
                 </span>
-                <span className="font-medium tabular-nums text-foreground">
+                <span className="font-semibold tabular-nums text-foreground">
                   {item.count}
                 </span>
               </li>
@@ -96,8 +101,9 @@ export function CustomerStatsCards({
       <BreakdownCard
         label="Customers"
         value={stats.total}
-        icon={<Users className={cn("size-5", "text-blue-600 dark:text-blue-400")} />}
-        accentClass="bg-blue-500/10"
+        icon={<Users className="size-5 text-blue-600 dark:text-blue-400" />}
+        accentClass="bg-blue-500/15"
+        barClass="accent-bar-blue"
         items={stats.customerByStatus.map((item) => ({
           key: item.status,
           name: item.label,
@@ -112,7 +118,8 @@ export function CustomerStatsCards({
         icon={
           <Briefcase className="size-5 text-indigo-600 dark:text-indigo-400" />
         }
-        accentClass="bg-indigo-500/10"
+        accentClass="bg-indigo-500/15"
+        barClass="accent-bar-indigo"
         items={stats.opportunityByStage.map((stage) => ({
           key: stage.stageId,
           name: stage.stageName,
@@ -124,14 +131,16 @@ export function CustomerStatsCards({
       <StatCard
         label="Outstanding Amount"
         value={formatCurrency(stats.outstandingAmount)}
-        icon={<IndianRupee className="size-5 text-amber-600 dark:text-amber-400" />}
-        accent="bg-amber-500/10"
+        icon={<IndianRupee className="size-5 text-violet-600 dark:text-violet-400" />}
+        accent="bg-violet-500/15"
+        barClass="accent-bar-violet"
       />
       <StatCard
         label="Renewals This Month"
         value={String(stats.renewalsThisMonth)}
-        icon={<CalendarClock className="size-5 text-violet-600 dark:text-violet-400" />}
-        accent="bg-violet-500/10"
+        icon={<CalendarClock className="size-5 text-teal-600 dark:text-teal-400" />}
+        accent="bg-teal-500/15"
+        barClass="accent-bar-teal"
       />
     </div>
   );
