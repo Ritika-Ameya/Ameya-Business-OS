@@ -51,7 +51,7 @@ export function EditInvoiceDialog({
     try {
       await updateInvoice(invoice.id, {
         dueDate,
-        gstPercent: Number.parseFloat(gstPercent) || 0,
+        taxPercent: Number.parseFloat(gstPercent) || 0,
         notes: notes.trim(),
       });
       onOpenChange(false);
