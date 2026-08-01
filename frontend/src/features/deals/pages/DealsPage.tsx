@@ -4,25 +4,27 @@ import { Link, useNavigate } from "react-router-dom";
 import { DealSearchFilters } from "@/features/deals/components/DealSearchFilters";
 import { DealStatsCards } from "@/features/deals/components/DealStatsCards";
 import { DealTable } from "@/features/deals/components/DealTable";
+import { EditDealDialog } from "@/features/deals/components/EditDealDialog";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { defaultDealFilters, filterDeals } from "@/features/deals/utils/deal-utils";
-import type { DealFilters } from "@/features/deals/types/deal";
+import type { Deal, DealFilters } from "@/features/deals/types/deal";
 
 export function DealsPage() {
   const navigate = useNavigate();
-  const { deals, loading, error } = useDeals();
+  const { deals, components, loading, error, removeDeal } = useDeals();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<DealFilters>(defaultDealFilters);
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
 
   const deferredQuery = useDeferredValue(query);
   const isSearching = query !== deferredQuery;
 
   const filteredDeals = useMemo(
-    () => filterDeals(deals, deferredQuery, filters),
-    [deals, deferredQuery, filters]
+    () => filterDeals(deals, deferredQuery, filters, components),
+    [deals, deferredQuery, filters, components]
   );
 
   const hasActiveFilters =
@@ -33,6 +35,14 @@ export function DealsPage() {
   const resetFilters = () => {
     setQuery("");
     setFilters(defaultDealFilters);
+  };
+
+  const handleDelete = async (deal: Deal) => {
+    const confirmed = window.confirm(
+      `Delete deal "${deal.title}"?\n\nRelated components and deal documents will also be deleted.`
+    );
+    if (!confirmed) return;
+    await removeDeal(deal.id);
   };
 
   return (
@@ -59,7 +69,7 @@ export function DealsPage() {
         </p>
       )}
 
-      <DealStatsCards deals={deals} />
+      <DealStatsCards deals={deals} components={components} />
 
       <DealSearchFilters
         query={query}
@@ -73,12 +83,25 @@ export function DealsPage() {
       ) : (
         <DealTable
           deals={filteredDeals}
+          components={components}
           isFiltered={hasActiveFilters}
           isEmpty={deals.length === 0}
           onAdd={() => navigate("/customers")}
           onResetFilters={resetFilters}
+          onEdit={setEditingDeal}
+          onDelete={(deal) => {
+            void handleDelete(deal);
+          }}
         />
       )}
+
+      <EditDealDialog
+        deal={editingDeal}
+        open={Boolean(editingDeal)}
+        onOpenChange={(open) => {
+          if (!open) setEditingDeal(null);
+        }}
+      />
     </div>
   );
 }

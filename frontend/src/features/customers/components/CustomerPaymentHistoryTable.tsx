@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   PaymentModeBadge,
   PaymentStatusBadge,
@@ -33,7 +33,7 @@ export function CustomerPaymentHistoryTable({
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Payment Date</TableHead>
             <TableHead>Invoice Number</TableHead>
-            <TableHead className="hidden md:table-cell">Deal</TableHead>
+            <TableHead>Deal</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Payment Mode</TableHead>
             <TableHead className="pr-4">Status</TableHead>
@@ -52,8 +52,20 @@ export function CustomerPaymentHistoryTable({
                 {formatPaymentDate(payment.paymentDate)}
               </TableCell>
               <TableCell className="font-medium">{payment.invoiceNo}</TableCell>
-              <TableCell className="hidden max-w-[180px] truncate text-muted-foreground md:table-cell">
-                {payment.dealTitle}
+              <TableCell className="max-w-[200px] truncate">
+                {payment.dealId ? (
+                  <Link
+                    to={`/deals/${payment.dealId}`}
+                    className="font-medium transition-colors hover:text-primary"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {payment.dealTitle || "—"}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {payment.dealTitle || "—"}
+                  </span>
+                )}
               </TableCell>
               <TableCell className="font-medium">
                 {formatPaymentCurrency(payment.amount)}

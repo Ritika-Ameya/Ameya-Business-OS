@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { Textarea } from "@/shared/ui/textarea";
-import { renewalFrequencyLabels } from "@/features/deals/utils/deal-utils";
 import { getActiveDealTypes } from "@/features/settings/utils/app-config-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { cn } from "@/shared/utils";
@@ -30,7 +29,6 @@ const emptyForm = (): DealFormData => ({
   dealType: "",
   contractValue: "",
   startDate: new Date().toISOString().split("T")[0],
-  renewalFrequency: "",
   description: "",
 });
 
@@ -39,7 +37,6 @@ interface FormErrors {
   dealType?: string;
   contractValue?: string;
   startDate?: string;
-  renewalFrequency?: string;
 }
 
 interface CreateDealWizardProps {
@@ -78,9 +75,6 @@ export function CreateDealWizard({
     }
     if (!form.startDate) {
       nextErrors.startDate = "Start date is required";
-    }
-    if (!form.renewalFrequency) {
-      nextErrors.renewalFrequency = "Renewal frequency is required";
     }
 
     setErrors(nextErrors);
@@ -164,7 +158,7 @@ export function CreateDealWizard({
             <div>
               <h2 className="text-base font-semibold">Deal Information</h2>
               <p className="text-sm text-muted-foreground">
-                Name, type, and schedule
+                Name, type, and start date — set renewals on each component
               </p>
             </div>
           </div>
@@ -246,37 +240,6 @@ export function CreateDealWizard({
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="renewal-frequency">Renewal Frequency</Label>
-              <Select
-                value={form.renewalFrequency}
-                onValueChange={(value) =>
-                  updateField(
-                    "renewalFrequency",
-                    value as DealFormData["renewalFrequency"]
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="renewal-frequency"
-                  className="w-full rounded-xl"
-                  aria-invalid={Boolean(errors.renewalFrequency)}
-                >
-                  <SelectValue placeholder="Select frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(renewalFrequencyLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.renewalFrequency && (
-                <p className="text-xs text-destructive">{errors.renewalFrequency}</p>
-              )}
-            </div>
-
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -302,7 +265,7 @@ export function CreateDealWizard({
           icon={Check}
           title="Next Steps"
           description="After creation"
-          message="Add components, invoices, and payments from the Deal Workspace."
+          message="Add components with their own renewal schedules from the Deal Workspace."
           accent="bg-violet-500/10"
           iconColor="text-violet-600 dark:text-violet-400"
         />

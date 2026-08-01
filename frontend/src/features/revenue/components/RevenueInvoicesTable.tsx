@@ -1,7 +1,9 @@
-import { ArrowDownAZ, ArrowUpAZ, Eye, Receipt } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Edit, Eye, Receipt, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
+import { EditInvoiceDialog } from "@/features/revenue/components/invoices/EditInvoiceDialog";
 import { InvoiceStatusBadge } from "@/features/revenue/components/invoices/InvoiceStatusBadge";
 import { Button } from "@/shared/ui/button";
 import {
@@ -12,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   formatInvoiceCurrency,
   formatInvoiceDate,
@@ -34,6 +37,9 @@ export function RevenueInvoicesTable({
   numberSort,
   onNumberSortChange,
 }: RevenueInvoicesTableProps) {
+  const { removeInvoice } = useRevenue();
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+
   if (invoices.length === 0) {
     return (
       <EmptyState
@@ -50,91 +56,127 @@ export function RevenueInvoicesTable({
     onNumberSortChange(numberSort === "asc" ? "desc" : "asc");
   };
 
+  const handleDelete = async (invoice: Invoice) => {
+    const confirmed = window.confirm(
+      `Delete invoice "${invoice.invoiceNo}"?\n\nRelated payments will also be removed.`
+    );
+    if (!confirmed) return;
+    await removeInvoice(invoice.id);
+  };
+
   return (
-    <ResponsiveTableFrame>
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="pl-4">
-              <button
-                type="button"
-                onClick={toggleSort}
-                className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-                aria-label={`Sort by invoice number ${numberSort === "asc" ? "descending" : "ascending"}`}
-              >
-                Invoice Number
-                {numberSort === "asc" ? (
-                  <ArrowUpAZ className="size-3.5" />
-                ) : (
-                  <ArrowDownAZ className="size-3.5" />
-                )}
-              </button>
-            </TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead className="hidden md:table-cell">Deal</TableHead>
-            <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
-            <TableHead className="hidden md:table-cell">Due Date</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Outstanding</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="pr-4 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {invoices.map((invoice) => (
-            <TableRow key={invoice.id}>
-              <TableCell className="pl-4">
-                <Link
-                  to={`/invoices/${invoice.id}`}
-                  className="font-medium transition-colors hover:text-primary"
+    <>
+      <ResponsiveTableFrame>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="pl-4">
+                <button
+                  type="button"
+                  onClick={toggleSort}
+                  className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                  aria-label={`Sort by invoice number ${numberSort === "asc" ? "descending" : "ascending"}`}
                 >
-                  {invoice.invoiceNo}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {invoice.customerName}
-              </TableCell>
-              <TableCell className="hidden max-w-[160px] truncate text-muted-foreground md:table-cell">
-                {invoice.dealTitle}
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {formatInvoiceDate(invoice.invoiceDate)}
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">
-                {formatInvoiceDate(invoice.dueDate)}
-              </TableCell>
-              <TableCell className="font-medium">
-                {formatInvoiceCurrency(invoice.amount)}
-              </TableCell>
-              <TableCell>
-                <span
-                  className={cn(
-                    "font-medium",
-                    invoice.outstanding > 0 && invoice.status !== "cancelled"
-                      ? "text-amber-700 dark:text-amber-400"
-                      : "text-muted-foreground"
+                  Invoice Number
+                  {numberSort === "asc" ? (
+                    <ArrowUpAZ className="size-3.5" />
+                  ) : (
+                    <ArrowDownAZ className="size-3.5" />
                   )}
-                >
-                  {formatInvoiceCurrency(invoice.outstanding)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <InvoiceStatusBadge status={invoice.status} />
-              </TableCell>
-              <TableCell className="pr-4 text-right">
-                <Button variant="ghost" size="icon-sm" asChild>
+                </button>
+              </TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead className="hidden md:table-cell">Deal</TableHead>
+              <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
+              <TableHead className="hidden md:table-cell">Due Date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Outstanding</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="pr-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invoices.map((invoice) => (
+              <TableRow key={invoice.id}>
+                <TableCell className="pl-4">
                   <Link
                     to={`/invoices/${invoice.id}`}
-                    aria-label={`View invoice ${invoice.invoiceNo}`}
+                    className="font-medium transition-colors hover:text-primary"
                   >
-                    <Eye />
+                    {invoice.invoiceNo}
                   </Link>
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ResponsiveTableFrame>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {invoice.customerName}
+                </TableCell>
+                <TableCell className="hidden max-w-[160px] truncate text-muted-foreground md:table-cell">
+                  {invoice.dealTitle}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground lg:table-cell">
+                  {formatInvoiceDate(invoice.invoiceDate)}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {formatInvoiceDate(invoice.dueDate)}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {formatInvoiceCurrency(invoice.amount)}
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={cn(
+                      "font-medium",
+                      invoice.outstanding > 0 && invoice.status !== "cancelled"
+                        ? "text-amber-700 dark:text-amber-400"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {formatInvoiceCurrency(invoice.outstanding)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <InvoiceStatusBadge status={invoice.status} />
+                </TableCell>
+                <TableCell className="pr-4 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon-sm" asChild>
+                      <Link
+                        to={`/invoices/${invoice.id}`}
+                        aria-label={`View invoice ${invoice.invoiceNo}`}
+                      >
+                        <Eye />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit invoice"
+                      disabled={invoice.status === "cancelled"}
+                      onClick={() => setEditingInvoice(invoice)}
+                    >
+                      <Edit />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Delete invoice"
+                      onClick={() => void handleDelete(invoice)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ResponsiveTableFrame>
+      <EditInvoiceDialog
+        invoice={editingInvoice}
+        open={Boolean(editingInvoice)}
+        onOpenChange={(open) => {
+          if (!open) setEditingInvoice(null);
+        }}
+      />
+    </>
   );
 }

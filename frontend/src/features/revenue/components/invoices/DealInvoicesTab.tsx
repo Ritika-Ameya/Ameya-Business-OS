@@ -2,7 +2,7 @@ import { Plus, Receipt } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GenerateInvoiceDialog } from "@/features/revenue/components/invoices/GenerateInvoiceDialog";
-import { InvoiceTable } from "@/features/revenue/components/invoices/InvoiceTable";
+import { InvoiceTableWithActions } from "@/features/revenue/components/invoices/InvoiceTableWithActions";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
@@ -71,7 +71,7 @@ export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
             Generate Invoice
           </Button>
         </div>
-        <InvoiceTable invoices={dealInvoices} />
+        <InvoiceTableWithActions invoices={dealInvoices} />
       </div>
       <GenerateInvoiceDialog
         open={dialogOpen}

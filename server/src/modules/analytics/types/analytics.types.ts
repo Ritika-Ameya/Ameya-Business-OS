@@ -11,7 +11,14 @@ export type DatePreset =
   | 'all';
 
 export type RenewalStatus = 'upcoming' | 'overdue' | 'renewed';
-export type RenewalType = 'monthly' | 'quarterly' | 'annual';
+export type RenewalType =
+  | 'monthly'
+  | 'quarterly'
+  | 'half-yearly'
+  | 'yearly'
+  | 'biennial'
+  | 'custom'
+  | 'annual';
 
 export interface ReportFilters {
   datePreset: DatePreset;
@@ -34,14 +41,18 @@ export interface DateRangeBounds {
 export interface RenewalRow {
   id: string;
   dealId: string;
+  componentId: string;
+  componentName: string;
   customerId: string;
   customerName: string;
   renewalLabel: string;
   dealTitle: string;
+  renewalStartDate: string;
   renewalDate: string;
   amount: number;
   status: RenewalStatus;
   renewalType: RenewalType;
+  renewalFrequency: string;
 }
 
 export interface ReportInvoiceItem {

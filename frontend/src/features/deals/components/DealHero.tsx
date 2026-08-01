@@ -9,6 +9,7 @@ import {
   getStagesForRecordType,
 } from "@/features/customers/utils/stage-utils";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -63,7 +64,7 @@ function HeroMetric({
 export function DealHero({ deal }: DealHeroProps) {
   const { stages } = useAppConfig();
   const { getCustomer } = useCustomers();
-  const { changeDealStage } = useDeals();
+  const { changeDealStage, components } = useDeals();
   const [pendingStage, setPendingStage] = useState<SettingsStage | null>(null);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
 
@@ -71,6 +72,7 @@ export function DealHero({ deal }: DealHeroProps) {
   const recordType = customer?.recordType ?? "customer";
   const currentStage = getStageById(stages, deal.currentStageId);
   const applicableStages = getStagesForRecordType(stages, recordType);
+  const nextRenewal = getEarliestComponentRenewal(deal.id, components);
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === deal.currentStageId) return;
@@ -184,10 +186,10 @@ export function DealHero({ deal }: DealHeroProps) {
                   <Calendar className="size-4" />
                   Started {formatDate(deal.startDate)}
                 </span>
-                {deal.nextRenewal && (
+                {nextRenewal && (
                   <span className="flex items-center gap-2">
                     <Layers className="size-4" />
-                    Renewal {formatDate(deal.nextRenewal)}
+                    Renewal {formatDate(nextRenewal)}
                   </span>
                 )}
               </div>
@@ -195,7 +197,7 @@ export function DealHero({ deal }: DealHeroProps) {
 
             <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-md lg:grid-cols-2">
               <HeroMetric label="Start Date" value={formatDate(deal.startDate)} />
-              <HeroMetric label="Next Renewal" value={formatDate(deal.nextRenewal)} />
+              <HeroMetric label="Next Renewal" value={formatDate(nextRenewal)} />
               <HeroMetric
                 label="Next Action"
                 value={formatDate(deal.nextActionDate)}

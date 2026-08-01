@@ -76,7 +76,18 @@ export interface CustomerEntity extends BaseEntity {
 }
 
 export type DealStatus = 'draft' | 'active' | 'completed' | 'on-hold';
+
+/** @deprecated Deal-level renewals are retired. Kept only for sheet back-compat / migration. */
 export type DealRenewalFrequency = 'none' | 'monthly' | 'quarterly' | 'annual';
+
+export type ComponentRenewalFrequency =
+  | 'none'
+  | 'monthly'
+  | 'quarterly'
+  | 'half-yearly'
+  | 'yearly'
+  | 'biennial'
+  | 'custom';
 
 export interface DealTimelineEntry {
   id: string;
@@ -102,7 +113,9 @@ export interface DealEntity extends BaseEntity {
   startDate: string;
   expectedCloseDate: string;
   actualCloseDate: string;
+  /** @deprecated Migrated to DealComponent. Cleared after migration. */
   nextRenewal: string;
+  /** @deprecated Migrated to DealComponent. Cleared after migration. */
   renewalFrequency: DealRenewalFrequency;
   nextActionDate: string;
   owner: string;
@@ -129,6 +142,9 @@ export interface DealComponentEntity extends BaseEntity {
   amount: number;
   billingType: DealBillingType;
   status: DealComponentStatus;
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate: string;
+  /** Next renewal date (or custom renewal date when frequency is custom). */
   renewalDate: string;
 }
 

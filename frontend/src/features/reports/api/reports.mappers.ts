@@ -70,18 +70,27 @@ export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
   const status =
     dto.status === "overdue" ? "expired" : (dto.status as CompanyRenewalRow["status"]);
 
+  const renewalFrequency = (dto.renewalFrequency ||
+    (dto.renewalType === "annual" ? "yearly" : dto.renewalType) ||
+    "yearly") as CompanyRenewalRow["renewalFrequency"];
+
   return {
     id: dto.id,
     dealId: dto.dealId,
+    componentId: dto.componentId || "",
+    componentName: dto.componentName || dto.renewalLabel,
     customerId: dto.customerId,
     customerName: dto.customerName,
     renewalLabel: dto.renewalLabel,
     dealTitle: dto.dealTitle,
+    renewalStartDate: dto.renewalStartDate || "",
     renewalDate: dto.renewalDate,
     amount: dto.amount > 0 ? formatInvoiceCurrency(dto.amount) : "—",
     amountValue: dto.amount,
     status,
-    renewalType: dto.renewalType,
+    renewalType:
+      dto.renewalType === "annual" ? "yearly" : (dto.renewalType as CompanyRenewalRow["renewalType"]),
+    renewalFrequency,
     wasRenewed: status === "renewed",
   };
 }

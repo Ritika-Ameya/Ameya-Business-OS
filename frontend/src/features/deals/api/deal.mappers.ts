@@ -1,10 +1,7 @@
-import type {
-  Deal,
-  DealFormData,
-  RenewalFrequency,
-} from "@/features/deals/types/deal";
+import type { Deal, DealFormData } from "@/features/deals/types/deal";
 import type {
   ComponentFormData,
+  ComponentRenewalFrequency,
   DealComponent,
 } from "@/features/deals/types/deal-component";
 import type {
@@ -13,6 +10,7 @@ import type {
   DealCreateBody,
   DealDto,
 } from "@/features/deals/api/deal.dto";
+import { resolveComponentRenewalDate } from "@/features/deals/utils/deal-component-utils";
 
 export function mapDealFromDto(dto: DealDto): Deal {
   return {
@@ -22,14 +20,12 @@ export function mapDealFromDto(dto: DealDto): Deal {
     customerName: dto.customerName,
     status: dto.status,
     startDate: dto.startDate,
-    nextRenewal: dto.nextRenewal || undefined,
     currentStageId: dto.currentStageId || undefined,
     nextActionDate: dto.nextActionDate || undefined,
     timeline: Array.isArray(dto.timeline) ? dto.timeline : [],
     componentsCount: dto.componentsCount ?? 0,
     dealType: dto.dealType || undefined,
     contractValue: dto.contractValue,
-    renewalFrequency: dto.renewalFrequency || undefined,
     description: dto.description || undefined,
     notes: dto.notes || undefined,
     dealNumber: dto.dealNumber || undefined,
@@ -50,6 +46,8 @@ export function mapComponentFromDto(dto: DealComponentDto): DealComponent {
     amount: dto.amount,
     billingType: dto.billingType,
     status: dto.status,
+    renewalFrequency: (dto.renewalFrequency || "none") as ComponentRenewalFrequency,
+    renewalStartDate: dto.renewalStartDate || undefined,
     renewalDate: dto.renewalDate || undefined,
   };
 }
@@ -64,7 +62,6 @@ export function mapFormToCreateBody(
     dealType: data.dealType,
     contractValue: Number.parseFloat(data.contractValue.replace(/,/g, "")) || 0,
     startDate: data.startDate,
-    renewalFrequency: data.renewalFrequency as RenewalFrequency,
     description: data.description.trim(),
     status: "draft",
   };
@@ -76,6 +73,15 @@ function parseAmount(value: string): number {
 }
 
 export function mapComponentFormToBody(data: ComponentFormData): DealComponentCreateBody {
+  const renewalFrequency = (data.renewalFrequency || "none") as ComponentRenewalFrequency;
+  const renewalStartDate =
+    renewalFrequency !== "none" ? data.renewalStartDate.trim() : "";
+  const renewalDate = resolveComponentRenewalDate({
+    renewalFrequency,
+    renewalStartDate,
+    renewalDate: data.renewalDate,
+  });
+
   return {
     name: data.name.trim(),
     category: data.category.trim(),
@@ -83,6 +89,8 @@ export function mapComponentFormToBody(data: ComponentFormData): DealComponentCr
     amount: parseAmount(data.amount),
     billingType: data.billingType,
     status: data.status,
-    renewalDate: data.renewalApplicable ? data.renewalDate : "",
+    renewalFrequency,
+    renewalStartDate,
+    renewalDate,
   };
 }

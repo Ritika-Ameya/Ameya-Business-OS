@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import { formatDate } from "@/shared/utils/format-date";
+import { componentRenewalFrequencyLabels } from "@/features/deals/utils/deal-component-utils";
 import {
   companyRenewalStatusStyles,
   renewalStatusLabels,
@@ -43,8 +44,9 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Customer</TableHead>
             <TableHead className="hidden md:table-cell">Deal</TableHead>
-            <TableHead>Renewal</TableHead>
-            <TableHead>Renewal Date</TableHead>
+            <TableHead>Component</TableHead>
+            <TableHead className="hidden lg:table-cell">Frequency</TableHead>
+            <TableHead>Next Renewal</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
@@ -65,7 +67,13 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
               <TableCell className="hidden max-w-[160px] truncate text-muted-foreground md:table-cell">
                 {renewal.dealTitle}
               </TableCell>
-              <TableCell className="font-medium">{renewal.renewalLabel}</TableCell>
+              <TableCell className="font-medium">
+                {renewal.componentName || renewal.renewalLabel}
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
+                {componentRenewalFrequencyLabels[renewal.renewalFrequency] ||
+                  renewal.renewalType}
+              </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDate(renewal.renewalDate)}
               </TableCell>

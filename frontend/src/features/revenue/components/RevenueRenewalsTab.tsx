@@ -12,7 +12,7 @@ import {
 import type { RenewalFilters } from "@/features/revenue/types/revenue";
 
 export function RevenueRenewalsTab() {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const [filters, setFilters] = useState<RenewalFilters>(defaultRenewalFilters);
   const [ready, setReady] = useState(false);
   const deferredFilters = useDeferredValue(filters);
@@ -24,7 +24,10 @@ export function RevenueRenewalsTab() {
 
   const loading = !ready || filters !== deferredFilters;
 
-  const allRenewals = useMemo(() => getCompanyRenewals(deals), [deals]);
+  const allRenewals = useMemo(
+    () => getCompanyRenewals(deals, components),
+    [deals, components]
+  );
 
   const filteredRenewals = useMemo(
     () => filterCompanyRenewals(allRenewals, deferredFilters),
@@ -36,6 +39,7 @@ export function RevenueRenewalsTab() {
     deferredFilters.renewalType !== defaultRenewalFilters.renewalType ||
     deferredFilters.date !== defaultRenewalFilters.date ||
     deferredFilters.status !== defaultRenewalFilters.status ||
+    deferredFilters.search !== defaultRenewalFilters.search ||
     deferredFilters.customFrom !== defaultRenewalFilters.customFrom ||
     deferredFilters.customTo !== defaultRenewalFilters.customTo ||
     deferredFilters.selectedMonth !== defaultRenewalFilters.selectedMonth ||

@@ -24,6 +24,7 @@ import { recordTypeLabels } from "@/features/customers/utils/stage-utils";
 import { isValidGstin } from "@/features/settings/utils/app-config-utils";
 import { isValidPhoneNumberInput } from "@/shared/utils/phone";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
+import { ApiError } from "@/shared/api/errors";
 import type { Customer, CustomerFormData } from "@/features/customers/types/customer";
 
 const emptyForm: CustomerFormData = {
@@ -55,6 +56,7 @@ function formFromCustomer(customer?: Customer): CustomerFormData {
 
 interface FormErrors {
   name?: string;
+  company?: string;
   phone?: string;
   email?: string;
   gst?: string;
@@ -63,7 +65,10 @@ interface FormErrors {
 interface AddCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: CustomerFormData) => void | Promise<void>;
+  onSave: (
+    data: CustomerFormData,
+    options?: { allowDuplicateCompanyName?: boolean }
+  ) => void | Promise<void>;
   initialData?: Customer;
 }
 
@@ -77,6 +82,10 @@ export function AddCustomerDialog({
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [duplicateCompanyPrompt, setDuplicateCompanyPrompt] = useState<{
+    message: string;
+    existingCustomerName: string;
+  } | null>(null);
 
   const isEditing = Boolean(initialData);
 
@@ -86,6 +95,7 @@ export function AddCustomerDialog({
       setForm(formFromCustomer(initialData));
       setErrors({});
       setSubmitError(null);
+      setDuplicateCompanyPrompt(null);
     }
     onOpenChange(nextOpen);
   };
@@ -112,28 +122,51 @@ export function AddCustomerDialog({
 
   const isPhoneValid = isValidPhoneNumberInput(form.phone, { required: true });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
+  const saveCustomer = async (allowDuplicateCompanyName = false) => {
     setSaving(true);
     setSubmitError(null);
     try {
-      await onSave(form);
+      await onSave(form, { allowDuplicateCompanyName });
       onOpenChange(false);
       setForm(emptyForm);
       setErrors({});
+      setDuplicateCompanyPrompt(null);
     } catch (err) {
-      setSubmitError(getErrorMessage(err));
+      if (
+        err instanceof ApiError &&
+        err.statusCode === 409 &&
+        /companyName/i.test(err.message)
+      ) {
+        const existingCustomerName = err.errors[0] || "an existing customer";
+        setDuplicateCompanyPrompt({
+          message: err.message,
+          existingCustomerName,
+        });
+        setErrors((prev) => ({
+          ...prev,
+          company: `${err.message}. Existing customer: ${existingCustomerName}`,
+        }));
+      } else {
+        setSubmitError(getErrorMessage(err));
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    await saveCustomer(false);
   };
 
   const updateField = (field: keyof CustomerFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    if (field === "company") {
+      setDuplicateCompanyPrompt(null);
     }
   };
 
@@ -202,7 +235,56 @@ export function AddCustomerDialog({
                 placeholder="Company or business name"
                 className="rounded-xl"
                 disabled={saving}
+                aria-invalid={Boolean(errors.company)}
               />
+              {errors.company && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.company.includes("Existing customer:") ? (
+                    <>
+                      {errors.company.split("Existing customer:")[0]}
+                      Existing customer:{" "}
+                      <span className="font-semibold text-destructive">
+                        {duplicateCompanyPrompt?.existingCustomerName ||
+                          errors.company.split("Existing customer:")[1]?.trim()}
+                      </span>
+                    </>
+                  ) : (
+                    errors.company
+                  )}
+                </p>
+              )}
+              {duplicateCompanyPrompt && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                  <p className="text-destructive">
+                    Still create this new {form.recordType === "opportunity" ? "opportunity" : "customer"}{" "}
+                    with the same company name?
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-xl"
+                      disabled={saving}
+                      onClick={() => void saveCustomer(true)}
+                    >
+                      {saving ? "Creating…" : "Yes, create anyway"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl"
+                      disabled={saving}
+                      onClick={() => {
+                        setDuplicateCompanyPrompt(null);
+                        setErrors((prev) => ({ ...prev, company: undefined }));
+                      }}
+                    >
+                      No, keep editing
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

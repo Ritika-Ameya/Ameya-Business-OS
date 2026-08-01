@@ -12,7 +12,14 @@ export interface CollectionFilters {
   date: InvoiceFilters["date"];
 }
 
-export type RenewalTypeFilter = "all" | "annual" | "quarterly" | "monthly";
+export type RenewalTypeFilter =
+  | "all"
+  | "monthly"
+  | "quarterly"
+  | "half-yearly"
+  | "yearly"
+  | "biennial"
+  | "custom";
 export type RenewalStatusFilter = "all" | "upcoming" | "expired" | "renewed";
 
 /** Date presets for Revenue → Renewals (independent of invoice date filters). */
@@ -33,6 +40,7 @@ export interface RenewalFilters {
   renewalType: RenewalTypeFilter;
   date: RenewalDatePreset;
   status: RenewalStatusFilter;
+  search: string;
   customFrom: string;
   customTo: string;
   /** YYYY-MM when date === month-wise */

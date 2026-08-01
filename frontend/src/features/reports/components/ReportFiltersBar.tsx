@@ -105,7 +105,7 @@ export function ReportFiltersBar({
           activeTab === "expense"
             ? "Search expenses, vendors, categories..."
             : activeTab === "renewal"
-              ? "Search customers, deals, renewals..."
+              ? "Search customers, deals, components, renewal dates..."
               : "Search invoices, customers, deals..."
         }
         ariaLabel="Search report records"

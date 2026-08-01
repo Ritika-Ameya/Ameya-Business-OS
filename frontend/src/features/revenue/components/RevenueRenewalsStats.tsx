@@ -29,12 +29,15 @@ export function RevenueRenewalsStats({
   filters,
   onFiltersChange,
 }: RevenueRenewalsStatsProps) {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
 
   const stats = useMemo(() => {
-    const scoped = filterRenewalsByScope(getCompanyRenewals(deals), filters);
+    const scoped = filterRenewalsByScope(
+      getCompanyRenewals(deals, components),
+      filters
+    );
     return getRenewalStats(scoped);
-  }, [deals, filters]);
+  }, [deals, components, filters]);
 
   const cards: Array<{
     key: RenewalCardKey;

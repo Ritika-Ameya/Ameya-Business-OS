@@ -1,7 +1,13 @@
 import { Handshake, RefreshCw, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDeals } from "@/features/deals/hooks/use-deals";
+import {
+  componentRenewalFrequencyLabels,
+  formatComponentDate,
+  hasComponentRenewal,
+} from "@/features/deals/utils/deal-component-utils";
+import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
-import { renewalFrequencyLabels } from "@/features/deals/utils/deal-utils";
 import type { Deal } from "@/features/deals/types/deal";
 
 interface DealOverviewTabProps {
@@ -9,6 +15,22 @@ interface DealOverviewTabProps {
 }
 
 export function DealOverviewTab({ deal }: DealOverviewTabProps) {
+  const { components, getComponentsByDeal } = useDeals();
+  const dealComponents = getComponentsByDeal(deal.id);
+  const renewing = dealComponents.filter((component) =>
+    hasComponentRenewal(component.renewalFrequency)
+  );
+  const nextRenewal = getEarliestComponentRenewal(deal.id, components);
+  const frequencies = Array.from(
+    new Set(renewing.map((component) => component.renewalFrequency))
+  );
+  const frequencyLabel =
+    frequencies.length === 0
+      ? "—"
+      : frequencies.length === 1
+        ? componentRenewalFrequencyLabels[frequencies[0]]
+        : "Mixed";
+
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <div className="rounded-2xl border border-border/70 bg-card/50 p-5">
@@ -76,20 +98,18 @@ export function DealOverviewTab({ deal }: DealOverviewTabProps) {
           <RefreshCw className="size-5 text-violet-600 dark:text-violet-400" />
         </div>
         <h3 className="text-sm font-medium">Renewal Summary</h3>
-        <p className="mt-1 text-xs text-muted-foreground">Renewal schedule</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          From component schedules ({renewing.length} renewing)
+        </p>
         <dl className="mt-4 space-y-2 text-sm">
           <div className="flex justify-between gap-2">
             <dt className="text-muted-foreground">Frequency</dt>
-            <dd className="font-medium">
-              {deal.renewalFrequency
-                ? renewalFrequencyLabels[deal.renewalFrequency]
-                : "—"}
-            </dd>
+            <dd className="font-medium">{frequencyLabel}</dd>
           </div>
           <div className="flex justify-between gap-2">
             <dt className="text-muted-foreground">Next Renewal</dt>
             <dd className="font-medium">
-              {deal.nextRenewal ? formatDate(deal.nextRenewal) : "—"}
+              {nextRenewal ? formatComponentDate(nextRenewal) : "—"}
             </dd>
           </div>
         </dl>

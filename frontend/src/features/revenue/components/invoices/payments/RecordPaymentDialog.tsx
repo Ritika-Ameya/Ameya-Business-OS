@@ -24,7 +24,7 @@ import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { fileToUploadPayload } from "@/shared/utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
-import type { PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
+import type { Payment, PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
 
 const emptyForm: PaymentFormData = {
   paymentDate: "",
@@ -41,6 +41,7 @@ interface RecordPaymentDialogProps {
   onOpenChange: (open: boolean) => void;
   invoiceId: string;
   maxAmount?: number;
+  initialPayment?: Payment | null;
 }
 
 export function RecordPaymentDialog({
@@ -48,22 +49,36 @@ export function RecordPaymentDialog({
   onOpenChange,
   invoiceId,
   maxAmount,
+  initialPayment = null,
 }: RecordPaymentDialogProps) {
   const { paymentMethods } = useAppConfig();
-  const { recordPayment } = useRevenue();
+  const { recordPayment, updatePayment } = useRevenue();
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const [form, setForm] = useState<PaymentFormData>(emptyForm);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isEditing = Boolean(initialPayment);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
-      setForm({
-        ...emptyForm,
-        paymentDate: new Date().toISOString().split("T")[0]!,
-        mode: (activePaymentMethods[0]?.slug as PaymentMode) || "upi",
-      });
+      if (initialPayment) {
+        setForm({
+          paymentDate: initialPayment.paymentDate,
+          amount: String(initialPayment.amount),
+          mode: initialPayment.mode,
+          referenceNumber: initialPayment.referenceNumber || "",
+          receivedBy: initialPayment.receivedBy || "",
+          transactionId: initialPayment.transactionId || "",
+          notes: initialPayment.notes || "",
+        });
+      } else {
+        setForm({
+          ...emptyForm,
+          paymentDate: new Date().toISOString().split("T")[0]!,
+          mode: (activePaymentMethods[0]?.slug as PaymentMode) || "upi",
+        });
+      }
       setAttachmentFile(null);
       setError(null);
     }
@@ -81,7 +96,7 @@ export function RecordPaymentDialog({
       setError("Enter a valid payment amount.");
       return;
     }
-    if (maxAmount != null && amount > maxAmount + 0.001) {
+    if (!isEditing && maxAmount != null && amount > maxAmount + 0.001) {
       setError("Payment cannot exceed outstanding balance.");
       return;
     }
@@ -89,7 +104,11 @@ export function RecordPaymentDialog({
     setSaving(true);
     setError(null);
     try {
-      await recordPayment(invoiceId, form);
+      if (isEditing && initialPayment) {
+        await updatePayment(invoiceId, initialPayment.id, form);
+      } else {
+        await recordPayment(invoiceId, form);
+      }
       if (attachmentFile) {
         const payload = await fileToUploadPayload(attachmentFile);
         await invoicesApi.addFile(invoiceId, payload);
@@ -115,10 +134,12 @@ export function RecordPaymentDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Payment" : "Record Payment"}</DialogTitle>
           <DialogDescription>
-            Record a payment received against this invoice.
-            {maxAmount != null
+            {isEditing
+              ? "Update this payment against the invoice."
+              : "Record a payment received against this invoice."}
+            {!isEditing && maxAmount != null
               ? ` Outstanding: ₹${maxAmount.toLocaleString("en-IN")}.`
               : ""}
           </DialogDescription>
@@ -256,7 +277,13 @@ export function RecordPaymentDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Recording…" : "Record Payment"}
+              {saving
+                ? isEditing
+                  ? "Saving…"
+                  : "Recording…"
+                : isEditing
+                  ? "Save Changes"
+                  : "Record Payment"}
             </Button>
           </DialogFooter>
         </form>

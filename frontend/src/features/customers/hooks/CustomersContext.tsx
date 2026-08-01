@@ -31,8 +31,17 @@ interface CustomersContextValue {
   loading: boolean;
   error: string | null;
   refreshCustomers: () => Promise<void>;
-  addCustomer: (data: CustomerFormData, stages?: SettingsStage[]) => Promise<Customer>;
-  updateCustomer: (id: string, data: CustomerFormData) => Promise<void>;
+  addCustomer: (
+    data: CustomerFormData,
+    stages?: SettingsStage[],
+    options?: { allowDuplicateCompanyName?: boolean }
+  ) => Promise<Customer>;
+  updateCustomer: (
+    id: string,
+    data: CustomerFormData,
+    options?: { allowDuplicateCompanyName?: boolean }
+  ) => Promise<void>;
+  removeCustomer: (id: string) => Promise<void>;
   changeCustomerStage: (
     id: string,
     payload: StageChangePayload,
@@ -86,9 +95,13 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
   }, [refreshCustomers]);
 
   const addCustomer = useCallback(
-    async (data: CustomerFormData, _stages?: SettingsStage[]): Promise<Customer> => {
+    async (
+      data: CustomerFormData,
+      _stages?: SettingsStage[],
+      options?: { allowDuplicateCompanyName?: boolean }
+    ): Promise<Customer> => {
       void _stages;
-      const created = await customersApi.create(mapFormToCreateBody(data));
+      const created = await customersApi.create(mapFormToCreateBody(data, options));
       const customer = mapCustomerFromDto(created);
       setCustomers((prev) => [customer, ...prev]);
       return customer;
@@ -96,10 +109,22 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const updateCustomer = useCallback(async (id: string, data: CustomerFormData) => {
-    const updated = await customersApi.update(id, mapFormToUpdateBody(data));
-    const customer = mapCustomerFromDto(updated);
-    setCustomers((prev) => upsertCustomer(prev, customer));
+  const updateCustomer = useCallback(
+    async (
+      id: string,
+      data: CustomerFormData,
+      options?: { allowDuplicateCompanyName?: boolean }
+    ) => {
+      const updated = await customersApi.update(id, mapFormToUpdateBody(data, options));
+      const customer = mapCustomerFromDto(updated);
+      setCustomers((prev) => upsertCustomer(prev, customer));
+    },
+    []
+  );
+
+  const removeCustomer = useCallback(async (id: string) => {
+    await customersApi.remove(id);
+    setCustomers((prev) => prev.filter((customer) => customer.id !== id));
   }, []);
 
   const changeCustomerStage = useCallback(
@@ -135,6 +160,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       refreshCustomers,
       addCustomer,
       updateCustomer,
+      removeCustomer,
       changeCustomerStage,
       updateRecordType,
       getCustomer,
@@ -146,6 +172,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       refreshCustomers,
       addCustomer,
       updateCustomer,
+      removeCustomer,
       changeCustomerStage,
       updateRecordType,
       getCustomer,

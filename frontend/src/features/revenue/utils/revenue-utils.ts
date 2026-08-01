@@ -1,5 +1,10 @@
 import { formatInvoiceCurrency, getUniqueCustomers } from "@/features/revenue/utils/invoice-utils";
-import type { Deal, RenewalFrequency } from "@/features/deals/types/deal";
+import type { Deal } from "@/features/deals/types/deal";
+import type {
+  ComponentRenewalFrequency,
+  DealComponent,
+} from "@/features/deals/types/deal-component";
+import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment } from "@/features/revenue/types/payment";
 import type {
@@ -17,6 +22,14 @@ import {
 
 export type CompanyRenewalStatus = "upcoming" | "expired" | "renewed";
 
+export type CompanyRenewalType =
+  | "monthly"
+  | "quarterly"
+  | "half-yearly"
+  | "yearly"
+  | "biennial"
+  | "custom";
+
 export interface CollectionRow {
   invoice: Invoice;
   payments: Payment[];
@@ -30,15 +43,19 @@ export interface CollectionRow {
 export interface CompanyRenewalRow {
   id: string;
   dealId: string;
+  componentId: string;
+  componentName: string;
   customerId: string;
   customerName: string;
   renewalLabel: string;
   dealTitle: string;
+  renewalStartDate: string;
   renewalDate: string;
   amount: string;
   amountValue: number;
   status: CompanyRenewalStatus;
-  renewalType: "annual" | "quarterly" | "monthly";
+  renewalType: CompanyRenewalType;
+  renewalFrequency: ComponentRenewalFrequency;
   /** True when the deal timeline recorded at least one renewal update. */
   wasRenewed: boolean;
 }
@@ -54,6 +71,7 @@ export const defaultRenewalFilters: RenewalFilters = {
   renewalType: "all",
   date: "all",
   status: "all",
+  search: "",
   customFrom: "",
   customTo: "",
   selectedMonth: "",
@@ -69,9 +87,12 @@ export const collectionStatusLabels: Record<CollectionStatusFilter, string> = {
 
 export const renewalTypeLabels: Record<RenewalFilters["renewalType"], string> = {
   all: "All Types",
-  annual: "Annual",
-  quarterly: "Quarterly",
   monthly: "Monthly",
+  quarterly: "Quarterly",
+  "half-yearly": "Half Yearly",
+  yearly: "Yearly",
+  biennial: "Biennial",
+  custom: "Custom Date",
 };
 
 export const renewalStatusLabels: Record<string, string> = {
@@ -216,29 +237,48 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
   };
 }
 
-function mapRenewalType(frequency?: RenewalFrequency): CompanyRenewalRow["renewalType"] {
+function mapRenewalType(
+  frequency?: ComponentRenewalFrequency | string
+): CompanyRenewalType {
   switch (frequency) {
     case "monthly":
       return "monthly";
     case "quarterly":
       return "quarterly";
+    case "half-yearly":
+      return "half-yearly";
+    case "biennial":
+      return "biennial";
+    case "custom":
+      return "custom";
+    case "yearly":
+    case "annual":
     default:
-      return "annual";
+      return "yearly";
   }
 }
 
-function dealWasRenewed(deal: Deal): boolean {
-  return (deal.timeline ?? []).some((entry) => entry.action === "renewal_updated");
+function dealWasRenewed(deal?: Deal): boolean {
+  return (deal?.timeline ?? []).some((entry) => entry.action === "renewal_updated");
 }
 
-export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
+export function getCompanyRenewals(
+  deals: Deal[] = [],
+  components: DealComponent[] = []
+): CompanyRenewalRow[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
+  const dealById = new Map(deals.map((deal) => [deal.id, deal]));
 
-  return deals
-    .filter((deal) => deal.nextRenewal && deal.renewalFrequency !== "none")
-    .map((deal) => {
-      const renewalDate = new Date(deal.nextRenewal!);
+  return components
+    .filter(
+      (component) =>
+        hasComponentRenewal(component.renewalFrequency) &&
+        Boolean(component.renewalDate)
+    )
+    .map((component) => {
+      const deal = dealById.get(component.dealId);
+      const renewalDate = new Date(component.renewalDate!);
       renewalDate.setHours(0, 0, 0, 0);
       const wasRenewed = dealWasRenewed(deal);
       const isExpired = renewalDate < now;
@@ -248,23 +288,28 @@ export function getCompanyRenewals(deals: Deal[] = []): CompanyRenewalRow[] {
           ? "renewed"
           : "upcoming";
 
-      const amountValue = Number(deal.contractValue || 0);
+      const amountValue = Number(component.amount || 0);
 
       return {
-        id: `renewal-${deal.id}`,
-        dealId: deal.id,
-        customerId: deal.customerId,
-        customerName: deal.customerName,
-        renewalLabel: `${deal.title} Renewal`,
-        dealTitle: deal.title,
-        renewalDate: deal.nextRenewal!,
+        id: `renewal-${component.id}`,
+        dealId: component.dealId,
+        componentId: component.id,
+        componentName: component.name,
+        customerId: deal?.customerId ?? "",
+        customerName: deal?.customerName ?? "",
+        renewalLabel: component.name,
+        dealTitle: deal?.title ?? "",
+        renewalStartDate: component.renewalStartDate || "",
+        renewalDate: component.renewalDate!,
         amount: amountValue ? formatInvoiceCurrency(amountValue) : "—",
         amountValue,
         status,
-        renewalType: mapRenewalType(deal.renewalFrequency),
+        renewalType: mapRenewalType(component.renewalFrequency),
+        renewalFrequency: component.renewalFrequency,
         wasRenewed,
       };
     })
+    .filter((row) => Boolean(row.customerId))
     .sort(
       (a, b) =>
         new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime()
@@ -291,6 +336,7 @@ export function filterCompanyRenewals(
 ): CompanyRenewalRow[] {
   const scoped = filterRenewalsByScope(renewals, filters);
   const { from, to } = getRenewalDateRange(filters);
+  const query = filters.search.trim().toLowerCase();
 
   return scoped.filter((renewal) => {
     const matchesStatus =
@@ -302,7 +348,17 @@ export function filterCompanyRenewals(
 
     const matchesDate = isDateInRenewalRange(renewal.renewalDate, from, to);
 
-    return matchesStatus && matchesDate;
+    const matchesSearch =
+      query.length === 0 ||
+      [
+        renewal.customerName,
+        renewal.dealTitle,
+        renewal.componentName,
+        renewal.renewalLabel,
+        renewal.renewalDate,
+      ].some((field) => field.toLowerCase().includes(query));
+
+    return matchesStatus && matchesDate && matchesSearch;
   });
 }
 

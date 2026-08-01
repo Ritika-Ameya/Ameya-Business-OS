@@ -2,10 +2,9 @@ import { History, Wallet } from "lucide-react";
 import { useMemo } from "react";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
-import { formatDate } from "@/shared/utils";
+import { formatDateTime } from "@/shared/utils";
 import {
   formatPaymentCurrency,
-  formatPaymentDate,
   getPaymentModeLabel,
 } from "@/features/revenue/utils/payment-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
@@ -24,7 +23,7 @@ export function InvoiceTimelineTab({ invoice }: InvoiceTimelineTabProps) {
       id: entry.id,
       title: entry.stageName || entry.action || "Invoice activity",
       description: entry.notes || "—",
-      date: formatDate(entry.timestamp.split("T")[0] ?? entry.timestamp),
+      date: formatDateTime(entry.timestamp),
       kind: "timeline" as const,
       sortAt: new Date(entry.timestamp).getTime(),
     }));
@@ -33,7 +32,7 @@ export function InvoiceTimelineTab({ invoice }: InvoiceTimelineTabProps) {
       id: payment.id,
       title: "Payment recorded",
       description: `${formatPaymentCurrency(payment.amount)} via ${getPaymentModeLabel(payment.mode, paymentMethods)}`,
-      date: formatPaymentDate(payment.paymentDate),
+      date: formatDateTime(payment.paymentDate),
       kind: "payment" as const,
       sortAt: new Date(payment.paymentDate).getTime(),
     }));

@@ -7,6 +7,8 @@ const router = Router();
 router.get('/', dealController.list);
 router.post('/', ...dealController.create);
 
+router.get('/components', dealController.listAllComponents);
+
 router.post('/:id/restore', ...dealController.restore);
 router.patch('/:id/stage', ...dealController.changeStage);
 router.patch('/:id/status', ...dealController.changeStatus);

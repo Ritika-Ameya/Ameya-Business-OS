@@ -31,6 +31,17 @@ interface RevenueContextValue {
   getInvoicesByDealId: (dealId: string) => Invoice[];
   getPaymentsByInvoiceId: (invoiceId: string) => Payment[];
   recordPayment: (invoiceId: string, data: PaymentFormData) => Promise<Payment>;
+  updatePayment: (
+    invoiceId: string,
+    paymentId: string,
+    data: PaymentFormData
+  ) => Promise<Payment>;
+  removePayment: (invoiceId: string, paymentId: string) => Promise<void>;
+  removeInvoice: (invoiceId: string) => Promise<void>;
+  updateInvoice: (
+    invoiceId: string,
+    body: Partial<InvoiceCreateBody>
+  ) => Promise<Invoice>;
   cancelInvoice: (invoiceId: string, reason: string) => Promise<Invoice>;
 }
 
@@ -120,6 +131,50 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updatePayment = useCallback(
+    async (invoiceId: string, paymentId: string, data: PaymentFormData) => {
+      const result = await invoicesApi.updatePayment(
+        invoiceId,
+        paymentId,
+        mapPaymentFormToBody(data)
+      );
+      const payment = mapPaymentFromDto(result.payment);
+      const invoice = mapInvoiceFromDto(result.invoice);
+      setPayments((prev) => {
+        const index = prev.findIndex((item) => item.id === paymentId);
+        if (index === -1) return [payment, ...prev];
+        const next = [...prev];
+        next[index] = payment;
+        return next;
+      });
+      setInvoices((prev) => upsertInvoice(prev, invoice));
+      return payment;
+    },
+    []
+  );
+
+  const removePayment = useCallback(async (invoiceId: string, paymentId: string) => {
+    const invoiceDto = await invoicesApi.removePayment(invoiceId, paymentId);
+    setPayments((prev) => prev.filter((payment) => payment.id !== paymentId));
+    setInvoices((prev) => upsertInvoice(prev, mapInvoiceFromDto(invoiceDto)));
+  }, []);
+
+  const removeInvoice = useCallback(async (invoiceId: string) => {
+    await invoicesApi.remove(invoiceId);
+    setInvoices((prev) => prev.filter((invoice) => invoice.id !== invoiceId));
+    setPayments((prev) => prev.filter((payment) => payment.invoiceId !== invoiceId));
+  }, []);
+
+  const updateInvoice = useCallback(
+    async (invoiceId: string, body: Partial<InvoiceCreateBody>) => {
+      const dto = await invoicesApi.update(invoiceId, body);
+      const invoice = mapInvoiceFromDto(dto);
+      setInvoices((prev) => upsertInvoice(prev, invoice));
+      return invoice;
+    },
+    []
+  );
+
   const cancelInvoice = useCallback(async (invoiceId: string, reason: string) => {
     const dto = await invoicesApi.cancel(invoiceId, reason);
     const invoice = mapInvoiceFromDto(dto);
@@ -162,6 +217,10 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
       getInvoicesByDealId,
       getPaymentsByInvoiceId,
       recordPayment,
+      updatePayment,
+      removePayment,
+      removeInvoice,
+      updateInvoice,
       cancelInvoice,
     }),
     [
@@ -178,6 +237,10 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
       getInvoicesByDealId,
       getPaymentsByInvoiceId,
       recordPayment,
+      updatePayment,
+      removePayment,
+      removeInvoice,
+      updateInvoice,
       cancelInvoice,
     ]
   );

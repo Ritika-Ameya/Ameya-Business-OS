@@ -13,7 +13,8 @@ import { defaultFilters, filterCustomers } from "@/features/customers/utils/cust
 import type { Customer, CustomerFilters, CustomerFormData } from "@/features/customers/types/customer";
 
 export function CustomersPage() {
-  const { customers, loading, error, addCustomer, updateCustomer } = useCustomers();
+  const { customers, loading, error, addCustomer, updateCustomer, removeCustomer } =
+    useCustomers();
   const { stages } = useAppConfig();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
@@ -46,12 +47,24 @@ export function CustomersPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = async (data: CustomerFormData) => {
+  const handleDelete = async (customer: Customer) => {
+    const label = customer.company || customer.name;
+    const confirmed = window.confirm(
+      `Delete "${label}"?\n\nThis will also delete related deals, components, invoices, payments, and documents.`
+    );
+    if (!confirmed) return;
+    await removeCustomer(customer.id);
+  };
+
+  const handleSave = async (
+    data: CustomerFormData,
+    options?: { allowDuplicateCompanyName?: boolean }
+  ) => {
     if (editingCustomer) {
-      await updateCustomer(editingCustomer.id, data);
+      await updateCustomer(editingCustomer.id, data, options);
       return;
     }
-    await addCustomer(data, stages);
+    await addCustomer(data, stages, options);
   };
 
   const resetFilters = () => {
@@ -78,7 +91,7 @@ export function CustomersPage() {
         </p>
       )}
 
-      <CustomerStatsCards customers={customers} />
+      <CustomerStatsCards customers={customers} stages={stages} />
 
       <CustomerSearchFilters
         query={query}
@@ -93,6 +106,9 @@ export function CustomersPage() {
         <CustomerTable
           customers={filteredCustomers}
           onEdit={handleEdit}
+          onDelete={(customer) => {
+            void handleDelete(customer);
+          }}
           isFiltered={hasActiveFilters}
           isEmpty={customers.length === 0}
           onAdd={handleAdd}

@@ -34,7 +34,10 @@ export function mapCustomerFromDto(dto: CustomerDto): Customer {
   };
 }
 
-export function mapFormToCreateBody(data: CustomerFormData): CustomerCreateBody {
+export function mapFormToCreateBody(
+  data: CustomerFormData,
+  options?: { allowDuplicateCompanyName?: boolean }
+): CustomerCreateBody {
   return {
     recordType: data.recordType,
     contactPerson: data.name.trim(),
@@ -45,9 +48,13 @@ export function mapFormToCreateBody(data: CustomerFormData): CustomerCreateBody 
     billingAddress: data.billingAddress.trim(),
     serviceAddress: data.serviceAddress.trim(),
     notes: data.notes.trim(),
+    allowDuplicateCompanyName: options?.allowDuplicateCompanyName || undefined,
   };
 }
 
-export function mapFormToUpdateBody(data: CustomerFormData): CustomerCreateBody {
-  return mapFormToCreateBody(data);
+export function mapFormToUpdateBody(
+  data: CustomerFormData,
+  options?: { allowDuplicateCompanyName?: boolean }
+): CustomerCreateBody {
+  return mapFormToCreateBody(data, options);
 }

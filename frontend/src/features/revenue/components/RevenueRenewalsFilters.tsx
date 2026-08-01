@@ -29,14 +29,14 @@ export function RevenueRenewalsFilters({
   filters,
   onFiltersChange,
 }: RevenueRenewalsFiltersProps) {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const customers = useMemo(() => {
     const map = new Map<string, string>();
-    for (const renewal of getCompanyRenewals(deals)) {
+    for (const renewal of getCompanyRenewals(deals, components)) {
       map.set(renewal.customerId, renewal.customerName);
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [deals]);
+  }, [deals, components]);
 
   const quarterOptions = useMemo(() => buildQuarterOptions(), []);
 
@@ -45,6 +45,7 @@ export function RevenueRenewalsFilters({
     filters.renewalType !== defaultRenewalFilters.renewalType ||
     filters.date !== defaultRenewalFilters.date ||
     filters.status !== defaultRenewalFilters.status ||
+    filters.search !== defaultRenewalFilters.search ||
     filters.customFrom !== defaultRenewalFilters.customFrom ||
     filters.customTo !== defaultRenewalFilters.customTo ||
     filters.selectedMonth !== defaultRenewalFilters.selectedMonth ||
@@ -59,6 +60,14 @@ export function RevenueRenewalsFilters({
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Filters
       </span>
+
+      <Input
+        value={filters.search}
+        onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
+        placeholder="Search customer, deal, component, date…"
+        className="h-8 w-[240px] rounded-xl"
+        aria-label="Search renewals"
+      />
 
       <Select
         value={filters.customer}

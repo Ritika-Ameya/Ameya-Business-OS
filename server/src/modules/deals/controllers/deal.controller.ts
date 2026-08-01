@@ -122,6 +122,11 @@ export class DealController {
     }),
   ];
 
+  readonly listAllComponents = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const components = await dealService.listAllComponents();
+    ApiResponse.success(res, components, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+  });
+
   readonly listComponents = [
     validate({ params: dealIdParamSchema }),
     asyncHandler(async (req: Request, res: Response): Promise<void> => {

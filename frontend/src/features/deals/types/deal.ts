@@ -2,8 +2,6 @@ export type DealStatus = "draft" | "active" | "completed" | "on-hold";
 
 export type DealType = string;
 
-export type RenewalFrequency = "none" | "monthly" | "quarterly" | "annual";
-
 export interface DealTimelineEntry {
   id: string;
   action?: string;
@@ -21,14 +19,12 @@ export interface Deal {
   customerName: string;
   status: DealStatus;
   startDate: string;
-  nextRenewal?: string;
   currentStageId?: string;
   nextActionDate?: string;
   timeline: DealTimelineEntry[];
   componentsCount: number;
   dealType?: DealType;
   contractValue?: number;
-  renewalFrequency?: RenewalFrequency;
   description?: string;
   notes?: string;
   dealNumber?: string;
@@ -43,7 +39,6 @@ export interface DealFormData {
   dealType: DealType | "";
   contractValue: string;
   startDate: string;
-  renewalFrequency: RenewalFrequency | "";
   description: string;
 }
 

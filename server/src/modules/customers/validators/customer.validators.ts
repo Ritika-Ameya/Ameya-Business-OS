@@ -119,11 +119,15 @@ const customerFieldsSchema = z.object({
   businessSince: optionalDateSchema,
 });
 
-export const customerCreateSchema = customerFieldsSchema;
+export const customerCreateSchema = customerFieldsSchema.extend({
+  /** When true, skip companyName uniqueness and allow a second record with the same company. */
+  allowDuplicateCompanyName: z.boolean().optional().default(false),
+});
 
 export const customerUpdateSchema = customerFieldsSchema.partial().extend({
   contactPerson: z.string().min(1, 'Contact person is required').optional(),
   phone: phoneSchema.optional(),
+  allowDuplicateCompanyName: z.boolean().optional(),
 });
 
 export const customerStageChangeSchema = z.object({

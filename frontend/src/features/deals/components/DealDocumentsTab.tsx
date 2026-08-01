@@ -119,7 +119,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                 <th className="px-4 py-3 font-medium">File Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Created Date</th>
-                <th className="px-4 py-3 font-medium">Entity Link</th>
+                <th className="px-4 py-3 font-medium">Linked To</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
@@ -145,9 +145,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatDate(file.createdAt.split("T")[0])}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {file.entityType}/{file.entityId.slice(0, 8)}
-                  </td>
+                  <td className="px-4 py-3 font-medium">{deal.title}</td>
                   <td className="px-4 py-3 text-right">
                     <Button
                       variant="ghost"

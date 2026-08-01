@@ -1,5 +1,6 @@
 import type { BaseEntity } from '../../../types';
 import type {
+  ComponentRenewalFrequency,
   DealBillingType,
   DealComponentStatus,
   DealRenewalFrequency,
@@ -8,6 +9,7 @@ import type {
 } from '../../../types/entity.contracts';
 
 export type {
+  ComponentRenewalFrequency,
   DealBillingType,
   DealComponentStatus,
   DealRenewalFrequency,
@@ -31,7 +33,9 @@ export interface DealEntity extends DealEntityBase {
   startDate: string;
   expectedCloseDate: string;
   actualCloseDate: string;
+  /** @deprecated Cleared after component migration. */
   nextRenewal: string;
+  /** @deprecated Cleared after component migration. */
   renewalFrequency: DealRenewalFrequency;
   nextActionDate: string;
   owner: string;
@@ -49,6 +53,8 @@ export interface DealComponentEntity extends DealEntityBase {
   amount: number;
   billingType: DealBillingType;
   status: DealComponentStatus;
+  renewalFrequency: ComponentRenewalFrequency;
+  renewalStartDate: string;
   renewalDate: string;
 }
 
