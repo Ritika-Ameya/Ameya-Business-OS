@@ -3,6 +3,7 @@ import {
   PaymentModeBadge,
   PaymentStatusBadge,
 } from "@/features/revenue/components/invoices/payments/PaymentBadges";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import {
   Table,
   TableBody,
@@ -27,15 +28,15 @@ export function CustomerPaymentHistoryTable({
   const navigate = useNavigate();
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Payment Date</TableHead>
             <TableHead>Invoice Number</TableHead>
-            <TableHead>Deal</TableHead>
+            <TableHead className="hidden md:table-cell">Deal</TableHead>
             <TableHead>Amount</TableHead>
-            <TableHead>Payment Mode</TableHead>
+            <TableHead className="hidden sm:table-cell">Payment Mode</TableHead>
             <TableHead className="pr-4">Status</TableHead>
           </TableRow>
         </TableHeader>
@@ -51,8 +52,13 @@ export function CustomerPaymentHistoryTable({
               <TableCell className="pl-4 text-muted-foreground">
                 {formatPaymentDate(payment.paymentDate)}
               </TableCell>
-              <TableCell className="font-medium">{payment.invoiceNo}</TableCell>
-              <TableCell className="max-w-[200px] truncate">
+              <TableCell className="font-medium">
+                {payment.invoiceNo}
+                <p className="truncate text-xs text-muted-foreground md:hidden">
+                  {payment.dealTitle || "—"}
+                </p>
+              </TableCell>
+              <TableCell className="hidden max-w-[200px] truncate md:table-cell">
                 {payment.dealId ? (
                   <Link
                     to={`/deals/${payment.dealId}`}
@@ -70,7 +76,7 @@ export function CustomerPaymentHistoryTable({
               <TableCell className="font-medium">
                 {formatPaymentCurrency(payment.amount)}
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <PaymentModeBadge mode={payment.mode} />
               </TableCell>
               <TableCell className="pr-4">
@@ -80,6 +86,6 @@ export function CustomerPaymentHistoryTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

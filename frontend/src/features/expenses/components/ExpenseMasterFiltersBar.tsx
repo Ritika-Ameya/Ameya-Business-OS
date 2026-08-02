@@ -1,4 +1,8 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import {
   Select,
@@ -47,18 +51,14 @@ export function ExpenseMasterFiltersBar({
         ariaLabel="Search expense templates"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         <Select
           value={filters.category}
           onValueChange={(value) =>
             onFiltersChange({ ...filters, category: value })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
@@ -80,7 +80,7 @@ export function ExpenseMasterFiltersBar({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Frequency" />
           </SelectTrigger>
           <SelectContent>
@@ -102,7 +102,7 @@ export function ExpenseMasterFiltersBar({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[120px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -115,7 +115,7 @@ export function ExpenseMasterFiltersBar({
         {(hasActiveFilters || query.trim().length > 0) && (
           <FilterResetButton onClick={resetAll} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

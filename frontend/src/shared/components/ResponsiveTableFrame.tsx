@@ -14,7 +14,7 @@ export function ResponsiveTableFrame({
   return (
     <div
       className={cn(
-        "overflow-x-auto rounded-2xl border border-white/70 bg-card/95 shadow-card dark:border-white/10 [-webkit-overflow-scrolling:touch]",
+        "min-w-0 overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card dark:border-white/10",
         className
       )}
     >

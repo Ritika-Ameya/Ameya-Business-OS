@@ -1,4 +1,8 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import {
   Select,
@@ -50,18 +54,14 @@ export function InvoiceSearchFilters({
         ariaLabel="Search invoices"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         <Select
           value={filters.status}
           onValueChange={(value) =>
             onFiltersChange({ ...filters, status: value as InvoiceFilters["status"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -79,7 +79,7 @@ export function InvoiceSearchFilters({
             onFiltersChange({ ...filters, customer: value })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[150px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Customer" />
           </SelectTrigger>
           <SelectContent>
@@ -98,7 +98,7 @@ export function InvoiceSearchFilters({
             onFiltersChange({ ...filters, date: value as InvoiceFilters["date"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Date" />
           </SelectTrigger>
           <SelectContent>
@@ -113,7 +113,7 @@ export function InvoiceSearchFilters({
         {(hasActiveFilters || query.trim().length > 0) && (
           <FilterResetButton onClick={resetAll} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

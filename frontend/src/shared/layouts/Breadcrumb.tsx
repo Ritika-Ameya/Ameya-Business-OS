@@ -162,8 +162,14 @@ export function Breadcrumb() {
   const lastVisibleIndex = visibleSegments.at(-1)?.index ?? -1;
 
   return (
-    <div className="flex min-h-8 items-center gap-1 text-sm text-muted-foreground">
-      <Link to="/dashboard" className="rounded-md px-2 py-1 hover:bg-muted hover:text-foreground">
+    <nav
+      aria-label="Breadcrumb"
+      className="flex min-h-8 max-w-full items-center gap-1 overflow-x-auto text-sm text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <Link
+        to="/dashboard"
+        className="shrink-0 rounded-md px-2 py-1 hover:bg-muted hover:text-foreground"
+      >
         Home
       </Link>
       {visibleSegments.map(({ segment, index }) => {
@@ -182,12 +188,17 @@ export function Breadcrumb() {
         const isLast = index === lastVisibleIndex && !trailingLabel;
 
         return (
-          <div key={`${href}-${segment}`} className="flex items-center gap-1">
-            <ChevronRight className="size-3.5" />
+          <div key={`${href}-${segment}`} className="flex shrink-0 items-center gap-1">
+            <ChevronRight className="size-3.5 shrink-0" aria-hidden />
             {isLast ? (
-              <span className="font-medium text-foreground">{label}</span>
+              <span className="max-w-[40vw] truncate font-medium text-foreground sm:max-w-[28rem]">
+                {label}
+              </span>
             ) : (
-              <Link to={href} className="rounded-md px-2 py-1 hover:bg-muted hover:text-foreground">
+              <Link
+                to={href}
+                className="max-w-[32vw] truncate rounded-md px-2 py-1 hover:bg-muted hover:text-foreground sm:max-w-[16rem]"
+              >
                 {label}
               </Link>
             )}
@@ -195,11 +206,13 @@ export function Breadcrumb() {
         );
       })}
       {trailingLabel ? (
-        <div className="flex items-center gap-1">
-          <ChevronRight className="size-3.5" />
-          <span className="font-medium text-foreground">{trailingLabel}</span>
+        <div className="flex shrink-0 items-center gap-1">
+          <ChevronRight className="size-3.5 shrink-0" aria-hidden />
+          <span className="max-w-[40vw] truncate font-medium text-foreground sm:max-w-[16rem]">
+            {trailingLabel}
+          </span>
         </div>
       ) : null}
-    </div>
+    </nav>
   );
 }

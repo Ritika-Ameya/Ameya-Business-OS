@@ -57,7 +57,7 @@ export function LoginPage() {
         <div className="login-orbit absolute left-1/2 top-1/2 size-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/10 [animation-direction:reverse] [animation-duration:18s]" />
       </div>
 
-      <div className="relative z-10 mx-auto grid min-h-svh max-w-6xl items-center gap-10 px-4 py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
+      <div className="relative z-10 mx-auto grid min-h-svh max-w-6xl items-center gap-8 px-4 py-8 sm:gap-10 sm:py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
         {/* Brand / story panel */}
         <div className="hidden space-y-8 lg:block">
           <div className="login-rise inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md">
@@ -222,7 +222,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-12 w-full gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 text-base font-semibold text-white shadow-lg shadow-violet-500/30 transition-all hover:brightness-110 hover:shadow-xl hover:shadow-fuchsia-500/25"
+                className="h-12 w-full gap-2 whitespace-normal rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition-all hover:brightness-110 hover:shadow-xl hover:shadow-fuchsia-500/25 sm:text-base"
               >
                 {loading ? (
                   <>
@@ -231,8 +231,9 @@ export function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Enter Ameya Biz Shree
-                    <ArrowRight className="size-4" />
+                    <span className="sm:hidden">Enter workspace</span>
+                    <span className="hidden sm:inline">Enter Ameya Biz Shree</span>
+                    <ArrowRight className="size-4 shrink-0" />
                   </>
                 )}
               </Button>

@@ -1,5 +1,10 @@
 import { CalendarClock } from "lucide-react";
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+  filterDateControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import { Input } from "@/shared/ui/input";
 import {
@@ -97,7 +102,7 @@ export function ReportFiltersBar({
   };
 
   return (
-    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 dark:bg-card/90">
+    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4 dark:bg-card/90">
       <SearchField
         value={filters.search}
         onChange={(value) => onFiltersChange({ ...filters, search: value })}
@@ -112,26 +117,28 @@ export function ReportFiltersBar({
       />
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <CalendarClock className="size-3.5" />
             Date Range
           </span>
-          {reportQuickDatePresets.map((preset) => (
-            <Button
-              key={preset}
-              type="button"
-              size="sm"
-              variant={filters.datePreset === preset ? "default" : "outline"}
-              className="rounded-xl"
-              onClick={() => applyQuickFilter(preset)}
-            >
-              {reportQuickDateLabels[preset]}
-            </Button>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {reportQuickDatePresets.map((preset) => (
+              <Button
+                key={preset}
+                type="button"
+                size="sm"
+                variant={filters.datePreset === preset ? "default" : "outline"}
+                className="rounded-xl"
+                onClick={() => applyQuickFilter(preset)}
+              >
+                {reportQuickDateLabels[preset]}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Input
             type="date"
             value={filters.dateFrom}
@@ -142,10 +149,10 @@ export function ReportFiltersBar({
                 dateFrom: e.target.value,
               })
             }
-            className="h-9 w-[150px] rounded-xl"
+            className={filterDateControlClassName}
             aria-label="From date"
           />
-          <span className="text-xs text-muted-foreground">to</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">to</span>
           <Input
             type="date"
             value={filters.dateTo}
@@ -156,24 +163,20 @@ export function ReportFiltersBar({
                 dateTo: e.target.value,
               })
             }
-            className="h-9 w-[150px] rounded-xl"
+            className={filterDateControlClassName}
             aria-label="To date"
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         {showCustomerDeal && (
           <>
             <Select
               value={filters.customer}
               onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
             >
-              <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
+              <SelectTrigger size="sm" className={filterControlClassName}>
                 <SelectValue placeholder="Customer" />
               </SelectTrigger>
               <SelectContent>
@@ -190,7 +193,7 @@ export function ReportFiltersBar({
               value={filters.deal}
               onValueChange={(value) => onFiltersChange({ ...filters, deal: value })}
             >
-              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+              <SelectTrigger size="sm" className={filterControlClassName}>
                 <SelectValue placeholder="Deal" />
               </SelectTrigger>
               <SelectContent>
@@ -209,7 +212,7 @@ export function ReportFiltersBar({
           value={filters.status}
           onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
         >
-          <SelectTrigger size="sm" className="min-w-[120px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -227,7 +230,7 @@ export function ReportFiltersBar({
               value={filters.category}
               onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
             >
-              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+              <SelectTrigger size="sm" className={filterControlClassName}>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -244,7 +247,7 @@ export function ReportFiltersBar({
               value={filters.employee}
               onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
             >
-              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+              <SelectTrigger size="sm" className={filterControlClassName}>
                 <SelectValue placeholder="Employee" />
               </SelectTrigger>
               <SelectContent>
@@ -261,7 +264,7 @@ export function ReportFiltersBar({
               value={filters.vendor}
               onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
             >
-              <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+              <SelectTrigger size="sm" className={filterControlClassName}>
                 <SelectValue placeholder="Vendor" />
               </SelectTrigger>
               <SelectContent>
@@ -279,7 +282,7 @@ export function ReportFiltersBar({
         {hasActiveFilters && (
           <FilterResetButton onClick={() => onFiltersChange(defaultReportFilters())} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

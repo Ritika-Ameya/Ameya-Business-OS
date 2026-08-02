@@ -76,7 +76,7 @@ export function RevenueExpenseChart() {
                     title={`Expense: ${formatInvoiceCurrency(point.expense)}`}
                   />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">
+                <span className="max-w-full truncate text-[10px] font-medium text-muted-foreground sm:text-xs">
                   {point.month}
                 </span>
               </div>

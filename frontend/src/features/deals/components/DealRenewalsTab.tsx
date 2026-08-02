@@ -37,12 +37,12 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
             creating a component.
           </p>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
-            <table className="w-full text-sm">
+          <div className="mt-4 overflow-x-auto rounded-xl border border-border/60 [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-[36rem] text-sm">
               <thead className="bg-muted/30 text-left text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium">Component</th>
-                  <th className="px-3 py-2 font-medium">Start</th>
+                  <th className="hidden px-3 py-2 font-medium sm:table-cell">Start</th>
                   <th className="px-3 py-2 font-medium">Frequency</th>
                   <th className="px-3 py-2 font-medium">Next Renewal</th>
                   <th className="px-3 py-2 font-medium">Amount</th>
@@ -51,8 +51,13 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
               <tbody>
                 {renewingComponents.map((component) => (
                   <tr key={component.id} className="border-t border-border/50">
-                    <td className="px-3 py-2 font-medium">{component.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">
+                    <td className="px-3 py-2 font-medium">
+                      {component.name}
+                      <p className="text-xs text-muted-foreground sm:hidden">
+                        Start {formatComponentDate(component.renewalStartDate)}
+                      </p>
+                    </td>
+                    <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell">
                       {formatComponentDate(component.renewalStartDate)}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">

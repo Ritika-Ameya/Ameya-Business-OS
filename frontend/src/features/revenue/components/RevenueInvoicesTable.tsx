@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, Edit, Eye, Receipt, Trash2 } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Edit, Eye, MoreHorizontal, Receipt } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -6,6 +6,13 @@ import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { EditInvoiceDialog } from "@/features/revenue/components/invoices/EditInvoiceDialog";
 import { InvoiceStatusBadge } from "@/features/revenue/components/invoices/InvoiceStatusBadge";
 import { Button } from "@/shared/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -90,7 +97,7 @@ export function RevenueInvoicesTable({
               <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
               <TableHead className="hidden md:table-cell">Due Date</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>Outstanding</TableHead>
+              <TableHead className="hidden sm:table-cell">Outstanding</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>
             </TableRow>
@@ -119,9 +126,14 @@ export function RevenueInvoicesTable({
                   {formatInvoiceDate(invoice.dueDate)}
                 </TableCell>
                 <TableCell className="font-medium">
-                  {formatInvoiceCurrency(invoice.amount)}
+                  <div>
+                    <span>{formatInvoiceCurrency(invoice.amount)}</span>
+                    <p className="text-xs text-muted-foreground sm:hidden">
+                      Due {formatInvoiceCurrency(invoice.outstanding)}
+                    </p>
+                  </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <span
                     className={cn(
                       "font-medium",
@@ -138,7 +150,7 @@ export function RevenueInvoicesTable({
                 </TableCell>
                 <TableCell className="pr-4 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon-sm" asChild>
+                    <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" asChild>
                       <Link
                         to={`/invoices/${invoice.id}`}
                         aria-label={`View invoice ${invoice.invoiceNo}`}
@@ -149,20 +161,42 @@ export function RevenueInvoicesTable({
                     <Button
                       variant="ghost"
                       size="icon-sm"
+                      className="hidden sm:inline-flex"
                       aria-label="Edit invoice"
                       disabled={invoice.status === "cancelled"}
                       onClick={() => setEditingInvoice(invoice)}
                     >
                       <Edit />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Delete invoice"
-                      onClick={() => void handleDelete(invoice)}
-                    >
-                      <Trash2 />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Actions for invoice ${invoice.invoiceNo}`}
+                        >
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to={`/invoices/${invoice.id}`}>View invoice</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={invoice.status === "cancelled"}
+                          onClick={() => setEditingInvoice(invoice)}
+                        >
+                          Edit invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => void handleDelete(invoice)}
+                        >
+                          Delete invoice
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>

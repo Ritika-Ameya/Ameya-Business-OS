@@ -228,41 +228,45 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/85">
-                <span className="flex items-center gap-2">
-                  <Phone className="size-4" />
-                  {formatPhoneForDisplay(customer.phone)}
+              <div className="flex flex-col gap-2 text-sm text-white/85 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <Phone className="size-4 shrink-0" />
+                  <span className="truncate">{formatPhoneForDisplay(customer.phone)}</span>
                 </span>
                 {customer.email && (
-                  <span className="flex items-center gap-2">
-                    <Mail className="size-4" />
-                    {customer.email}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Mail className="size-4 shrink-0" />
+                    <span className="truncate">{customer.email}</span>
                   </span>
                 )}
                 {customer.gst && (
-                  <span className="flex items-center gap-2">
-                    <Receipt className="size-4" />
-                    GST: {customer.gst}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Receipt className="size-4 shrink-0" />
+                    <span className="truncate">GST: {customer.gst}</span>
                   </span>
                 )}
                 {getCustomerBillingAddress(customer) && (
-                  <span className="flex items-center gap-2">
-                    <MapPin className="size-4" />
-                    Billing: {getCustomerBillingAddress(customer)}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <MapPin className="size-4 shrink-0" />
+                    <span className="truncate">
+                      Billing: {getCustomerBillingAddress(customer)}
+                    </span>
                   </span>
                 )}
                 {getCustomerServiceAddress(customer) &&
                   getCustomerServiceAddress(customer) !==
                     getCustomerBillingAddress(customer) && (
-                    <span className="flex items-center gap-2">
-                      <MapPin className="size-4" />
-                      Service: {getCustomerServiceAddress(customer)}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <MapPin className="size-4 shrink-0" />
+                      <span className="truncate">
+                        Service: {getCustomerServiceAddress(customer)}
+                      </span>
                     </span>
                   )}
               </div>
             </div>
 
-            <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-xl lg:grid-cols-2">
+            <div className="grid w-full grid-cols-2 gap-3 lg:max-w-xl">
               <HeroMetric
                 label="Outstanding"
                 value={formatCurrency(customer.outstanding)}

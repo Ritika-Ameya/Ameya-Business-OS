@@ -1,4 +1,8 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import {
   Select,
@@ -45,18 +49,14 @@ export function DealSearchFilters({
         ariaLabel="Search deals"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         <Select
           value={filters.status}
           onValueChange={(value) =>
             onFiltersChange({ ...filters, status: value as DealFilters["status"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -74,7 +74,7 @@ export function DealSearchFilters({
             onFiltersChange({ ...filters, renewal: value as DealFilters["renewal"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Renewal" />
           </SelectTrigger>
           <SelectContent>
@@ -89,7 +89,7 @@ export function DealSearchFilters({
         {(hasActiveFilters || query.trim().length > 0) && (
           <FilterResetButton onClick={resetAll} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

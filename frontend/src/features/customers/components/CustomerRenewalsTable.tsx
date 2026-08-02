@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/shared/ui/badge";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import {
   Table,
   TableBody,
@@ -23,7 +24,7 @@ interface CustomerRenewalsTableProps {
 
 export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -73,6 +74,6 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

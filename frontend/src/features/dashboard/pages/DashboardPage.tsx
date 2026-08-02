@@ -31,12 +31,12 @@ function SectionTitle({
 
 export function DashboardPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <DashboardGreeting />
 
       <FounderInsightBanner />
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <SectionTitle title="Business Snapshot" subtitle="Live KPIs across revenue and operations" />
         <DashboardKpiCards />
       </section>
@@ -45,27 +45,27 @@ export function DashboardPage() {
         <RevenueExpenseChart />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <FollowUpWidgets />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <SectionTitle title="Action Required" subtitle="Collections and renewals needing attention" />
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
           <PendingCollectionsCard />
           <UpcomingRenewalsCard />
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <UpcomingRevenueCard />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <RecentActivityFeed />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <SectionTitle title="Quick Actions" subtitle="Jump into common workflows" />
         <DashboardQuickActions />
       </section>
