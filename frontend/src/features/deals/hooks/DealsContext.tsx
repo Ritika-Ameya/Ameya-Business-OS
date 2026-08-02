@@ -45,6 +45,10 @@ interface DealsContextValue {
     payload: DealStageChangePayload,
     stages: SettingsStage[]
   ) => Promise<void>;
+  updateDealFollowUp: (
+    id: string,
+    data: { nextActionDate: string; notes?: string }
+  ) => Promise<void>;
   updateDeal: (id: string, data: DealFormData) => Promise<Deal>;
   removeDeal: (id: string) => Promise<void>;
   addComponent: (dealId: string, data: ComponentFormData) => Promise<DealComponent>;
@@ -125,6 +129,20 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     async (id: string, payload: DealStageChangePayload, _stages: SettingsStage[]) => {
       void _stages;
       const updated = await dealsApi.changeStage(id, payload);
+      setDeals((prev) => upsertDeal(prev, mapDealFromDto(updated)));
+    },
+    []
+  );
+
+  const updateDealFollowUp = useCallback(
+    async (id: string, data: { nextActionDate: string; notes?: string }) => {
+      const notes =
+        data.notes?.trim() ||
+        `Follow-up date updated to ${data.nextActionDate}`;
+      const updated = await dealsApi.addTimelineNote(id, {
+        notes,
+        nextActionDate: data.nextActionDate,
+      });
       setDeals((prev) => upsertDeal(prev, mapDealFromDto(updated)));
     },
     []
@@ -213,6 +231,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       removeDeal,
       getDeal,
       changeDealStage,
+      updateDealFollowUp,
       addComponent,
       updateComponent,
       removeComponent,
@@ -230,6 +249,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       removeDeal,
       getDeal,
       changeDealStage,
+      updateDealFollowUp,
       addComponent,
       updateComponent,
       removeComponent,

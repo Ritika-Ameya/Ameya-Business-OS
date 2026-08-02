@@ -31,7 +31,7 @@ import {
 } from "@/features/settings/utils/app-config-utils";
 import { formatComponentCurrency } from "@/features/deals/utils/deal-component-utils";
 import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
-import { cn } from "@/shared/utils";
+import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
 import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
 
 interface GenerateInvoiceDialogProps {
@@ -42,13 +42,11 @@ interface GenerateInvoiceDialogProps {
 }
 
 function todayIsoDate(): string {
-  return new Date().toISOString().split("T")[0]!;
+  return toLocalIsoDate();
 }
 
 function addDaysIso(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0]!;
+  return addLocalDaysIso(days);
 }
 
 export function GenerateInvoiceDialog({

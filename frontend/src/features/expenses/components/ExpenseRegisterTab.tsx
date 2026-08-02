@@ -11,6 +11,7 @@ import { useExpenses } from "@/features/expenses/hooks/use-expenses";
 import { expensesApi } from "@/features/expenses/api/expenses.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { fileToUploadPayload } from "@/shared/utils";
+import { toLocalIsoDate } from "@/shared/utils/format-date";
 import {
   computeRegisterStats,
   defaultRegisterFilters,
@@ -84,10 +85,10 @@ export function ExpenseRegisterTab({
     if (!ready || !expenseId) return;
 
     const transaction = transactions.find((txn) => txn.id === expenseId);
-    if (transaction) {
-      setEditingTransaction(transaction);
-      setDialogOpen(true);
-    }
+    if (!transaction) return;
+
+    setEditingTransaction(transaction);
+    setDialogOpen(true);
     onExpenseIdHandled?.();
   }, [ready, expenseId, transactions, onExpenseIdHandled, setDialogOpen]);
 
@@ -194,7 +195,7 @@ export function ExpenseRegisterTab({
       vendorId: vendors[0]?.id,
       defaultAmount: "1",
       frequency: "monthly",
-      startDate: new Date().toISOString().split("T")[0]!,
+      startDate: toLocalIsoDate(),
       endDate: "",
       autoGenerate: false,
       status: "inactive",

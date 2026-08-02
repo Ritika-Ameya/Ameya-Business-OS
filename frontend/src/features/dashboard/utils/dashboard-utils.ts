@@ -15,12 +15,10 @@ export function getTimeOfDayGreeting(): string {
 }
 
 export function formatTodayDate(): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date());
+  const now = new Date();
+  const weekday = new Intl.DateTimeFormat("en-IN", { weekday: "long" }).format(now);
+  const dateOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return `${weekday}, ${formatDate(dateOnly)}`;
 }
 
 export function getFounderInsight(

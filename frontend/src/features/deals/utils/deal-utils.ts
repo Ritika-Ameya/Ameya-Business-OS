@@ -42,11 +42,35 @@ export function getEarliestComponentRenewal(
   dealId: string,
   components: DealComponent[]
 ): string | undefined {
-  const dates = getDealRenewalDates(dealId, components)
-    .map((value) => ({ value, time: new Date(value).getTime() }))
+  return getNextComponentRenewal(dealId, components)?.date;
+}
+
+export function getNextComponentRenewal(
+  dealId: string,
+  components: DealComponent[]
+): { date: string; componentName: string; moreCount: number } | undefined {
+  const renewing = components
+    .filter(
+      (component) =>
+        component.dealId === dealId &&
+        hasComponentRenewal(component.renewalFrequency) &&
+        Boolean(component.renewalDate)
+    )
+    .map((component) => ({
+      date: component.renewalDate!,
+      componentName: component.name,
+      time: new Date(component.renewalDate!).getTime(),
+    }))
     .filter((item) => !Number.isNaN(item.time))
     .sort((a, b) => a.time - b.time);
-  return dates[0]?.value;
+
+  const next = renewing[0];
+  if (!next) return undefined;
+  return {
+    date: next.date,
+    componentName: next.componentName,
+    moreCount: Math.max(0, renewing.length - 1),
+  };
 }
 
 export function filterDeals(

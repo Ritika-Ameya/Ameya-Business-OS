@@ -28,6 +28,8 @@ export function filterCustomers(
         customer.name,
         customer.company,
         customer.gst ?? "",
+        customer.vatId ?? "",
+        customer.licenseNo ?? "",
         customer.phone,
         customer.email,
       ].some((field) => field.toLowerCase().includes(normalizedQuery));

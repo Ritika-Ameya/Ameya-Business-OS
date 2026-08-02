@@ -1,5 +1,6 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
 import {
+  FilterField,
   FilterToolbar,
   filterControlClassName,
 } from "@/shared/components/FilterToolbar";
@@ -50,44 +51,56 @@ export function DealSearchFilters({
       />
 
       <FilterToolbar>
-        <Select
-          value={filters.status}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, status: value as DealFilters["status"] })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(dealStatusLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Status">
+          <Select
+            value={filters.status}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, status: value as DealFilters["status"] })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by status"
+            >
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(dealStatusLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.renewal}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, renewal: value as DealFilters["renewal"] })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Renewal" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(dealRenewalLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Renewal">
+          <Select
+            value={filters.renewal}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, renewal: value as DealFilters["renewal"] })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by renewal"
+            >
+              <SelectValue placeholder="Select renewal" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(dealRenewalLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {(hasActiveFilters || query.trim().length > 0) && (
-          <FilterResetButton onClick={resetAll} />
+          <FilterResetButton onClick={resetAll} className="sm:mb-0.5" />
         )}
       </FilterToolbar>
     </div>

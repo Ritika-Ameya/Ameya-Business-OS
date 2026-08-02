@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -100,6 +100,13 @@ export function AddComponentDialog({
     }
     onOpenChange(nextOpen);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(initialComponent ? formFromComponent(initialComponent) : emptyForm);
+    setErrors({});
+    setSubmitError(null);
+  }, [open, initialComponent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

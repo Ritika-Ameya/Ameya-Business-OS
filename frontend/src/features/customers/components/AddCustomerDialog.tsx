@@ -33,6 +33,8 @@ const emptyForm: CustomerFormData = {
   phone: "",
   email: "",
   gst: "",
+  vatId: "",
+  licenseNo: "",
   billingAddress: "",
   serviceAddress: "",
   notes: "",
@@ -47,6 +49,8 @@ function formFromCustomer(customer?: Customer): CustomerFormData {
     phone: customer.phone,
     email: customer.email,
     gst: customer.gst ?? "",
+    vatId: customer.vatId ?? "",
+    licenseNo: customer.licenseNo ?? "",
     billingAddress: customer.billingAddress ?? customer.address ?? "",
     serviceAddress: customer.serviceAddress ?? customer.billingAddress ?? customer.address ?? "",
     notes: customer.notes ?? "",
@@ -110,17 +114,26 @@ export function AddCustomerDialog({
       nextErrors.phone = "Please enter a valid mobile number.";
     }
     if (!isValidEmail(form.email)) {
-      nextErrors.email = "Enter a valid email address";
+      nextErrors.email = "Please enter a valid email address.";
     }
     if (!isValidGstin(form.gst)) {
-      nextErrors.gst = "Enter a valid 15-character GSTIN";
+      nextErrors.gst = "Enter a valid 15-character GST";
     }
 
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    const isValid = Object.keys(nextErrors).length === 0;
+    if (!isValid) {
+      const messages = Object.values(nextErrors).filter(Boolean);
+      setSubmitError(
+        messages.length === 1
+          ? messages[0]!
+          : "Please fix the highlighted fields before saving."
+      );
+    } else {
+      setSubmitError(null);
+    }
+    return isValid;
   };
-
-  const isPhoneValid = isValidPhoneNumberInput(form.phone, { required: true });
 
   const saveCustomer = async (allowDuplicateCompanyName = false) => {
     setSaving(true);
@@ -165,6 +178,9 @@ export function AddCustomerDialog({
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+    if (submitError) {
+      setSubmitError(null);
+    }
     if (field === "company") {
       setDuplicateCompanyPrompt(null);
     }
@@ -184,7 +200,7 @@ export function AddCustomerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="record-type">Record Type</Label>
@@ -299,6 +315,7 @@ export function AddCustomerDialog({
                 ariaInvalid={Boolean(errors.phone)}
                 ariaDescribedBy={errors.phone ? "phone-error" : undefined}
                 disabled={saving}
+                className={errors.phone ? "border-destructive" : undefined}
               />
               {errors.phone && (
                 <p id="phone-error" role="alert" className="text-xs text-destructive">
@@ -311,9 +328,20 @@ export function AddCustomerDialog({
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={(e) => updateField("email", e.target.value)}
+                onBlur={() => {
+                  if (form.email.trim() && !isValidEmail(form.email)) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      email: "Please enter a valid email address.",
+                    }));
+                    setSubmitError("Please enter a valid email address.");
+                  }
+                }}
                 placeholder="email@company.com"
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? "email-error" : undefined}
@@ -327,8 +355,8 @@ export function AddCustomerDialog({
               )}
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="gst">GSTIN</Label>
+            <div className="space-y-2">
+              <Label htmlFor="gst">GST</Label>
               <Input
                 id="gst"
                 value={form.gst}
@@ -345,6 +373,30 @@ export function AddCustomerDialog({
                   {errors.gst}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vat-id">VAT ID</Label>
+              <Input
+                id="vat-id"
+                value={form.vatId}
+                onChange={(e) => updateField("vatId", e.target.value)}
+                placeholder="VAT identification number"
+                className="rounded-xl"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="license-no">License No</Label>
+              <Input
+                id="license-no"
+                value={form.licenseNo}
+                onChange={(e) => updateField("licenseNo", e.target.value)}
+                placeholder="Business license number"
+                className="rounded-xl"
+                disabled={saving}
+              />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -386,7 +438,10 @@ export function AddCustomerDialog({
           </div>
 
           {submitError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            >
               {submitError}
             </p>
           )}
@@ -400,7 +455,7 @@ export function AddCustomerDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !isPhoneValid}>
+            <Button type="submit" disabled={saving}>
               {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Customer"}
             </Button>
           </DialogFooter>

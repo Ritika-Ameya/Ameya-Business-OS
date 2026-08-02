@@ -16,7 +16,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     const token = tokenStorage.getAccessToken();
-    if (!token) {
+    const refreshToken = tokenStorage.getRefreshToken();
+    if (!token && !refreshToken) {
       setUser(null);
       setIsLoading(false);
       return;
@@ -25,6 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await authApi.me();
       setUser(me);
     } catch {
+      // Access token may be expired — try refresh before giving up.
+      if (refreshToken) {
+        try {
+          const refreshed = await authApi.refresh(refreshToken);
+          tokenStorage.setTokens(
+            refreshed.accessToken,
+            refreshed.refreshToken,
+            tokenStorage.isPersistent()
+          );
+          const me = await authApi.me();
+          setUser(me);
+          return;
+        } catch {
+          // fall through to clear
+        }
+      }
       tokenStorage.clear();
       setUser(null);
     } finally {
@@ -39,9 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await authApi.login({ email, password });
-    tokenStorage.setTokens(result.accessToken, result.refreshToken);
+  const login = useCallback(async (email: string, password: string, rememberMe = true) => {
+    const result = await authApi.login({ email, password, rememberMe });
+    tokenStorage.setTokens(result.accessToken, result.refreshToken, rememberMe);
     setUser(result.user);
   }, []);
 

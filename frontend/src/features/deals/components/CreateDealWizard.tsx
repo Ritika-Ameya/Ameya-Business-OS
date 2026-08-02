@@ -15,7 +15,7 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { getActiveDealTypes } from "@/features/settings/utils/app-config-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
-import { cn } from "@/shared/utils";
+import { cn, toLocalIsoDate } from "@/shared/utils";
 import type { DealFormData } from "@/features/deals/types/deal";
 
 const steps = [
@@ -28,7 +28,7 @@ const emptyForm = (): DealFormData => ({
   title: "",
   dealType: "",
   contractValue: "",
-  startDate: new Date().toISOString().split("T")[0],
+  startDate: toLocalIsoDate(),
   description: "",
 });
 
@@ -42,12 +42,14 @@ interface FormErrors {
 interface CreateDealWizardProps {
   customerId: string;
   customerName: string;
+  cancelHref?: string;
   onSave: (data: DealFormData) => void | Promise<void>;
 }
 
 export function CreateDealWizard({
   customerId,
   customerName,
+  cancelHref,
   onSave,
 }: CreateDealWizardProps) {
   const { dealTypes } = useAppConfig();
@@ -273,7 +275,7 @@ export function CreateDealWizard({
 
       <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-6 sm:flex-row sm:justify-between">
         <Button variant="ghost" className="rounded-xl" asChild>
-          <Link to={`/customers/${customerId}`}>Cancel</Link>
+          <Link to={cancelHref ?? `/customers/${customerId}`}>Cancel</Link>
         </Button>
         <Button className="rounded-xl" onClick={() => void handleCreate()} disabled={saving}>
           {saving ? "Creating…" : "Create Deal"}

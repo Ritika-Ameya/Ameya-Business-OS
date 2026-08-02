@@ -10,7 +10,7 @@ import type { DealDocumentDto } from "@/features/deals/api/deal.dto";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
-import { fileToUploadPayload, formatDate, getDriveFileUrl } from "@/shared/utils";
+import { fileToUploadPayload, formatDate, openDriveFile } from "@/shared/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import type { Customer } from "@/features/customers/types/customer";
@@ -66,6 +66,7 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
 
   const customerDeals = useMemo(
     () => getDealsByCustomerId(deals, customer.id),
@@ -143,6 +144,19 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
     }
   };
 
+  const handleOpen = async (file: CustomerFileRow) => {
+    if (!file.driveFileId) return;
+    setOpeningFileId(file.id);
+    setError(null);
+    try {
+      await openDriveFile(file.driveFileId, file.name);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setOpeningFileId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/50 p-4 sm:flex-row sm:items-end">
@@ -201,15 +215,15 @@ export function CustomerFilesTab({ customer }: CustomerFilesTabProps) {
                 <tr key={`${file.scope}-${file.id}`} className="border-b border-border/40 last:border-0">
                   <td className="px-4 py-3 font-medium">
                     {file.driveFileId ? (
-                      <a
-                        href={getDriveFileUrl(file.driveFileId)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex max-w-[14rem] items-center gap-1.5 truncate hover:underline sm:max-w-none"
+                      <button
+                        type="button"
+                        onClick={() => void handleOpen(file)}
+                        disabled={openingFileId === file.id || saving}
+                        className="inline-flex max-w-[14rem] items-center gap-1.5 truncate text-left hover:underline sm:max-w-none disabled:opacity-60"
                       >
                         {file.name}
                         <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" />
-                      </a>
+                      </button>
                     ) : (
                       <span className="truncate">{file.name}</span>
                     )}

@@ -1,6 +1,7 @@
 import type {
   DatePreset,
   ExpenseCategoryItem,
+  ExpenseFrequency,
   ExpenseMasterFilters,
   ExpenseMasterFormData,
   ExpenseMasterTemplate,
@@ -9,6 +10,7 @@ import type {
   ExpenseTransactionFormData,
   ExpenseTransactionStatus,
 } from "@/features/expenses/types/expense";
+import { toLocalIsoDate } from "@/shared/utils/format-date";
 
 export const frequencyLabels = {
   monthly: "Monthly",
@@ -246,6 +248,39 @@ export function formatPeriod(date: Date): string {
   return `${year}-${month}`;
 }
 
+/** YYYY-MM from a local ISO date string (avoids UTC parsing shifts). */
+export function periodFromIsoDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (match) return `${match[1]}-${match[2]}`;
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return formatPeriod(parsed);
+}
+
+function parseLocalIsoDate(isoDate: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+/** Next occurrence after `fromDate` for a recurring frequency (renewal-style). */
+export function computeNextRecurringStartDate(
+  fromDate: string,
+  frequency: ExpenseFrequency | "" | undefined
+): string {
+  if (!frequency || frequency === "one-time") return fromDate.trim();
+
+  const date = parseLocalIsoDate(fromDate);
+  if (!date) return "";
+
+  if (frequency === "monthly") date.setMonth(date.getMonth() + 1);
+  else if (frequency === "quarterly") date.setMonth(date.getMonth() + 3);
+  else if (frequency === "half-yearly") date.setMonth(date.getMonth() + 6);
+  else if (frequency === "yearly") date.setFullYear(date.getFullYear() + 1);
+
+  return toLocalIsoDate(date);
+}
+
 export function periodToDate(period: string, startDate: string): string {
   const [year, month] = period.split("-").map(Number);
   const start = new Date(startDate);
@@ -375,6 +410,15 @@ export function validateTransactionForm(
     Number.parseFloat(data.amount) <= 0
   ) {
     errors.amount = "Enter a valid amount";
+  }
+
+  if (data.recurring && data.createMaster) {
+    if (!data.masterFrequency) {
+      errors.masterFrequency = "Frequency is required";
+    }
+    if (!data.masterStartDate?.trim()) {
+      errors.masterStartDate = "Recurring start date is required";
+    }
   }
 
   return errors;

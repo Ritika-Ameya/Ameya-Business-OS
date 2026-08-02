@@ -4,6 +4,7 @@ import type {
   StageApplicableFor,
   StageReminderOffset,
 } from "@/features/settings/types/settings";
+import { addLocalDaysIso, toLocalIsoDate } from "@/shared/utils/format-date";
 
 export const stageApplicableForLabels: Record<StageApplicableFor, string> = {
   opportunity: "Opportunity",
@@ -104,19 +105,23 @@ export function getReminderDate(
   nextActionDate: string,
   offset: StageReminderOffset
 ): string {
-  const date = new Date(nextActionDate);
-  date.setDate(date.getDate() - getReminderOffsetDays(offset));
-  return date.toISOString().split("T")[0];
+  const days = getReminderOffsetDays(offset);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(nextActionDate.trim());
+  if (!match) return nextActionDate;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  date.setDate(date.getDate() - days);
+  return toLocalIsoDate(date);
 }
 
 export function toDateOnly(date: Date = new Date()): string {
-  return date.toISOString().split("T")[0];
+  return toLocalIsoDate(date);
 }
 
 export function addDaysToDate(dateStr: string, days: number): string {
-  const date = new Date(dateStr);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0];
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (!match) return dateStr;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return addLocalDaysIso(days, date);
 }
 
 export function getStageColorStyle(color: string): {

@@ -53,7 +53,9 @@ export class GoogleDriveOAuthService {
     });
   }
 
-  private async fetchAuthorizedEmail(client: InstanceType<typeof google.auth.OAuth2>): Promise<string> {
+  private async fetchAuthorizedEmail(
+    client: InstanceType<typeof google.auth.OAuth2>,
+  ): Promise<string> {
     const oauth2 = google.oauth2({ version: 'v2', auth: client });
     const profile = await oauth2.userinfo.get();
     return profile.data.email?.trim().toLowerCase() ?? '';
@@ -67,6 +69,24 @@ export class GoogleDriveOAuthService {
         `Unauthorized Google account. Please authorize ${this.config.adminEmail}`,
       );
     }
+  }
+
+  private isInvalidGrantError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return message.toLowerCase().includes('invalid_grant');
+  }
+
+  private async persistRotatedRefreshToken(
+    existing: DriveRefreshTokenRecord,
+    refreshToken: string,
+  ): Promise<void> {
+    if (!refreshToken || refreshToken === existing.refreshToken) return;
+    await googleDriveTokenStore.save({
+      ...existing,
+      refreshToken,
+      updatedAt: new Date().toISOString(),
+    });
+    this.logger.info('Persisted rotated Google Drive refresh token');
   }
 
   async connectWithAuthorizationCode(code: string): Promise<DriveRefreshTokenRecord> {
@@ -115,12 +135,21 @@ export class GoogleDriveOAuthService {
 
     const client = this.createOAuthClient();
     client.setCredentials({ refresh_token: record.refreshToken });
+
+    // Persist rotated refresh tokens so Google rotation never silently disconnects us.
+    client.on('tokens', (tokens) => {
+      if (!tokens.refresh_token) return;
+      void this.persistRotatedRefreshToken(record, tokens.refresh_token).catch((error) => {
+        this.logger.warn('Failed to persist rotated Google Drive refresh token', { error });
+      });
+    });
+
     return client;
   }
 
   async getConnectionStatus(): Promise<GoogleDriveConnectionStatus> {
     const record = await googleDriveTokenStore.load();
-    if (!record) {
+    if (!record?.refreshToken) {
       return { connected: false, email: '' };
     }
 
@@ -128,11 +157,35 @@ export class GoogleDriveOAuthService {
       const client = this.createOAuthClient();
       client.setCredentials({ refresh_token: record.refreshToken });
       const email = await this.fetchAuthorizedEmail(client);
-      this.assertAllowedEmail(email);
-      return { connected: Boolean(email), email };
+      this.assertAllowedEmail(email || record.email);
+      return { connected: true, email: email || record.email };
     } catch (error) {
-      this.logger.warn('Google Drive OAuth status check failed', { error });
-      return { connected: false, email: record.email };
+      if (this.isInvalidGrantError(error)) {
+        this.logger.warn('Google Drive refresh token is invalid; connection requires reconnect', {
+          error,
+        });
+        return { connected: false, email: record.email };
+      }
+
+      // Transient API/network failures must not look like a manual disconnect.
+      this.logger.warn('Google Drive status probe failed; keeping stored connection', { error });
+      return { connected: true, email: record.email };
     }
+  }
+
+  async disconnect(): Promise<void> {
+    const record = await googleDriveTokenStore.load();
+    if (record?.refreshToken) {
+      try {
+        const client = this.createOAuthClient();
+        await client.revokeToken(record.refreshToken);
+      } catch (error) {
+        // Still clear local/durable storage even if Google revoke fails.
+        this.logger.warn('Failed to revoke Google Drive token at Google', { error });
+      }
+    }
+
+    await googleDriveTokenStore.clear();
+    this.logger.info('Google Drive disconnected');
   }
 }

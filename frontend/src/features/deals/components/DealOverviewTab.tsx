@@ -6,7 +6,7 @@ import {
   formatComponentDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
-import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
+import { getNextComponentRenewal } from "@/features/deals/utils/deal-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
 import type { Deal } from "@/features/deals/types/deal";
 
@@ -17,10 +17,16 @@ interface DealOverviewTabProps {
 export function DealOverviewTab({ deal }: DealOverviewTabProps) {
   const { components, getComponentsByDeal } = useDeals();
   const dealComponents = getComponentsByDeal(deal.id);
-  const renewing = dealComponents.filter((component) =>
-    hasComponentRenewal(component.renewalFrequency)
-  );
-  const nextRenewal = getEarliestComponentRenewal(deal.id, components);
+  const renewing = dealComponents
+    .filter(
+      (component) =>
+        hasComponentRenewal(component.renewalFrequency) && Boolean(component.renewalDate)
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.renewalDate!).getTime() - new Date(b.renewalDate!).getTime()
+    );
+  const nextRenewal = getNextComponentRenewal(deal.id, components);
   const frequencies = Array.from(
     new Set(renewing.map((component) => component.renewalFrequency))
   );
@@ -106,12 +112,28 @@ export function DealOverviewTab({ deal }: DealOverviewTabProps) {
             <dt className="text-muted-foreground">Frequency</dt>
             <dd className="font-medium">{frequencyLabel}</dd>
           </div>
-          <div className="flex justify-between gap-2">
-            <dt className="text-muted-foreground">Next Renewal</dt>
-            <dd className="font-medium">
-              {nextRenewal ? formatComponentDate(nextRenewal) : "—"}
-            </dd>
-          </div>
+          {renewing.length === 0 ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted-foreground">Next Renewal</dt>
+              <dd className="font-medium">—</dd>
+            </div>
+          ) : (
+            renewing.slice(0, 3).map((component) => (
+              <div key={component.id} className="flex justify-between gap-2">
+                <dt className="min-w-0 truncate text-muted-foreground">
+                  {component.name}
+                </dt>
+                <dd className="shrink-0 font-medium">
+                  {formatComponentDate(component.renewalDate)}
+                </dd>
+              </div>
+            ))
+          )}
+          {nextRenewal && renewing.length > 3 ? (
+            <p className="text-xs text-muted-foreground">
+              +{renewing.length - 3} more on Renewals tab
+            </p>
+          ) : null}
         </dl>
       </div>
     </div>

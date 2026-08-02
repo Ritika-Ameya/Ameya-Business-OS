@@ -59,7 +59,7 @@ export function DealTable({
         <EmptyState
           icon={Briefcase}
           title="No deals yet"
-          description="Create a deal from a customer workspace to track components and renewals."
+          description="Create a deal by selecting an existing opportunity or customer."
           actionLabel="Go to Customers"
           onAction={onAdd}
         />

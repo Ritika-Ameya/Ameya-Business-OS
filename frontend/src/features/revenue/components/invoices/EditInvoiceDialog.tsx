@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -33,19 +33,21 @@ export function EditInvoiceDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen && invoice) {
-      setDueDate(invoice.dueDate || "");
-      setGstPercent(String(invoice.gstPercent ?? ""));
-      setNotes(invoice.notes || "");
-      setError(null);
-    }
-    onOpenChange(nextOpen);
-  };
+  useEffect(() => {
+    if (!open || !invoice) return;
+    setDueDate(invoice.dueDate || "");
+    setGstPercent(String(invoice.gstPercent ?? ""));
+    setNotes(invoice.notes || "");
+    setError(null);
+  }, [open, invoice]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!invoice) return;
+    if (!dueDate.trim()) {
+      setError("Due date is required");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -63,7 +65,7 @@ export function EditInvoiceDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Invoice</DialogTitle>
@@ -80,6 +82,7 @@ export function EditInvoiceDialog({
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className="rounded-xl"
+              disabled={saving}
             />
           </div>
           <div className="space-y-2">
@@ -90,6 +93,7 @@ export function EditInvoiceDialog({
               value={gstPercent}
               onChange={(e) => setGstPercent(e.target.value)}
               className="rounded-xl"
+              disabled={saving}
             />
           </div>
           <div className="space-y-2">
@@ -100,6 +104,7 @@ export function EditInvoiceDialog({
               onChange={(e) => setNotes(e.target.value)}
               className="rounded-xl"
               rows={3}
+              disabled={saving}
             />
           </div>
           {error && (

@@ -16,7 +16,14 @@ function segmentToTitle(segment: string): string {
 }
 
 function getSegmentLabel(segment: string, index: number, segments: string[]): string {
-  if (segments[index + 1] === "new" && segment === "deals") {
+  if (segment === "new" && segments[index - 1] === "deals") {
+    return "Create Deal";
+  }
+  if (
+    segments[index + 1] === "new" &&
+    segment === "deals" &&
+    segments[0] === "customers"
+  ) {
     return "Create Deal";
   }
 
@@ -64,7 +71,10 @@ function resolveEntityLabel(
 function shouldSkipSegment(segments: string[], index: number): boolean {
   const segment = segments[index];
   const parent = segments[index - 1];
-  return segment === "new" && parent === "deals";
+  // Nested create path: /customers/:id/deals/new — skip "new" (label is on "deals")
+  return (
+    segment === "new" && parent === "deals" && segments[0] === "customers"
+  );
 }
 
 export function Breadcrumb() {

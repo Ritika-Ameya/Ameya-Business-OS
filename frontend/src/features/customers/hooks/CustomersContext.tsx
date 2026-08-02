@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -47,6 +48,10 @@ interface CustomersContextValue {
     payload: StageChangePayload,
     stages: SettingsStage[]
   ) => Promise<void>;
+  updateCustomerFollowUp: (
+    id: string,
+    data: { nextActionDate: string; notes?: string }
+  ) => Promise<void>;
   updateRecordType: (
     id: string,
     recordType: RecordType,
@@ -73,18 +78,24 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const listRequestIdRef = useRef(0);
 
   const refreshCustomers = useCallback(async () => {
+    const requestId = ++listRequestIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const items = await customersApi.list();
+      if (requestId !== listRequestIdRef.current) return;
       setCustomers(items.map(mapCustomerFromDto));
     } catch (err) {
+      if (requestId !== listRequestIdRef.current) return;
       setError(getErrorMessage(err));
       setCustomers([]);
     } finally {
-      setLoading(false);
+      if (requestId === listRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -103,7 +114,14 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       void _stages;
       const created = await customersApi.create(mapFormToCreateBody(data, options));
       const customer = mapCustomerFromDto(created);
-      setCustomers((prev) => [customer, ...prev]);
+      // Invalidate any in-flight list refresh so it cannot overwrite this create.
+      listRequestIdRef.current += 1;
+      setLoading(false);
+      setError(null);
+      setCustomers((prev) => [
+        customer,
+        ...prev.filter((item) => item.id !== customer.id),
+      ]);
       return customer;
     },
     []
@@ -137,6 +155,21 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateCustomerFollowUp = useCallback(
+    async (id: string, data: { nextActionDate: string; notes?: string }) => {
+      const notes =
+        data.notes?.trim() ||
+        `Follow-up date updated to ${data.nextActionDate}`;
+      const updated = await customersApi.addTimelineNote(id, {
+        notes,
+        nextActionDate: data.nextActionDate,
+      });
+      const customer = mapCustomerFromDto(updated);
+      setCustomers((prev) => upsertCustomer(prev, customer));
+    },
+    []
+  );
+
   const updateRecordType = useCallback(
     async (id: string, recordType: RecordType, _stages: SettingsStage[]) => {
       void _stages;
@@ -162,6 +195,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       updateCustomer,
       removeCustomer,
       changeCustomerStage,
+      updateCustomerFollowUp,
       updateRecordType,
       getCustomer,
     }),
@@ -174,6 +208,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       updateCustomer,
       removeCustomer,
       changeCustomerStage,
+      updateCustomerFollowUp,
       updateRecordType,
       getCustomer,
     ]

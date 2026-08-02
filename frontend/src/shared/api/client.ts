@@ -103,11 +103,16 @@ export async function apiRequest<T>(
   try {
     return await doRequest<T>(path, options);
   } catch (err) {
+    const isAuthBootstrapPath =
+      path.startsWith("/auth/login") ||
+      path.startsWith("/auth/refresh") ||
+      path.startsWith("/auth/logout");
+
     if (
       err instanceof ApiError &&
       err.statusCode === 401 &&
       !options.skipAuth &&
-      !path.startsWith("/auth/")
+      !isAuthBootstrapPath
     ) {
       // Attempt token refresh (deduplicate concurrent refreshes)
       if (!refreshPromise) {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FollowUpWidgets } from "@/features/dashboard/components/FollowUpWidgets";
 import { DashboardGreeting } from "@/features/dashboard/components/DashboardGreeting";
 import { DashboardKpiCards } from "@/features/dashboard/components/DashboardKpiCards";
@@ -8,6 +9,7 @@ import { RecentActivityFeed } from "@/features/dashboard/components/RecentActivi
 import { RevenueExpenseChart } from "@/features/dashboard/components/RevenueExpenseChart";
 import { UpcomingRenewalsCard } from "@/features/dashboard/components/UpcomingRenewalsCard";
 import { UpcomingRevenueCard } from "@/features/dashboard/components/UpcomingRevenueCard";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
 function SectionTitle({
   title,
@@ -30,9 +32,20 @@ function SectionTitle({
 }
 
 export function DashboardPage() {
+  const { refreshDashboard } = useDashboard();
+
+  useEffect(() => {
+    void refreshDashboard({ silent: true });
+  }, [refreshDashboard]);
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <DashboardGreeting />
+
+      <section className="space-y-3 sm:space-y-4">
+        <SectionTitle title="Quick Actions" subtitle="Jump into common workflows" />
+        <DashboardQuickActions />
+      </section>
 
       <FounderInsightBanner />
 
@@ -63,11 +76,6 @@ export function DashboardPage() {
 
       <section className="space-y-3 sm:space-y-4">
         <RecentActivityFeed />
-      </section>
-
-      <section className="space-y-3 sm:space-y-4">
-        <SectionTitle title="Quick Actions" subtitle="Jump into common workflows" />
-        <DashboardQuickActions />
       </section>
     </div>
   );

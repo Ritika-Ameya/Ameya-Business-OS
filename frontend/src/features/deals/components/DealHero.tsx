@@ -2,14 +2,16 @@ import { Calendar, Handshake, Layers, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
+import { EditFollowUpDateDialog } from "@/features/customers/components/EditFollowUpDateDialog";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import {
   getStageById,
   getStageColorStyle,
   getStagesForRecordType,
 } from "@/features/customers/utils/stage-utils";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
+import { getNextComponentRenewal } from "@/features/deals/utils/deal-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -38,17 +40,34 @@ interface DealHeroProps {
 function HeroMetric({
   label,
   value,
+  detail,
   highlight,
+  onClick,
+  actionLabel,
 }: {
   label: string;
   value: string;
+  detail?: string;
   highlight?: boolean;
+  onClick?: () => void;
+  actionLabel?: string;
 }) {
   return (
     <div className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            className="shrink-0 text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            {actionLabel ?? "Change"}
+          </button>
+        ) : null}
+      </div>
       <p
         className={cn(
           "mt-1 text-sm font-semibold sm:text-base",
@@ -57,6 +76,9 @@ function HeroMetric({
       >
         {value}
       </p>
+      {detail ? (
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</p>
+      ) : null}
     </div>
   );
 }
@@ -64,15 +86,17 @@ function HeroMetric({
 export function DealHero({ deal }: DealHeroProps) {
   const { stages } = useAppConfig();
   const { getCustomer } = useCustomers();
-  const { changeDealStage, components } = useDeals();
+  const { changeDealStage, updateDealFollowUp, components } = useDeals();
+  const { refreshDashboard } = useDashboard();
   const [pendingStage, setPendingStage] = useState<SettingsStage | null>(null);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
 
   const customer = getCustomer(deal.customerId);
   const recordType = customer?.recordType ?? "customer";
   const currentStage = getStageById(stages, deal.currentStageId);
   const applicableStages = getStagesForRecordType(stages, recordType);
-  const nextRenewal = getEarliestComponentRenewal(deal.id, components);
+  const nextRenewal = getNextComponentRenewal(deal.id, components);
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === deal.currentStageId) return;
@@ -80,13 +104,8 @@ export function DealHero({ deal }: DealHeroProps) {
     const stage = getStageById(stages, stageId);
     if (!stage) return;
 
-    if (stage.dateRequired || stage.notesRequired) {
-      setPendingStage(stage);
-      setStageDialogOpen(true);
-      return;
-    }
-
-    void changeDealStage(deal.id, { stageId }, stages);
+    setPendingStage(stage);
+    setStageDialogOpen(true);
   };
 
   const handleStageConfirm = (data: { nextActionDate?: string; notes?: string }) => {
@@ -100,8 +119,16 @@ export function DealHero({ deal }: DealHeroProps) {
         notes: data.notes,
       },
       stages
-    );
+    ).then(() => refreshDashboard({ silent: true }));
     setPendingStage(null);
+  };
+
+  const handleFollowUpSave = async (data: {
+    nextActionDate: string;
+    notes?: string;
+  }) => {
+    await updateDealFollowUp(deal.id, data);
+    await refreshDashboard({ silent: true });
   };
 
   return (
@@ -189,7 +216,13 @@ export function DealHero({ deal }: DealHeroProps) {
                 {nextRenewal && (
                   <span className="flex items-center gap-2">
                     <Layers className="size-4" />
-                    Renewal {formatDate(nextRenewal)}
+                    Renewal {formatDate(nextRenewal.date)}
+                    {nextRenewal.componentName
+                      ? ` · ${nextRenewal.componentName}`
+                      : ""}
+                    {nextRenewal.moreCount > 0
+                      ? ` (+${nextRenewal.moreCount} more)`
+                      : ""}
                   </span>
                 )}
               </div>
@@ -197,11 +230,23 @@ export function DealHero({ deal }: DealHeroProps) {
 
             <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-md lg:grid-cols-2">
               <HeroMetric label="Start Date" value={formatDate(deal.startDate)} />
-              <HeroMetric label="Next Renewal" value={formatDate(nextRenewal)} />
+              <HeroMetric
+                label="Next Renewal"
+                value={nextRenewal ? formatDate(nextRenewal.date) : "—"}
+                detail={
+                  nextRenewal
+                    ? nextRenewal.moreCount > 0
+                      ? `${nextRenewal.componentName} · +${nextRenewal.moreCount} more`
+                      : nextRenewal.componentName
+                    : undefined
+                }
+              />
               <HeroMetric
                 label="Next Action"
                 value={formatDate(deal.nextActionDate)}
                 highlight={Boolean(deal.nextActionDate)}
+                onClick={() => setFollowUpDialogOpen(true)}
+                actionLabel="Change"
               />
               <HeroMetric label="Components" value={String(deal.componentsCount)} />
             </div>
@@ -216,7 +261,16 @@ export function DealHero({ deal }: DealHeroProps) {
           if (!open) setPendingStage(null);
         }}
         stage={pendingStage}
+        initialNextActionDate={deal.nextActionDate}
         onConfirm={handleStageConfirm}
+      />
+
+      <EditFollowUpDateDialog
+        open={followUpDialogOpen}
+        onOpenChange={setFollowUpDialogOpen}
+        currentDate={deal.nextActionDate}
+        entityLabel="deal"
+        onSave={handleFollowUpSave}
       />
     </>
   );

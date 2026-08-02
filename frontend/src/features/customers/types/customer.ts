@@ -18,6 +18,8 @@ export interface Customer {
   phone: string;
   email: string;
   gst?: string;
+  vatId?: string;
+  licenseNo?: string;
   /** @deprecated Use billingAddress */
   address?: string;
   billingAddress?: string;
@@ -43,6 +45,8 @@ export interface CustomerFormData {
   phone: string;
   email: string;
   gst: string;
+  vatId: string;
+  licenseNo: string;
   billingAddress: string;
   serviceAddress: string;
   notes: string;

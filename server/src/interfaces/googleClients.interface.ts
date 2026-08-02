@@ -30,6 +30,7 @@ export interface GoogleDriveClientInterface {
   isConfigured(): boolean;
   validateConnection(): Promise<boolean>;
   upload(options: DriveUploadOptions): Promise<DriveFileMetadata>;
+  download(fileId: string): Promise<{ content: Buffer; mimeType: string; name: string }>;
   delete(fileId: string): Promise<void>;
   getMetadata(fileId: string): Promise<DriveFileMetadata>;
   createFolder(options: DriveFolderOptions): Promise<DriveFileMetadata>;

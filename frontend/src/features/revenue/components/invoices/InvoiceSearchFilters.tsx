@@ -1,5 +1,6 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
 import {
+  FilterField,
   FilterToolbar,
   filterControlClassName,
 } from "@/shared/components/FilterToolbar";
@@ -55,63 +56,81 @@ export function InvoiceSearchFilters({
       />
 
       <FilterToolbar>
-        <Select
-          value={filters.status}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, status: value as InvoiceFilters["status"] })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(invoiceStatusLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Status">
+          <Select
+            value={filters.status}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, status: value as InvoiceFilters["status"] })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by status"
+            >
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(invoiceStatusLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.customer}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, customer: value })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Customer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Customers</SelectItem>
-            {customers.map((customer) => (
-              <SelectItem key={customer.id} value={customer.id}>
-                {customer.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Customer">
+          <Select
+            value={filters.customer}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, customer: value })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by customer"
+            >
+              <SelectValue placeholder="Select customer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Customers</SelectItem>
+              {customers.map((customer) => (
+                <SelectItem key={customer.id} value={customer.id}>
+                  {customer.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.date}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, date: value as InvoiceFilters["date"] })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Date" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(invoiceDateLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Date">
+          <Select
+            value={filters.date}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, date: value as InvoiceFilters["date"] })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by date"
+            >
+              <SelectValue placeholder="Select date" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(invoiceDateLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {(hasActiveFilters || query.trim().length > 0) && (
-          <FilterResetButton onClick={resetAll} />
+          <FilterResetButton onClick={resetAll} className="sm:mb-0.5" />
         )}
       </FilterToolbar>
     </div>

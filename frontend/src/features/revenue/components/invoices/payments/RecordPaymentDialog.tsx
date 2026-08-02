@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -22,7 +22,7 @@ import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
-import { fileToUploadPayload } from "@/shared/utils";
+import { fileToUploadPayload, toLocalIsoDate } from "@/shared/utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import type { Payment, PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
 
@@ -44,6 +44,28 @@ interface RecordPaymentDialogProps {
   initialPayment?: Payment | null;
 }
 
+function formFromPayment(
+  payment: Payment | null | undefined,
+  fallbackMode: PaymentMode
+): PaymentFormData {
+  if (!payment) {
+    return {
+      ...emptyForm,
+      paymentDate: toLocalIsoDate(),
+      mode: fallbackMode,
+    };
+  }
+  return {
+    paymentDate: payment.paymentDate,
+    amount: String(payment.amount),
+    mode: payment.mode,
+    referenceNumber: payment.referenceNumber || "",
+    receivedBy: payment.receivedBy || "",
+    transactionId: payment.transactionId || "",
+    notes: payment.notes || "",
+  };
+}
+
 export function RecordPaymentDialog({
   open,
   onOpenChange,
@@ -54,36 +76,21 @@ export function RecordPaymentDialog({
   const { paymentMethods } = useAppConfig();
   const { recordPayment, updatePayment } = useRevenue();
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
-  const [form, setForm] = useState<PaymentFormData>(emptyForm);
+  const fallbackMode = (activePaymentMethods[0]?.slug as PaymentMode) || "upi";
+  const [form, setForm] = useState<PaymentFormData>(() =>
+    formFromPayment(initialPayment, fallbackMode)
+  );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isEditing = Boolean(initialPayment);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      if (initialPayment) {
-        setForm({
-          paymentDate: initialPayment.paymentDate,
-          amount: String(initialPayment.amount),
-          mode: initialPayment.mode,
-          referenceNumber: initialPayment.referenceNumber || "",
-          receivedBy: initialPayment.receivedBy || "",
-          transactionId: initialPayment.transactionId || "",
-          notes: initialPayment.notes || "",
-        });
-      } else {
-        setForm({
-          ...emptyForm,
-          paymentDate: new Date().toISOString().split("T")[0]!,
-          mode: (activePaymentMethods[0]?.slug as PaymentMode) || "upi",
-        });
-      }
-      setAttachmentFile(null);
-      setError(null);
-    }
-    onOpenChange(nextOpen);
-  };
+  useEffect(() => {
+    if (!open) return;
+    setForm(formFromPayment(initialPayment, fallbackMode));
+    setAttachmentFile(null);
+    setError(null);
+  }, [open, initialPayment, fallbackMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +138,7 @@ export function RecordPaymentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Payment" : "Record Payment"}</DialogTitle>

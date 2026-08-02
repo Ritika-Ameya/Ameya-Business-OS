@@ -1,3 +1,4 @@
+import { formatDate, toLocalIsoDate } from "@/shared/utils/format-date";
 import type {
   BillingType,
   ComponentFormData,
@@ -14,12 +15,7 @@ export function formatComponentCurrency(amount: number): string {
 }
 
 export function formatComponentDate(date?: string): string {
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
+  return formatDate(date);
 }
 
 export function hasComponentRenewal(
@@ -41,7 +37,10 @@ export function computeComponentNextRenewal(
 
   if (!startDate.trim()) return "";
 
-  const date = new Date(startDate);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate.trim());
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(startDate);
   if (Number.isNaN(date.getTime())) return "";
 
   if (frequency === "monthly") date.setMonth(date.getMonth() + 1);
@@ -50,7 +49,7 @@ export function computeComponentNextRenewal(
   else if (frequency === "yearly") date.setFullYear(date.getFullYear() + 1);
   else if (frequency === "biennial") date.setFullYear(date.getFullYear() + 2);
 
-  return date.toISOString().split("T")[0];
+  return toLocalIsoDate(date);
 }
 
 export function resolveComponentRenewalDate(input: {

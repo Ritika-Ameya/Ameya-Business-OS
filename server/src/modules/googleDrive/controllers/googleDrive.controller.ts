@@ -33,7 +33,10 @@ export class GoogleDriveController {
    * Returns JSON with Google authorizationUrl (browser cannot send Bearer on raw redirects).
    */
   readonly connect = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const result = await googleDriveConnectionService.startConnect();
+    const force =
+      String(req.query.force ?? '').toLowerCase() === '1' ||
+      String(req.query.force ?? '').toLowerCase() === 'true';
+    const result = await googleDriveConnectionService.startConnect({ force });
     ApiResponse.success(
       res,
       result,
@@ -66,6 +69,17 @@ export class GoogleDriveController {
   readonly status = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const status = await googleDriveConnectionService.getStatus();
     ApiResponse.success(res, status, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+  });
+
+  readonly disconnect = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const status = await googleDriveConnectionService.disconnect();
+    ApiResponse.success(
+      res,
+      status,
+      'Google Drive disconnected',
+      HTTP_STATUS.OK,
+      getResponseMeta(req),
+    );
   });
 }
 

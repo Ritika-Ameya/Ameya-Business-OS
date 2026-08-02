@@ -33,7 +33,7 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       // Navigate immediately after tokens/user are set — do not wait on UI teardown.
       navigate("/dashboard", { replace: true });
     } catch (err) {

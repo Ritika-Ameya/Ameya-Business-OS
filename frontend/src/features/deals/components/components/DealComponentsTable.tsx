@@ -85,7 +85,13 @@ export function DealComponentsTable({
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon-sm" aria-label="View component">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="View component"
+                    disabled={!onEdit}
+                    onClick={() => onEdit?.(component)}
+                  >
                     <Eye />
                   </Button>
                   <Button

@@ -20,6 +20,7 @@ import {
   toVendorItems,
 } from "@/features/settings/utils/app-config-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
+import { periodFromIsoDate } from "@/features/expenses/utils/expense-utils";
 import type {
   EmployeeItem,
   ExpenseCategoryItem,
@@ -192,29 +193,52 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
   const addTransaction = useCallback(
     async (data: ExpenseTransactionFormData): Promise<ExpenseTransaction> => {
       const created = await expensesApi.create(mapTransactionFormToBody(data));
-      const transaction = mapExpenseFromDto(created);
+      let transaction = mapExpenseFromDto(created);
       setTransactions((prev) => [transaction, ...prev]);
 
-      if (data.recurring && data.createMaster && data.masterFrequency) {
-        await addMaster({
-          name: data.name,
-          categoryId: data.categoryId,
-          payeeType: data.payeeType,
-          vendorOrEmployee: data.vendorOrEmployee,
-          vendorId: data.vendorId,
-          employeeId: data.employeeId,
-          defaultAmount: data.amount,
-          frequency: data.masterFrequency,
-          startDate: data.date,
-          endDate: "",
-          autoGenerate: data.masterAutoGenerate ?? true,
-          status: "active",
-        });
+      if (
+        data.recurring &&
+        data.createMaster &&
+        data.masterFrequency &&
+        data.masterStartDate
+      ) {
+        const masterCreated = await expenseMastersApi.create(
+          mapMasterFormToBody({
+            name: data.name,
+            categoryId: data.categoryId,
+            payeeType: data.payeeType,
+            vendorOrEmployee: data.vendorOrEmployee,
+            vendorId: data.vendorId,
+            employeeId: data.employeeId,
+            defaultAmount: data.amount,
+            frequency: data.masterFrequency,
+            startDate: data.masterStartDate,
+            endDate: "",
+            autoGenerate: data.masterAutoGenerate ?? true,
+            status: "active",
+          })
+        );
+        const master = mapExpenseMasterFromDto(masterCreated);
+        setMasters((prev) => [master, ...prev]);
+
+        // Stamp this expense so generation skips its period (avoids same-month duplicates).
+        const linked = await expensesApi.update(
+          created.id,
+          mapTransactionFormToBody(data, {
+            ...transaction,
+            masterTemplateId: master.id,
+            generatedPeriod: periodFromIsoDate(data.date),
+          })
+        );
+        transaction = mapExpenseFromDto(linked);
+
+        const expenseDtos = await expensesApi.list();
+        setTransactions(expenseDtos.map(mapExpenseFromDto));
       }
 
       return transaction;
     },
-    [addMaster]
+    []
   );
 
   const updateTransaction = useCallback(

@@ -31,9 +31,9 @@ export class GoogleDriveConnectionService {
     return googleDriveOAuthService.getAuthorizationUrl(state);
   }
 
-  async startConnect(): Promise<GoogleDriveConnectResponse> {
+  async startConnect(options?: { force?: boolean }): Promise<GoogleDriveConnectResponse> {
     const status = await this.getStatus();
-    if (status.connected) {
+    if (status.connected && !options?.force) {
       return {
         alreadyConnected: true,
         authorizationUrl: null,
@@ -64,6 +64,11 @@ export class GoogleDriveConnectionService {
     const frontend = env.FRONTEND_URL?.trim();
     if (!frontend) return null;
     return `${frontend.replace(/\/$/, '')}/settings/company?driveConnected=1`;
+  }
+
+  async disconnect(): Promise<GoogleDriveStatusResponse> {
+    await googleDriveOAuthService.disconnect();
+    return this.getStatus();
   }
 
   async getStatus(): Promise<GoogleDriveStatusResponse> {
