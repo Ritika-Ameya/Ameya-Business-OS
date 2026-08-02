@@ -10,8 +10,8 @@ export function UpcomingRevenueCard() {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card accent-bar-orange dark:border-white/10">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-orange-500/10 to-amber-500/5 px-5 py-4">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-orange-500/10 to-amber-500/5 px-4 py-4 sm:px-5">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">Upcoming Revenue</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Revenue expected next month
@@ -30,36 +30,32 @@ export function UpcomingRevenueCard() {
           <p className="text-sm text-muted-foreground">No revenue due next month</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-border/50 text-xs text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Customer</th>
-                <th className="px-3 py-3 font-medium">Invoice Number</th>
-                <th className="px-3 py-3 font-medium">Due Date</th>
-                <th className="px-3 py-3 font-medium text-right">Amount</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td className="max-w-[160px] truncate px-5 py-3 font-medium">
-                    {item.customer}
-                  </td>
-                  <td className="px-3 py-3 text-muted-foreground">{item.invoiceNumber}</td>
-                  <td className="px-3 py-3 text-muted-foreground">{item.dueDate}</td>
-                  <td className="px-3 py-3 text-right font-medium">{item.amount}</td>
-                  <td className="px-5 py-3 capitalize text-muted-foreground">{item.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-border/50">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-1 px-4 py-3.5 text-sm transition-colors hover:bg-orange-500/[0.04] sm:grid-cols-[1fr_auto_auto] sm:items-center sm:px-5"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{item.customer}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {item.invoiceNumber}
+                </p>
+              </div>
+              <span className="font-semibold text-orange-700 dark:text-orange-300 sm:text-right">
+                {item.amount}
+              </span>
+              <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:col-span-1 sm:flex-col sm:items-end sm:gap-0.5">
+                <span>{item.dueDate}</span>
+                <span className="capitalize">{item.status}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="mt-auto border-t border-border/50 px-5 py-3">
-        <Button variant="ghost" size="sm" className="w-full rounded-xl" asChild>
+      <div className="mt-auto border-t border-border/50 px-4 py-3 sm:px-5">
+        <Button variant="ghost" size="sm" className="min-h-11 w-full rounded-xl sm:min-h-8" asChild>
           <Link to="/revenue?tab=invoices">
             View Invoices
             <ArrowRight />

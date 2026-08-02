@@ -1,4 +1,9 @@
 import {
+  FilterToolbar,
+  filterControlClassName,
+} from "@/shared/components/FilterToolbar";
+import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,16 +37,12 @@ export function RevenueCollectionsFilters({
     filters.date !== defaultCollectionFilters.date;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Filters
-      </span>
-
+    <FilterToolbar>
       <Select
         value={filters.customer}
         onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
       >
-        <SelectTrigger size="sm" className="min-w-[150px] rounded-xl">
+        <SelectTrigger size="sm" className={filterControlClassName}>
           <SelectValue placeholder="Customer" />
         </SelectTrigger>
         <SelectContent>
@@ -63,7 +64,7 @@ export function RevenueCollectionsFilters({
           })
         }
       >
-        <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+        <SelectTrigger size="sm" className={filterControlClassName}>
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -81,7 +82,7 @@ export function RevenueCollectionsFilters({
           onFiltersChange({ ...filters, date: value as CollectionFilters["date"] })
         }
       >
-        <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+        <SelectTrigger size="sm" className={filterControlClassName}>
           <SelectValue placeholder="Date Range" />
         </SelectTrigger>
         <SelectContent>
@@ -94,14 +95,8 @@ export function RevenueCollectionsFilters({
       </Select>
 
       {hasActiveFilters && (
-        <button
-          type="button"
-          onClick={() => onFiltersChange(defaultCollectionFilters)}
-          className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          Clear filters
-        </button>
+        <FilterResetButton onClick={() => onFiltersChange(defaultCollectionFilters)} />
       )}
-    </div>
+    </FilterToolbar>
   );
 }

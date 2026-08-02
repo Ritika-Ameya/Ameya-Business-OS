@@ -57,7 +57,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
       />
       <aside
         className={cn(
-          "sidebar-shell fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-violet-300/35 p-3 text-slate-700 shadow-elevated transition-transform duration-300 lg:hidden dark:border-white/10 dark:text-sidebar-foreground",
+          "sidebar-shell fixed inset-y-0 left-0 z-50 flex w-full max-w-full flex-col border-r border-violet-300/35 p-3 text-slate-700 shadow-elevated transition-transform duration-300 sm:w-80 sm:max-w-[min(100%,20rem)] lg:hidden dark:border-white/10 dark:text-sidebar-foreground",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >

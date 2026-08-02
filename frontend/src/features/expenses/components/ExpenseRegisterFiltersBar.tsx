@@ -1,4 +1,9 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+  filterDateControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import { Input } from "@/shared/ui/input";
 import {
@@ -58,7 +63,7 @@ export function ExpenseRegisterFiltersBar({
   };
 
   return (
-    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 dark:bg-card/90">
+    <div className="sticky top-0 z-10 space-y-4 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/80 sm:p-4 dark:bg-card/90">
       <SearchField
         value={query}
         onChange={onQueryChange}
@@ -66,11 +71,7 @@ export function ExpenseRegisterFiltersBar({
         ariaLabel="Search expenses"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         <Select
           value={filters.datePreset}
           onValueChange={(value) =>
@@ -80,7 +81,7 @@ export function ExpenseRegisterFiltersBar({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Date range" />
           </SelectTrigger>
           <SelectContent>
@@ -100,14 +101,14 @@ export function ExpenseRegisterFiltersBar({
               onChange={(e) =>
                 onFiltersChange({ ...filters, dateFrom: e.target.value })
               }
-              className="h-8 w-[140px] rounded-xl"
+              className={filterDateControlClassName}
               aria-label="From date"
             />
             <Input
               type="date"
               value={filters.dateTo}
               onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
-              className="h-8 w-[140px] rounded-xl"
+              className={filterDateControlClassName}
               aria-label="To date"
             />
           </>
@@ -117,7 +118,7 @@ export function ExpenseRegisterFiltersBar({
           value={filters.category}
           onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
@@ -139,7 +140,7 @@ export function ExpenseRegisterFiltersBar({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[120px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -156,7 +157,7 @@ export function ExpenseRegisterFiltersBar({
           value={filters.vendor}
           onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Vendor" />
           </SelectTrigger>
           <SelectContent>
@@ -173,7 +174,7 @@ export function ExpenseRegisterFiltersBar({
           value={filters.employee}
           onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Employee" />
           </SelectTrigger>
           <SelectContent>
@@ -195,7 +196,7 @@ export function ExpenseRegisterFiltersBar({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Payment Method" />
           </SelectTrigger>
           <SelectContent>
@@ -211,7 +212,7 @@ export function ExpenseRegisterFiltersBar({
         {(hasActiveFilters || query.trim().length > 0) && (
           <FilterResetButton onClick={resetAll} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

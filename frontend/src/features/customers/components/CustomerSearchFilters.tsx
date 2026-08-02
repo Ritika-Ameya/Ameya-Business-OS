@@ -1,4 +1,8 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
+import {
+  FilterToolbar,
+  filterControlClassName,
+} from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import {
   Select,
@@ -51,11 +55,7 @@ export function CustomerSearchFilters({
         ariaLabel="Search customers"
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Filters
-        </span>
-
+      <FilterToolbar>
         <Select
           value={filters.recordType}
           onValueChange={(value) =>
@@ -65,7 +65,7 @@ export function CustomerSearchFilters({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -83,7 +83,7 @@ export function CustomerSearchFilters({
             onFiltersChange({ ...filters, status: value as CustomerFilters["status"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -104,7 +104,7 @@ export function CustomerSearchFilters({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[150px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Outstanding" />
           </SelectTrigger>
           <SelectContent>
@@ -122,7 +122,7 @@ export function CustomerSearchFilters({
             onFiltersChange({ ...filters, renewal: value as CustomerFilters["renewal"] })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[130px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Renewal" />
           </SelectTrigger>
           <SelectContent>
@@ -143,7 +143,7 @@ export function CustomerSearchFilters({
             })
           }
         >
-          <SelectTrigger size="sm" className="min-w-[140px] rounded-xl">
+          <SelectTrigger size="sm" className={filterControlClassName}>
             <SelectValue placeholder="Active Deals" />
           </SelectTrigger>
           <SelectContent>
@@ -158,7 +158,7 @@ export function CustomerSearchFilters({
         {(hasActiveFilters || query.trim().length > 0) && (
           <FilterResetButton onClick={resetAll} />
         )}
-      </div>
+      </FilterToolbar>
     </div>
   );
 }

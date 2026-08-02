@@ -30,33 +30,33 @@ export function CustomerWorkspaceTabs({
 }: CustomerWorkspaceTabsProps) {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
-      <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/80 px-2 pt-1 shadow-card backdrop-blur-sm">
+      <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/80 px-2 pt-1 shadow-card backdrop-blur-sm [-webkit-overflow-scrolling:touch]">
         <TabsList variant="line" className="h-auto w-max min-w-full justify-start gap-1 bg-transparent p-0">
-          <TabsTrigger value="overview" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="overview" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <LayoutGrid />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="deals" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="deals" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <Handshake />
             Deals
           </TabsTrigger>
-          <TabsTrigger value="invoices" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="invoices" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <Receipt />
             Invoices
           </TabsTrigger>
-          <TabsTrigger value="payments" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="payments" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <Wallet />
             Payments
           </TabsTrigger>
-          <TabsTrigger value="renewals" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="renewals" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <RefreshCw />
             Renewals
           </TabsTrigger>
-          <TabsTrigger value="files" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="files" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <FileText />
             Files
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="rounded-lg px-4 py-2.5">
+          <TabsTrigger value="timeline" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
             <History />
             Timeline
           </TabsTrigger>

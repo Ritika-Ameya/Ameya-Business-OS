@@ -57,7 +57,7 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-5 shadow-card transition-all duration-300 dark:border-white/10",
+        "group relative flex h-full overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-4 shadow-card transition-all duration-300 sm:p-5 dark:border-white/10",
         "hover:-translate-y-1 hover:shadow-elevated",
         accent.bar,
         kpi.href && "cursor-pointer"
@@ -69,21 +69,21 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
           accent.glow
         )}
       />
-      <div className="relative space-y-4">
+      <div className="relative space-y-3 sm:space-y-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {kpi.label}
           </p>
           <div
             className={cn(
-              "flex size-11 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10",
+              "flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10",
               accent.iconBg
             )}
           >
             <Icon className="size-5" />
           </div>
         </div>
-        <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-[1.7rem]">
+        <p className="text-xl font-bold tracking-tight tabular-nums sm:text-2xl lg:text-[1.7rem]">
           {kpi.value}
         </p>
         <TrendIndicator kpi={kpi} />
@@ -97,18 +97,18 @@ export function DashboardKpiCards() {
   const kpis = getDashboardKpis(summary);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
       {kpis.map((kpi) =>
         kpi.href ? (
           <Link
             key={kpi.id}
             to={kpi.href}
-            className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <KpiCardContent kpi={kpi} />
           </Link>
         ) : (
-          <div key={kpi.id}>
+          <div key={kpi.id} className="h-full">
             <KpiCardContent kpi={kpi} />
           </div>
         )

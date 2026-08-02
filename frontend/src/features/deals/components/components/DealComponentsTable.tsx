@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import {
   Table,
   TableBody,
@@ -38,7 +39,7 @@ export function DealComponentsTable({
   onDelete,
 }: DealComponentsTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70">
+    <ResponsiveTableFrame>
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -127,6 +128,6 @@ export function DealComponentsTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ResponsiveTableFrame>
   );
 }

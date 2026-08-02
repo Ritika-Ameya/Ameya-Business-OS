@@ -135,7 +135,7 @@ export function DealTable({
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <Button variant="ghost" size="icon-sm" asChild>
+                  <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" asChild>
                     <Link to={`/deals/${deal.id}`} aria-label={`View ${deal.title}`}>
                       <Eye />
                     </Link>
@@ -143,6 +143,7 @@ export function DealTable({
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    className="hidden sm:inline-flex"
                     aria-label="Edit deal"
                     disabled={!onEdit}
                     onClick={() => onEdit?.(deal)}

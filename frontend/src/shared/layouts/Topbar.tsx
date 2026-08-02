@@ -29,12 +29,12 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/40 bg-white/55 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-background/55">
-      <div className="flex h-14 items-center justify-between gap-3 px-3 sm:h-16 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="flex h-14 items-center justify-between gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Button
             variant="ghost"
             size="icon-sm"
-            className="lg:hidden"
+            className="size-11 shrink-0 lg:hidden sm:size-8"
             onClick={onOpenMobileNav}
             aria-label="Open navigation menu"
           >
@@ -50,12 +50,12 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
             ) : null}
             <span className="truncate text-sm font-semibold lg:hidden">{companyName}</span>
           </div>
-          <div className="hidden md:block">
+          <div className="hidden min-w-0 flex-1 md:block">
             <Breadcrumb />
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <div className="relative hidden md:block">
             <Search
               className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-primary/60"
@@ -68,8 +68,8 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
               aria-label="Global search — coming soon"
               title="Global search coming soon"
               className={cn(
-                "h-10 w-48 rounded-2xl border-primary/10 bg-white/80 pl-10 pr-3 shadow-sm",
-                "lg:w-64 dark:bg-white/5"
+                "h-10 w-36 rounded-2xl border-primary/10 bg-white/80 pl-10 pr-3 shadow-sm",
+                "lg:w-56 xl:w-64 dark:bg-white/5"
               )}
             />
           </div>
@@ -79,7 +79,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
             size="icon-sm"
             onClick={onToggleDarkMode}
             aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            className="rounded-xl text-muted-foreground"
+            className="size-11 rounded-xl text-muted-foreground sm:size-8"
           >
             {darkMode ? <Sun /> : <Moon />}
           </Button>
@@ -91,7 +91,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
               aria-label="Notifications — coming soon"
               disabled
               title="Notifications coming soon"
-              className="rounded-xl text-muted-foreground"
+              className="size-11 rounded-xl text-muted-foreground sm:size-8"
             >
               <Bell />
             </Button>
