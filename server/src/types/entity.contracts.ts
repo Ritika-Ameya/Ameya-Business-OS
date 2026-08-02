@@ -47,6 +47,8 @@ export interface CustomerEntity extends BaseEntity {
   currentStageId: string;
   companyName: string;
   gstin: string;
+  vatId: string;
+  licenseNo: string;
   industryId: string;
   sourceId: string;
   contactPerson: string;

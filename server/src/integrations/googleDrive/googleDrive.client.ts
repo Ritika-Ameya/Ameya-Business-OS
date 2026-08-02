@@ -122,6 +122,39 @@ export class GoogleDriveClient implements GoogleDriveClientInterface {
     );
   }
 
+  async download(fileId: string): Promise<{ content: Buffer; mimeType: string; name: string }> {
+    return wrapGoogleOperation(`Google Drive download(${fileId})`, async () =>
+      withGoogleRetry(async () => {
+        const drive = await this.getDriveApi();
+        const metadataResponse = await drive.files.get(
+          {
+            fileId,
+            fields: 'id,name,mimeType',
+          },
+          { timeout: this.requestOptions.timeout },
+        );
+
+        const mediaResponse = await drive.files.get(
+          {
+            fileId,
+            alt: 'media',
+          },
+          {
+            timeout: this.requestOptions.timeout,
+            responseType: 'arraybuffer',
+          },
+        );
+
+        const content = Buffer.from(mediaResponse.data as ArrayBuffer);
+        return {
+          content,
+          mimeType: metadataResponse.data.mimeType || 'application/octet-stream',
+          name: metadataResponse.data.name || fileId,
+        };
+      }, { maxRetries: this.requestOptions.maxRetries }),
+    );
+  }
+
   async delete(fileId: string): Promise<void> {
     await wrapGoogleOperation(`Google Drive delete(${fileId})`, async () =>
       withGoogleRetry(async () => {

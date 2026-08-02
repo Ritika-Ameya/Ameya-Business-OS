@@ -92,6 +92,8 @@ const customerFieldsSchema = z.object({
   currentStageId: optionalIdSchema,
   companyName: z.string().default(''),
   gstin: optionalGstinSchema,
+  vatId: z.string().default(''),
+  licenseNo: z.string().default(''),
   industryId: optionalIdSchema,
   sourceId: optionalIdSchema,
   contactPerson: z.string().min(1, 'Contact person is required'),

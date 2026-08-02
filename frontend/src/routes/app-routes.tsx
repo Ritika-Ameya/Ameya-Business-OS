@@ -38,6 +38,7 @@ export function AppRoutes() {
         <Route path="/customers/:customerId" element={<CustomerWorkspacePage />} />
         <Route path="/customers/:customerId/deals/new" element={<CreateDealPage />} />
         <Route path="/deals" element={<DealsPage />} />
+        <Route path="/deals/new" element={<CreateDealPage />} />
         <Route path="/deals/:dealId" element={<DealWorkspacePage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/invoices/:invoiceId" element={<InvoiceWorkspacePage />} />

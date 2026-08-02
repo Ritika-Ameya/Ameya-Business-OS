@@ -52,7 +52,7 @@ export function DealsPage() {
         subtitle="Track revenue opportunities, components, and the full deal lifecycle."
         action={
           <Button className="rounded-xl" asChild>
-            <Link to="/customers">
+            <Link to="/deals/new">
               <Plus />
               Add Deal
             </Link>
@@ -86,7 +86,7 @@ export function DealsPage() {
           components={components}
           isFiltered={hasActiveFilters}
           isEmpty={deals.length === 0}
-          onAdd={() => navigate("/customers")}
+          onAdd={() => navigate("/deals/new")}
           onResetFilters={resetFilters}
           onEdit={setEditingDeal}
           onDelete={(deal) => {

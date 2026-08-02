@@ -3,6 +3,7 @@ import { apiRequest } from "@/shared/api/client";
 export interface LoginRequest {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface LoginResponse {
@@ -36,6 +37,7 @@ export const authApi = {
     apiRequest<RefreshResponse>("/auth/refresh", {
       method: "POST",
       body: { refreshToken },
+      skipAuth: true,
     }),
 
   logout: (refreshToken?: string) =>

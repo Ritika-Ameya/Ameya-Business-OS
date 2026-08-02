@@ -6,7 +6,7 @@ import { dealRepository } from '../../deals';
 import type { DealEntity } from '../../deals/types/deal.entities';
 import { expenseRepository } from '../../expenses';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
-import type { StageMasterEntity, StageReminderOffset } from '../../masters/types/master.entities';
+import type { StageMasterEntity } from '../../masters/types/master.entities';
 import { stageMasterRepository } from '../../masters/services/master.services';
 import { invoiceRepository, paymentRepository } from '../../revenue';
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
@@ -23,47 +23,18 @@ import {
   getCollectionInvoices,
   getPendingCollectionsTopN,
 } from '../utils/collectionAggregation.util';
-import { isInCalendarMonth } from '../utils/dateRange.util';
+import { addLocalDays, isInCalendarMonth, toLocalDateOnly } from '../utils/dateRange.util';
 import { loadCompanyRenewals } from '../utils/renewalAggregation.util';
 import { buildUpcomingRevenue } from '../utils/upcomingRevenueAggregation.util';
 
-const getReminderOffsetDays = (offset: StageReminderOffset | string): number => {
-  switch (offset) {
-    case 'same-day':
-      return 0;
-    case '1-day-before':
-      return 1;
-    case '3-days-before':
-      return 3;
-    case '7-days-before':
-      return 7;
-    default:
-      return 0;
-  }
-};
-
-const toDateOnly = (date: Date = new Date()): string =>
-  date.toISOString().split('T')[0];
-
-const getReminderDate = (
-  nextActionDate: string,
-  offset: StageReminderOffset | string,
-): string => {
-  const date = new Date(nextActionDate);
-  date.setDate(date.getDate() - getReminderOffsetDays(offset));
-  return date.toISOString().split('T')[0];
-};
+/** Bucket by the actual next-action date so tomorrow never appears under today. */
+const getActionDateKey = (nextActionDate: string): string =>
+  nextActionDate.trim().slice(0, 10);
 
 const resolveStageName = (
   stageId: string,
   stagesById: Map<string, StageMasterEntity>,
 ): string => stagesById.get(stageId)?.name || stageId || '—';
-
-const resolveReminderOffset = (
-  stageId: string,
-  stagesById: Map<string, StageMasterEntity>,
-): StageReminderOffset | string =>
-  stagesById.get(stageId)?.reminderOffset || 'same-day';
 
 const buildCustomerFollowUp = (
   customer: CustomerEntity,
@@ -110,8 +81,8 @@ const buildFollowUps = (
 ): DashboardSummary['followUps'] => {
   const stagesById = new Map(stages.map((stage) => [stage.id, stage]));
   const customersById = new Map(customers.map((c) => [c.id, c]));
-  const today = toDateOnly();
-  const tomorrow = toDateOnly(new Date(Date.now() + 86400000));
+  const today = toLocalDateOnly();
+  const tomorrow = addLocalDays(1);
 
   const todayItems: FollowUpItem[] = [];
   const tomorrowItems: FollowUpItem[] = [];
@@ -119,28 +90,22 @@ const buildFollowUps = (
 
   for (const customer of customers) {
     if (!customer.nextActionDate) continue;
-    const reminderDate = getReminderDate(
-      customer.nextActionDate,
-      resolveReminderOffset(customer.currentStageId, stagesById),
-    );
+    const actionDate = getActionDateKey(customer.nextActionDate);
     const item = buildCustomerFollowUp(customer, stagesById);
     if (!item) continue;
-    if (reminderDate === today) todayItems.push(item);
-    if (reminderDate === tomorrow) tomorrowItems.push(item);
-    if (customer.nextActionDate < today) overdueItems.push(item);
+    if (actionDate === today) todayItems.push(item);
+    else if (actionDate === tomorrow) tomorrowItems.push(item);
+    else if (actionDate < today) overdueItems.push(item);
   }
 
   for (const deal of deals) {
     if (!deal.nextActionDate) continue;
-    const reminderDate = getReminderDate(
-      deal.nextActionDate,
-      resolveReminderOffset(deal.currentStageId, stagesById),
-    );
+    const actionDate = getActionDateKey(deal.nextActionDate);
     const item = buildDealFollowUp(deal, customersById.get(deal.customerId), stagesById);
     if (!item) continue;
-    if (reminderDate === today) todayItems.push(item);
-    if (reminderDate === tomorrow) tomorrowItems.push(item);
-    if (deal.nextActionDate < today) overdueItems.push(item);
+    if (actionDate === today) todayItems.push(item);
+    else if (actionDate === tomorrow) tomorrowItems.push(item);
+    else if (actionDate < today) overdueItems.push(item);
   }
 
   return {

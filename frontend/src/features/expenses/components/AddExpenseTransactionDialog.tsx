@@ -21,7 +21,12 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
-import { frequencyLabels, validateTransactionForm } from "@/features/expenses/utils/expense-utils";
+import { toLocalIsoDate } from "@/shared/utils/format-date";
+import {
+  computeNextRecurringStartDate,
+  frequencyLabels,
+  validateTransactionForm,
+} from "@/features/expenses/utils/expense-utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import type {
@@ -33,7 +38,7 @@ import type {
 import type { EmployeeItem, ExpenseCategoryItem, VendorItem } from "@/features/expenses/types/expense";
 
 const emptyForm = (): ExpenseTransactionFormData => ({
-  date: new Date().toISOString().split("T")[0],
+  date: toLocalIsoDate(),
   categoryId: "",
   name: "",
   payeeType: "vendor",
@@ -47,6 +52,7 @@ const emptyForm = (): ExpenseTransactionFormData => ({
   recurring: false,
   createMaster: false,
   masterFrequency: "monthly",
+  masterStartDate: "",
   masterAutoGenerate: true,
 });
 
@@ -128,7 +134,20 @@ export function AddExpenseTransactionDialog({
     field: K,
     value: ExpenseTransactionFormData[K]
   ) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      if (field === "date" || field === "masterFrequency") {
+        if (next.recurring && next.createMaster) {
+          next.masterStartDate = computeNextRecurringStartDate(
+            next.date,
+            next.masterFrequency
+          );
+        }
+      }
+
+      return next;
+    });
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
@@ -451,8 +470,22 @@ export function AddExpenseTransactionDialog({
                 value={form.recurring ? "yes" : "no"}
                 onValueChange={(value) => {
                   const recurring = value === "yes";
-                  updateField("recurring", recurring);
-                  updateField("createMaster", recurring);
+                  setForm((prev) => ({
+                    ...prev,
+                    recurring,
+                    createMaster: recurring,
+                    masterStartDate: recurring
+                      ? computeNextRecurringStartDate(
+                          prev.date,
+                          prev.masterFrequency || "monthly"
+                        )
+                      : "",
+                  }));
+                  setErrors((prev) => ({
+                    ...prev,
+                    masterStartDate: undefined,
+                    masterFrequency: undefined,
+                  }));
                 }}
               >
                 <SelectTrigger className="w-24 rounded-xl">
@@ -468,7 +501,9 @@ export function AddExpenseTransactionDialog({
             {form.recurring && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Frequency</Label>
+                  <Label>
+                    Frequency <span className="text-destructive">*</span>
+                  </Label>
                   <Select
                     value={form.masterFrequency}
                     onValueChange={(value) =>
@@ -489,6 +524,29 @@ export function AddExpenseTransactionDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.masterFrequency && (
+                    <p className="text-xs text-destructive">{errors.masterFrequency}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="master-start-date">
+                    Recurring Start Date <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="master-start-date"
+                    type="date"
+                    value={form.masterStartDate ?? ""}
+                    onChange={(e) => updateField("masterStartDate", e.target.value)}
+                    className="rounded-xl"
+                    aria-invalid={Boolean(errors.masterStartDate)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated expenses begin from this date (defaults to the next
+                    period after the expense date).
+                  </p>
+                  {errors.masterStartDate && (
+                    <p className="text-xs text-destructive">{errors.masterStartDate}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Auto Generate</Label>

@@ -92,6 +92,7 @@ export interface ExpenseTransactionFormData {
   recurring: boolean;
   createMaster?: boolean;
   masterFrequency?: ExpenseFrequency | "";
+  masterStartDate?: string;
   masterAutoGenerate?: boolean;
 }
 

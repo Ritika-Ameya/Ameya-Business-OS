@@ -1,6 +1,6 @@
 import { ArrowRight, Plus } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AddCustomerDialog } from "@/features/customers/components/AddCustomerDialog";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
@@ -36,10 +36,15 @@ const actions = [
 export function DashboardQuickActions() {
   const { addCustomer } = useCustomers();
   const { stages } = useAppConfig();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleSave = async (data: CustomerFormData) => {
-    await addCustomer(data, stages);
+  const handleSave = async (
+    data: CustomerFormData,
+    options?: { allowDuplicateCompanyName?: boolean }
+  ) => {
+    await addCustomer(data, stages, options);
+    navigate("/customers");
   };
 
   return (

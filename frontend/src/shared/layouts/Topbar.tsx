@@ -1,13 +1,12 @@
-import { Bell, Menu, Moon, Search, Sun } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
-import { Input } from "@/shared/ui/input";
+import { CompanyLogoImage } from "@/shared/components/CompanyLogoImage";
 import { Button } from "@/shared/ui/button";
-import { cn } from "@/shared/utils";
-import {
-  getCompanyDisplayName,
-  resolveLogoDisplayUrl,
-} from "@/shared/utils/company-brand";
+import { getCompanyDisplayName } from "@/shared/utils/company-brand";
+import { formatDate } from "@/shared/utils/format-date";
 import { Breadcrumb } from "./Breadcrumb";
+import { NotificationsMenu } from "./NotificationsMenu";
+import { WorkspaceSearch } from "./WorkspaceSearch";
 
 type TopbarProps = {
   darkMode: boolean;
@@ -18,14 +17,12 @@ type TopbarProps = {
 export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarProps) {
   const { company, branding } = useAppConfig();
   const companyName = getCompanyDisplayName(company.companyName);
-  const logoUrl = resolveLogoDisplayUrl(branding.logoUrl);
+  const hasLogo = Boolean(branding.logoUrl?.trim());
 
-  const currentDate = new Date().toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const now = new Date();
+  const currentDate = formatDate(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/40 bg-white/55 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-background/55">
@@ -40,15 +37,21 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
           >
             <Menu />
           </Button>
-          <div className="flex min-w-0 items-center gap-2.5">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt=""
-                className="size-8 shrink-0 rounded-xl object-contain ring-2 ring-primary/15"
-              />
-            ) : null}
-            <span className="truncate text-sm font-semibold lg:hidden">{companyName}</span>
+          <div className="flex min-w-0 items-center gap-2.5 lg:hidden">
+            <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/80 p-1 ring-1 ring-primary/15 dark:bg-white/10">
+              {hasLogo ? (
+                <CompanyLogoImage
+                  logoUrl={branding.logoUrl}
+                  alt={companyName}
+                  className="size-full"
+                />
+              ) : (
+                <span className="text-[10px] font-bold tracking-tight">
+                  {companyName.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <span className="truncate text-sm font-semibold">{companyName}</span>
           </div>
           <div className="hidden min-w-0 flex-1 md:block">
             <Breadcrumb />
@@ -56,23 +59,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <div className="relative hidden md:block">
-            <Search
-              className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-primary/60"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              disabled
-              placeholder="Search workspace…"
-              aria-label="Global search — coming soon"
-              title="Global search coming soon"
-              className={cn(
-                "h-10 w-36 rounded-2xl border-primary/10 bg-white/80 pl-10 pr-3 shadow-sm",
-                "lg:w-56 xl:w-64 dark:bg-white/5"
-              )}
-            />
-          </div>
+          <WorkspaceSearch className="hidden md:block" />
 
           <Button
             variant="ghost"
@@ -84,22 +71,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
             {darkMode ? <Sun /> : <Moon />}
           </Button>
 
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Notifications — coming soon"
-              disabled
-              title="Notifications coming soon"
-              className="size-11 rounded-xl text-muted-foreground sm:size-8"
-            >
-              <Bell />
-            </Button>
-            <span
-              className="absolute right-1.5 top-1.5 size-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-background"
-              aria-hidden
-            />
-          </div>
+          <NotificationsMenu />
 
           <div className="mx-1 hidden h-7 w-px bg-border/80 sm:block" aria-hidden />
 
@@ -108,8 +80,9 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
           </div>
         </div>
       </div>
-      <div className="px-3 pb-3 md:hidden sm:px-6">
+      <div className="space-y-3 px-3 pb-3 md:hidden sm:px-6">
         <Breadcrumb />
+        <WorkspaceSearch className="w-full" />
       </div>
     </header>
   );

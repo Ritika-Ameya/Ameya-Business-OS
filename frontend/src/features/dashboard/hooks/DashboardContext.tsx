@@ -14,7 +14,7 @@ interface DashboardContextValue {
   summary: DashboardSummaryDto | null;
   loading: boolean;
   error: string | null;
-  refreshDashboard: () => Promise<void>;
+  refreshDashboard: (options?: { silent?: boolean }) => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -26,8 +26,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshDashboard = useCallback(async () => {
-    setLoading(true);
+  const refreshDashboard = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       const data = await dashboardApi.getSummary();
@@ -35,7 +35,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }, []);
 

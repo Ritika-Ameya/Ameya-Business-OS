@@ -23,15 +23,42 @@ export function FilterToolbar({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center",
+        "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end",
         className
       )}
     >
       {label ? (
-        <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="shrink-0 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground sm:pb-1.5">
           {label}
         </span>
       ) : null}
+      {children}
+    </div>
+  );
+}
+
+interface FilterFieldProps {
+  label: string;
+  htmlFor?: string;
+  children: ReactNode;
+  className?: string;
+}
+
+/** Visible field label above a filter control (select, date input, etc.). */
+export function FilterField({
+  label,
+  htmlFor,
+  children,
+  className,
+}: FilterFieldProps) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
+      <label
+        htmlFor={htmlFor}
+        className="text-[11px] font-medium tracking-wide text-muted-foreground"
+      >
+        {label}
+      </label>
       {children}
     </div>
   );

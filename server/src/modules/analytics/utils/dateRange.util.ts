@@ -12,6 +12,28 @@ const endOfDay = (date: Date): Date => {
   return next;
 };
 
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+/** Local calendar YYYY-MM-DD (avoids UTC off-by-one from toISOString). */
+export const toLocalDateOnly = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+/** Add calendar days in local time, return YYYY-MM-DD. */
+export const addLocalDays = (days: number, from: Date = new Date()): string => {
+  const date = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  date.setDate(date.getDate() + days);
+  return toLocalDateOnly(date);
+};
+
+/** Subtract calendar days from a YYYY-MM-DD string using local math. */
+export const subtractLocalDaysFromIso = (isoDate: string, days: number): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return isoDate;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  date.setDate(date.getDate() - days);
+  return toLocalDateOnly(date);
+};
+
 /** Port of frontend `getDateRangeForPreset` (expense-utils). */
 export const parseDatePreset = (
   preset: DatePreset,

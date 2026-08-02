@@ -19,7 +19,7 @@ import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { isValidGstin, isValidPan } from "@/features/settings/utils/app-config-utils";
 import { currencyOptions, financialYearOptions } from "@/features/settings/utils/settings-utils";
-import { resolveLogoDisplayUrl } from "@/shared/utils/company-brand";
+import { CompanyLogoImage } from "@/shared/components/CompanyLogoImage";
 import { fileToUploadPayload, isValidPhoneNumberInput } from "@/shared/utils";
 import type { CompanySettings } from "@/features/settings/types/settings";
 
@@ -42,7 +42,6 @@ export function CompanySettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const form = draft ?? company;
   const isPhoneValid = isValidPhoneNumberInput(form.phone);
-  const logoUrl = resolveLogoDisplayUrl(localLogoPreview || branding.logoUrl);
   const hasStoredLogo = Boolean(branding.logoUrl?.trim());
   const isSuperAdmin = user?.role === "super_admin";
 
@@ -94,11 +93,14 @@ export function CompanySettingsPage() {
       const uploaded = await uploadsApi.upload({ ...payload, makePublic: true });
       await updateBranding({ ...branding, logoUrl: uploaded.url });
       if (logoInputRef.current) logoInputRef.current.value = "";
-    } catch (err) {
-      setLogoError(getErrorMessage(err));
-    } finally {
+      // Keep local preview briefly until branding state settles, then clear.
       setLocalLogoPreview(null);
       URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      setLogoError(getErrorMessage(err));
+      setLocalLogoPreview(null);
+      URL.revokeObjectURL(objectUrl);
+    } finally {
       setLogoUploading(false);
     }
   };
@@ -142,13 +144,14 @@ export function CompanySettingsPage() {
     }
   }, [loadDriveStatus]);
 
-  const handleConnectDrive = async () => {
+  const handleConnectDrive = async (force = false) => {
     setDriveError(null);
     setDriveLoading(true);
     try {
-      const result = await googleDriveApi.connect();
-      if (result.alreadyConnected) {
+      const result = await googleDriveApi.connect({ force });
+      if (result.alreadyConnected && !force) {
         setDriveStatus(result.status);
+        setDriveLoading(false);
         return;
       }
       if (!result.authorizationUrl) {
@@ -157,6 +160,24 @@ export function CompanySettingsPage() {
       window.location.href = result.authorizationUrl;
     } catch (err) {
       setDriveError(getErrorMessage(err));
+      setDriveLoading(false);
+    }
+  };
+
+  const handleDisconnectDrive = async () => {
+    const confirmed = window.confirm(
+      "Disconnect Google Drive?\n\nUploads will stop working until a Super Admin reconnects."
+    );
+    if (!confirmed) return;
+
+    setDriveError(null);
+    setDriveLoading(true);
+    try {
+      const status = await googleDriveApi.disconnect();
+      setDriveStatus(status);
+    } catch (err) {
+      setDriveError(getErrorMessage(err));
+    } finally {
       setDriveLoading(false);
     }
   };
@@ -179,17 +200,41 @@ export function CompanySettingsPage() {
             <div className="space-y-1">
               <h3 className="text-base font-semibold">Google Drive Connection</h3>
               <p className="text-sm text-muted-foreground">
-                One-time admin connection for all CRM attachment uploads.
+                Connect once as Super Admin. The connection is stored securely and stays
+                active across Render restarts until you disconnect it.
               </p>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-xl"
-              disabled={driveLoading}
-              onClick={() => void handleConnectDrive()}
-            >
-              {driveStatus?.connected ? "Reconnect" : "Connect Google Drive"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {driveStatus?.connected ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={driveLoading}
+                    onClick={() => void handleConnectDrive(true)}
+                  >
+                    Reconnect
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl text-destructive hover:text-destructive"
+                    disabled={driveLoading}
+                    onClick={() => void handleDisconnectDrive()}
+                  >
+                    Disconnect
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  disabled={driveLoading || driveStatus?.oauthConfigured === false}
+                  onClick={() => void handleConnectDrive(false)}
+                >
+                  Connect Google Drive
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -249,12 +294,22 @@ export function CompanySettingsPage() {
 
           <div className="space-y-2 sm:col-span-2">
             <Label>Company Logo</Label>
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 sm:flex-row sm:items-center">
-              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Company logo preview" className="size-full object-contain" />
+            <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-5 sm:flex-row sm:items-center">
+              <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-background p-2 shadow-sm ring-1 ring-border/60">
+                {localLogoPreview ? (
+                  <img
+                    src={localLogoPreview}
+                    alt="Company logo preview"
+                    className="size-full object-contain"
+                  />
+                ) : hasStoredLogo ? (
+                  <CompanyLogoImage
+                    logoUrl={branding.logoUrl}
+                    alt="Company logo preview"
+                    className="size-full"
+                  />
                 ) : (
-                  <ImageIcon className="size-6 text-muted-foreground" aria-hidden />
+                  <ImageIcon className="size-7 text-muted-foreground" aria-hidden />
                 )}
               </div>
               <div className="min-w-0 flex-1 space-y-2">
@@ -262,7 +317,7 @@ export function CompanySettingsPage() {
                   {hasStoredLogo || localLogoPreview ? "Logo preview" : "No logo uploaded"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  PNG, JPG, or SVG recommended. Max 6 MB. Shown on sidebar, header, and dashboard.
+                  PNG, JPG, or SVG recommended. Max 6 MB. Shown in the sidebar and header.
                 </p>
                 <input
                   ref={logoInputRef}

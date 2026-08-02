@@ -1,5 +1,6 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
 import {
+  FilterField,
   FilterToolbar,
   filterControlClassName,
   filterDateControlClassName,
@@ -72,145 +73,185 @@ export function ExpenseRegisterFiltersBar({
       />
 
       <FilterToolbar>
-        <Select
-          value={filters.datePreset}
-          onValueChange={(value) =>
-            onFiltersChange({
-              ...filters,
-              datePreset: value as ExpenseRegisterFilters["datePreset"],
-            })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Date range" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(datePresetLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Date Range">
+          <Select
+            value={filters.datePreset}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                datePreset: value as ExpenseRegisterFilters["datePreset"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by date range"
+            >
+              <SelectValue placeholder="Select date range" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(datePresetLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {filters.datePreset === "custom" && (
           <>
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) =>
-                onFiltersChange({ ...filters, dateFrom: e.target.value })
-              }
-              className={filterDateControlClassName}
-              aria-label="From date"
-            />
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
-              className={filterDateControlClassName}
-              aria-label="To date"
-            />
+            <FilterField label="From">
+              <Input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) =>
+                  onFiltersChange({ ...filters, dateFrom: e.target.value })
+                }
+                className={filterDateControlClassName}
+                aria-label="From date"
+              />
+            </FilterField>
+            <FilterField label="To">
+              <Input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => onFiltersChange({ ...filters, dateTo: e.target.value })}
+                className={filterDateControlClassName}
+                aria-label="To date"
+              />
+            </FilterField>
           </>
         )}
 
-        <Select
-          value={filters.category}
-          onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Category">
+          <Select
+            value={filters.category}
+            onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by category"
+            >
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.status}
-          onValueChange={(value) =>
-            onFiltersChange({
-              ...filters,
-              status: value as ExpenseRegisterFilters["status"],
-            })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            {Object.entries(transactionStatusLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Status">
+          <Select
+            value={filters.status}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                status: value as ExpenseRegisterFilters["status"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by status"
+            >
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              {Object.entries(transactionStatusLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.vendor}
-          onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Vendor" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Vendors</SelectItem>
-            {vendors.map((vendor) => (
-              <SelectItem key={vendor.id} value={vendor.id}>
-                {vendor.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Vendor">
+          <Select
+            value={filters.vendor}
+            onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by vendor"
+            >
+              <SelectValue placeholder="Select vendor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((vendor) => (
+                <SelectItem key={vendor.id} value={vendor.id}>
+                  {vendor.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.employee}
-          onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Employee" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Employees</SelectItem>
-            {employees.map((employee) => (
-              <SelectItem key={employee.id} value={employee.id}>
-                {employee.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Employee">
+          <Select
+            value={filters.employee}
+            onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by employee"
+            >
+              <SelectValue placeholder="Select employee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Employees</SelectItem>
+              {employees.map((employee) => (
+                <SelectItem key={employee.id} value={employee.id}>
+                  {employee.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.paymentMethod}
-          onValueChange={(value) =>
-            onFiltersChange({
-              ...filters,
-              paymentMethod: value as ExpenseRegisterFilters["paymentMethod"],
-            })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Payment Method" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Methods</SelectItem>
-            {activePaymentMethods.map((method) => (
-              <SelectItem key={method.id} value={method.slug}>
-                {method.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Payment Method">
+          <Select
+            value={filters.paymentMethod}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                paymentMethod: value as ExpenseRegisterFilters["paymentMethod"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by payment method"
+            >
+              <SelectValue placeholder="Select payment method" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Methods</SelectItem>
+              {activePaymentMethods.map((method) => (
+                <SelectItem key={method.id} value={method.slug}>
+                  {method.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {(hasActiveFilters || query.trim().length > 0) && (
-          <FilterResetButton onClick={resetAll} />
+          <FilterResetButton onClick={resetAll} className="sm:mb-0.5" />
         )}
       </FilterToolbar>
     </div>

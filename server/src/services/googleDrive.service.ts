@@ -22,6 +22,11 @@ export class GoogleDriveService extends BaseService {
     return this.client.upload(options);
   }
 
+  async download(fileId: string): Promise<{ content: Buffer; mimeType: string; name: string }> {
+    this.logDebug(`Downloading file: ${fileId}`);
+    return this.client.download(fileId);
+  }
+
   async delete(fileId: string): Promise<void> {
     this.logDebug(`Deleting file: ${fileId}`);
     return this.client.delete(fileId);

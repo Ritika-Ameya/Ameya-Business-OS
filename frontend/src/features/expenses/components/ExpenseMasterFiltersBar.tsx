@@ -1,5 +1,6 @@
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
 import {
+  FilterField,
   FilterToolbar,
   filterControlClassName,
 } from "@/shared/components/FilterToolbar";
@@ -52,68 +53,86 @@ export function ExpenseMasterFiltersBar({
       />
 
       <FilterToolbar>
-        <Select
-          value={filters.category}
-          onValueChange={(value) =>
-            onFiltersChange({ ...filters, category: value })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Category">
+          <Select
+            value={filters.category}
+            onValueChange={(value) =>
+              onFiltersChange({ ...filters, category: value })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by category"
+            >
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.frequency}
-          onValueChange={(value) =>
-            onFiltersChange({
-              ...filters,
-              frequency: value as ExpenseMasterFilters["frequency"],
-            })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Frequency" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Frequencies</SelectItem>
-            {Object.entries(frequencyLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Frequency">
+          <Select
+            value={filters.frequency}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                frequency: value as ExpenseMasterFilters["frequency"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by frequency"
+            >
+              <SelectValue placeholder="Select frequency" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Frequencies</SelectItem>
+              {Object.entries(frequencyLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
-        <Select
-          value={filters.status}
-          onValueChange={(value) =>
-            onFiltersChange({
-              ...filters,
-              status: value as ExpenseMasterFilters["status"],
-            })
-          }
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+        <FilterField label="Status">
+          <Select
+            value={filters.status}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                status: value as ExpenseMasterFilters["status"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by status"
+            >
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {(hasActiveFilters || query.trim().length > 0) && (
-          <FilterResetButton onClick={resetAll} />
+          <FilterResetButton onClick={resetAll} className="sm:mb-0.5" />
         )}
       </FilterToolbar>
     </div>

@@ -21,6 +21,8 @@ export interface CustomerEntity extends CustomerEntityBase {
   currentStageId: string;
   companyName: string;
   gstin: string;
+  vatId: string;
+  licenseNo: string;
   industryId: string;
   sourceId: string;
   contactPerson: string;
@@ -76,6 +78,8 @@ export type SearchMode = 'contains' | 'startsWith' | 'exact';
 export const CUSTOMER_SEARCH_FIELDS = [
   'companyName',
   'gstin',
+  'vatId',
+  'licenseNo',
   'phone',
   'email',
   'contactPerson',

@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -15,10 +16,12 @@ interface CustomerOverviewTabProps {
 }
 
 export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
-  const { deals } = useDeals();
+  const { deals, components } = useDeals();
   const activeDealsCount = deals.filter(
     (deal) => deal.customerId === customer.id && deal.status !== "completed"
   ).length;
+  const renewals = getCustomerRenewals(customer.id, deals, components);
+  const upcomingRenewals = renewals.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -98,16 +101,23 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Next Renewal</span>
-              <span className="font-medium">{formatDate(customer.nextRenewal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Renewal Status</span>
-              <span className="font-medium">
-                {customer.nextRenewal ? "Scheduled" : "Not set"}
-              </span>
-            </div>
+            {upcomingRenewals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No component renewals scheduled</p>
+            ) : (
+              upcomingRenewals.map((renewal) => (
+                <div key={renewal.id} className="flex justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate text-muted-foreground">
+                    {renewal.componentName}
+                  </span>
+                  <span className="shrink-0 font-medium">{formatDate(renewal.dueDate)}</span>
+                </div>
+              ))
+            )}
+            {renewals.length > 3 ? (
+              <p className="text-xs text-muted-foreground">
+                +{renewals.length - 3} more on Renewals tab
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       </div>

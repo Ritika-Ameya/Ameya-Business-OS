@@ -3,6 +3,8 @@ import {
   buildDriveViewUrl,
   uploadDocumentToDrive,
 } from '../../../services/documentUpload.service';
+import { googleDriveService } from '../../../integrations';
+import { NotFoundError, ValidationError } from '../../../utils/AppError';
 import type { UploadCreateInput } from '../validators/upload.validators';
 
 export class UploadService {
@@ -26,6 +28,23 @@ export class UploadService {
       webContentLink: uploaded.webContentLink ?? '',
       url: imageUrl,
     };
+  }
+
+  async downloadDriveFile(fileId: string) {
+    const id = fileId.trim();
+    if (!id) {
+      throw new ValidationError('File ID is required');
+    }
+    if (!googleDriveService.isConfigured()) {
+      throw new ValidationError('Google Drive is not configured');
+    }
+
+    try {
+      return await googleDriveService.download(id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'File not found';
+      throw new NotFoundError(message);
+    }
   }
 }
 

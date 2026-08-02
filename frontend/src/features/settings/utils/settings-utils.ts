@@ -41,10 +41,10 @@ export const financialYearOptions = [
 ];
 
 export const dateFormatOptions = [
+  "DD/MM/YYYY",
   "DD MMM YYYY",
   "MM/DD/YYYY",
   "YYYY-MM-DD",
-  "DD/MM/YYYY",
 ];
 
 export const currencyFormatOptions = [

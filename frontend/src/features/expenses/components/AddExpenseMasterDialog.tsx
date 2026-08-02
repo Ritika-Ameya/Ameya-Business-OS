@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { preventNestedOverlayDismiss } from "@/shared/utils/dialog-utils";
+import { toLocalIsoDate } from "@/shared/utils/format-date";
 import { frequencyLabels, validateMasterForm } from "@/features/expenses/utils/expense-utils";
 import type {
   EmployeeItem,
@@ -35,7 +36,7 @@ const emptyForm = (): ExpenseMasterFormData => ({
   vendorOrEmployee: "",
   defaultAmount: "",
   frequency: "monthly",
-  startDate: new Date().toISOString().split("T")[0],
+  startDate: toLocalIsoDate(),
   endDate: "",
   autoGenerate: true,
   status: "active",

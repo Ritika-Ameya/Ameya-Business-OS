@@ -1,6 +1,7 @@
 import { CalendarClock } from "lucide-react";
 import { FilterResetButton } from "@/shared/components/FilterResetButton";
 import {
+  FilterField,
   FilterToolbar,
   filterControlClassName,
   filterDateControlClassName,
@@ -138,149 +139,191 @@ export function ReportFiltersBar({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <Input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) =>
-              onFiltersChange({
-                ...filters,
-                datePreset: "custom",
-                dateFrom: e.target.value,
-              })
-            }
-            className={filterDateControlClassName}
-            aria-label="From date"
-          />
-          <span className="hidden text-xs text-muted-foreground sm:inline">to</span>
-          <Input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) =>
-              onFiltersChange({
-                ...filters,
-                datePreset: "custom",
-                dateTo: e.target.value,
-              })
-            }
-            className={filterDateControlClassName}
-            aria-label="To date"
-          />
-        </div>
+        <FilterToolbar label="">
+          <FilterField label="From">
+            <Input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...filters,
+                  datePreset: "custom",
+                  dateFrom: e.target.value,
+                })
+              }
+              className={filterDateControlClassName}
+              aria-label="From date"
+            />
+          </FilterField>
+          <FilterField label="To">
+            <Input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...filters,
+                  datePreset: "custom",
+                  dateTo: e.target.value,
+                })
+              }
+              className={filterDateControlClassName}
+              aria-label="To date"
+            />
+          </FilterField>
+        </FilterToolbar>
       </div>
 
       <FilterToolbar>
         {showCustomerDeal && (
           <>
-            <Select
-              value={filters.customer}
-              onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
-            >
-              <SelectTrigger size="sm" className={filterControlClassName}>
-                <SelectValue placeholder="Customer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FilterField label="Customer">
+              <Select
+                value={filters.customer}
+                onValueChange={(value) => onFiltersChange({ ...filters, customer: value })}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className={filterControlClassName}
+                  aria-label="Filter by customer"
+                >
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
 
-            <Select
-              value={filters.deal}
-              onValueChange={(value) => onFiltersChange({ ...filters, deal: value })}
-            >
-              <SelectTrigger size="sm" className={filterControlClassName}>
-                <SelectValue placeholder="Deal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Deals</SelectItem>
-                {deals.map((deal) => (
-                  <SelectItem key={deal.id} value={deal.id}>
-                    {deal.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FilterField label="Deal">
+              <Select
+                value={filters.deal}
+                onValueChange={(value) => onFiltersChange({ ...filters, deal: value })}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className={filterControlClassName}
+                  aria-label="Filter by deal"
+                >
+                  <SelectValue placeholder="Select deal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Deals</SelectItem>
+                  {deals.map((deal) => (
+                    <SelectItem key={deal.id} value={deal.id}>
+                      {deal.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
           </>
         )}
 
-        <Select
-          value={filters.status}
-          onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
-        >
-          <SelectTrigger size="sm" className={filterControlClassName}>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterField label="Status">
+          <Select
+            value={filters.status}
+            onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by status"
+            >
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
 
         {showExpenseFilters && (
           <>
-            <Select
-              value={filters.category}
-              onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
-            >
-              <SelectTrigger size="sm" className={filterControlClassName}>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FilterField label="Category">
+              <Select
+                value={filters.category}
+                onValueChange={(value) => onFiltersChange({ ...filters, category: value })}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className={filterControlClassName}
+                  aria-label="Filter by category"
+                >
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
 
-            <Select
-              value={filters.employee}
-              onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
-            >
-              <SelectTrigger size="sm" className={filterControlClassName}>
-                <SelectValue placeholder="Employee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Employees</SelectItem>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FilterField label="Employee">
+              <Select
+                value={filters.employee}
+                onValueChange={(value) => onFiltersChange({ ...filters, employee: value })}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className={filterControlClassName}
+                  aria-label="Filter by employee"
+                >
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
 
-            <Select
-              value={filters.vendor}
-              onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
-            >
-              <SelectTrigger size="sm" className={filterControlClassName}>
-                <SelectValue placeholder="Vendor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Vendors</SelectItem>
-                {vendors.map((vendor) => (
-                  <SelectItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FilterField label="Vendor">
+              <Select
+                value={filters.vendor}
+                onValueChange={(value) => onFiltersChange({ ...filters, vendor: value })}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className={filterControlClassName}
+                  aria-label="Filter by vendor"
+                >
+                  <SelectValue placeholder="Select vendor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Vendors</SelectItem>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterField>
           </>
         )}
 
         {hasActiveFilters && (
-          <FilterResetButton onClick={() => onFiltersChange(defaultReportFilters())} />
+          <FilterResetButton
+            onClick={() => onFiltersChange(defaultReportFilters())}
+            className="sm:mb-0.5"
+          />
         )}
       </FilterToolbar>
     </div>

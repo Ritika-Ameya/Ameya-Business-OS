@@ -53,7 +53,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? "lg:w-[4.75rem]" : "lg:w-72"
       )}
     >
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-violet-300/30 px-3 dark:border-white/10">
+      <div
+        className={cn(
+          "flex items-center border-b border-violet-300/30 px-3 dark:border-white/10",
+          collapsed
+            ? "h-auto flex-col justify-center gap-1 py-3"
+            : "h-16 justify-between gap-2"
+        )}
+      >
         <CompanyBrandMark
           collapsed={collapsed}
           showSubtitleSplit
