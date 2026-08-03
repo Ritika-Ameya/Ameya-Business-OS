@@ -49,6 +49,9 @@ export const invoicesApi = {
   listPayments: (id: string) =>
     apiRequest<PaymentDto[]>(`${INVOICES_BASE}/${id}/payments`),
 
+  /** One request for all payments (SPA revenue bootstrap). */
+  listAllPayments: () => apiRequest<PaymentDto[]>(`${INVOICES_BASE}/payments`),
+
   addPayment: (id: string, body: PaymentCreateBody) =>
     apiRequest<{ payment: PaymentDto; invoice: InvoiceDto }>(
       `${INVOICES_BASE}/${id}/payments`,

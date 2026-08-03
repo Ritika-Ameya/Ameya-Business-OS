@@ -160,9 +160,13 @@ export interface DashboardExpenseStats {
 
 export interface FollowUpItem {
   id: string;
-  entityType: 'customer' | 'deal';
+  entityType: 'customer' | 'deal' | 'invoice';
   customerId: string;
   dealId?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  /** Present when entityType is customer — distinguishes opportunity vs customer. */
+  recordType?: 'opportunity' | 'customer';
   company: string;
   contactPerson: string;
   dealTitle?: string;
@@ -219,6 +223,7 @@ export interface DashboardSummary {
     today: FollowUpItem[];
     tomorrow: FollowUpItem[];
     overdue: FollowUpItem[];
+    upcoming: FollowUpItem[];
   };
   activity: ActivityItem[];
   pipeline: {

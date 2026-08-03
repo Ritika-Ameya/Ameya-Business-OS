@@ -28,7 +28,7 @@ export function CompanyBrandMark({
     return (
       <div
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/70 ring-1 ring-black/5 dark:bg-white/10",
+          "flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/80 dark:bg-white/95 dark:ring-white/20",
           className
         )}
         title={displayName}
@@ -37,10 +37,10 @@ export function CompanyBrandMark({
           <CompanyLogoImage
             logoUrl={branding.logoUrl}
             alt={displayName}
-            className="size-8"
+            className="size-full"
           />
         ) : (
-          <span className="text-xs font-bold tracking-tight text-slate-700 dark:text-white">
+          <span className="text-sm font-bold tracking-tight text-slate-700">
             {displayName.slice(0, 2).toUpperCase()}
           </span>
         )}
@@ -55,7 +55,7 @@ export function CompanyBrandMark({
         className
       )}
     >
-      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/70 p-1.5 ring-1 ring-black/5 dark:bg-white/10">
+      <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/80 dark:bg-white/95 dark:ring-white/20">
         {hasLogo ? (
           <CompanyLogoImage
             logoUrl={branding.logoUrl}
@@ -63,7 +63,7 @@ export function CompanyBrandMark({
             className="size-full"
           />
         ) : (
-          <span className="text-xs font-bold tracking-tight text-slate-700 dark:text-white">
+          <span className="text-sm font-bold tracking-tight text-slate-700">
             {displayName.slice(0, 2).toUpperCase()}
           </span>
         )}

@@ -29,13 +29,16 @@ export interface FounderInsight {
   message: string;
 }
 
-export type FollowUpEntityType = "customer" | "deal";
+export type FollowUpEntityType = "customer" | "deal" | "invoice";
 
 export interface FollowUpItem {
   id: string;
   entityType: FollowUpEntityType;
   customerId: string;
   dealId?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  recordType?: "opportunity" | "customer";
   company: string;
   contactPerson: string;
   dealTitle?: string;

@@ -17,7 +17,7 @@ export function DealTimelineTab({ deal }: DealTimelineTabProps) {
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
+      <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-8 text-center sm:py-10">
         <p className="text-sm text-muted-foreground">
           Stage changes and follow-up activity will appear here.
         </p>

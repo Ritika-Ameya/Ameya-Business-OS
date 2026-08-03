@@ -25,6 +25,7 @@ export const invoiceCreateSchema = z.object({
   componentIds: z.array(z.string()).default([]),
   notes: z.string().max(5000).default(''),
   invoiceNumber: z.string().default(''),
+  nextActionDate: z.string().default(''),
 });
 
 export const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({

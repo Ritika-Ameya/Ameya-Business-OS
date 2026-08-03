@@ -23,7 +23,9 @@ function parseInvoiceTab(value: string | null): string {
 export function InvoiceWorkspacePage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const location = useLocation();
-  const navigationState = location.state as { tab?: string } | null;
+  const navigationState = location.state as
+    | { tab?: string; from?: string }
+    | null;
   const [searchParams] = useSearchParams();
   const { getInvoice, fetchInvoice, loading, error } = useRevenue();
   const [activeTab, setActiveTab] = useState(() =>
@@ -32,6 +34,17 @@ export function InvoiceWorkspacePage() {
   const [resolved, setResolved] = useState<Invoice | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
+
+  const backFrom = navigationState?.from?.trim();
+  const backTo =
+    backFrom && backFrom.startsWith("/") && !backFrom.startsWith("/invoices")
+      ? backFrom
+      : "/revenue?tab=invoices";
+  const backLabel = backTo.startsWith("/deals/")
+    ? "Back to Deal"
+    : backTo.startsWith("/customers/")
+      ? "Back to Customer"
+      : "Back to Revenue";
 
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
@@ -106,12 +119,12 @@ export function InvoiceWorkspacePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <div>
-        <Button variant="ghost" size="sm" className="mb-4 -ml-2 rounded-xl" asChild>
-          <Link to="/revenue?tab=invoices">
+        <Button variant="ghost" size="sm" className="mb-3 -ml-2 rounded-xl" asChild>
+          <Link to={backTo}>
             <ArrowLeft />
-            Back to Revenue
+            {backLabel}
           </Link>
         </Button>
       </div>

@@ -45,6 +45,10 @@ export function CompanyLogoImage({
       try {
         const headers: Record<string, string> = {};
         const token = tokenStorage.getAccessToken();
+        if (!token && !DEV_API_KEY) {
+          // Login / public surfaces rely on Drive thumbnail fallbacks.
+          return;
+        }
         if (token) headers.Authorization = `Bearer ${token}`;
         if (DEV_API_KEY) headers["X-DEV-KEY"] = DEV_API_KEY;
 

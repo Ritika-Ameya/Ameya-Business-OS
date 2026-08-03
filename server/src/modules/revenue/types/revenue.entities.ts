@@ -35,6 +35,8 @@ export interface InvoiceEntity extends RevenueEntityBase {
   cancelledReason: string;
   cancelledAt: string;
   cancelledBy: string;
+  /** Manual collection / invoice follow-up date (YYYY-MM-DD). */
+  nextActionDate: string;
 }
 
 export interface PaymentEntity extends RevenueEntityBase {

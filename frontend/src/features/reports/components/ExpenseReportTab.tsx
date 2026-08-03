@@ -13,7 +13,8 @@ import {
   mapReportExpense,
 } from "@/features/reports/api/reports.mappers";
 import { useReportQuery } from "@/features/reports/hooks/use-report-query";
-import { useExpenses } from "@/features/expenses/hooks/use-expenses";
+import { useAppConfig } from "@/features/settings/hooks/use-app-config";
+import { toExpenseCategoryItems } from "@/features/settings/utils/app-config-utils";
 import type { ReportFilters } from "@/features/reports/types/reports";
 
 interface ExpenseReportTabProps {
@@ -21,7 +22,8 @@ interface ExpenseReportTabProps {
 }
 
 export function ExpenseReportTab({ filters }: ExpenseReportTabProps) {
-  const { categories } = useExpenses();
+  const { expenseCategories } = useAppConfig();
+  const categories = toExpenseCategoryItems(expenseCategories);
   const fetcher = useCallback(
     (nextFilters: ReportFilters) => reportsApi.getExpenses(nextFilters),
     []

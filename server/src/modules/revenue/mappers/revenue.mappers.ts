@@ -72,6 +72,7 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     cancelledReason: str(record, 'cancelledReason'),
     cancelledAt: str(record, 'cancelledAt'),
     cancelledBy: str(record, 'cancelledBy'),
+    nextActionDate: str(record, 'nextActionDate'),
   }),
   (entity) => ({
     invoiceNumber: rowStr(entity, 'invoiceNumber'),
@@ -95,6 +96,7 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     cancelledReason: rowStr(entity, 'cancelledReason'),
     cancelledAt: rowStr(entity, 'cancelledAt'),
     cancelledBy: rowStr(entity, 'cancelledBy'),
+    nextActionDate: rowStr(entity, 'nextActionDate'),
   }),
 );
 

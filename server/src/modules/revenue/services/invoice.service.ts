@@ -136,6 +136,7 @@ export class InvoiceService extends BaseService {
       cancelledReason: '',
       cancelledAt: '',
       cancelledBy: '',
+      nextActionDate: (input.nextActionDate ?? '').trim(),
     } as Omit<InvoiceEntity, 'id'>);
 
     await this.syncCustomerOutstanding(created.customerId);
@@ -305,6 +306,11 @@ export class InvoiceService extends BaseService {
   async listPayments(invoiceId: string): Promise<PaymentEntity[]> {
     await this.getById(invoiceId);
     return this.listPaymentsForInvoice(invoiceId);
+  }
+
+  /** Single sheet read for SPA revenue bootstrap (avoids N× GET /:id/payments). */
+  async listAllPayments(): Promise<PaymentEntity[]> {
+    return paymentRepository.findAll();
   }
 
   async addPayment(

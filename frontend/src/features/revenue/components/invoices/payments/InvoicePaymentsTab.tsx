@@ -21,7 +21,7 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
     Boolean(invoice) && !isCancelled && (invoice?.outstanding ?? 0) > 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <PageHeader
         title="Payments"
         subtitle="Track all payments received against this invoice."
@@ -44,16 +44,16 @@ export function InvoicePaymentsTab({ invoiceId }: InvoicePaymentsTabProps) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading payments…</p>
       ) : payments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
-            <Wallet className="size-6 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-8 text-center sm:py-10">
+          <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted/50">
+            <Wallet className="size-5 text-muted-foreground" />
           </div>
           <h3 className="text-base font-medium">No Payments Recorded</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             Payments recorded for this invoice will appear here.
           </p>
           {canRecordPayment && (
-            <Button className="mt-6 rounded-xl" onClick={() => setDialogOpen(true)}>
+            <Button className="mt-4 rounded-xl" onClick={() => setDialogOpen(true)}>
               <Plus />
               Record First Payment
             </Button>

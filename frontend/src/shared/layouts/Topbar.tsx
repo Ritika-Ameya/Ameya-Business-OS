@@ -26,7 +26,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/40 bg-white/55 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-background/55">
-      <div className="flex h-14 items-center justify-between gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6">
+      <div className="flex h-16 items-center justify-between gap-2 px-3 sm:h-[4.25rem] sm:gap-3 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Button
             variant="ghost"
@@ -38,7 +38,7 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
             <Menu />
           </Button>
           <div className="flex min-w-0 items-center gap-2.5 lg:hidden">
-            <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/80 p-1 ring-1 ring-primary/15 dark:bg-white/10">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/80 dark:bg-white/95 dark:ring-white/20">
               {hasLogo ? (
                 <CompanyLogoImage
                   logoUrl={branding.logoUrl}
@@ -46,12 +46,12 @@ export function Topbar({ darkMode, onToggleDarkMode, onOpenMobileNav }: TopbarPr
                   className="size-full"
                 />
               ) : (
-                <span className="text-[10px] font-bold tracking-tight">
+                <span className="text-sm font-bold tracking-tight text-slate-700">
                   {companyName.slice(0, 2).toUpperCase()}
                 </span>
               )}
             </div>
-            <span className="truncate text-sm font-semibold">{companyName}</span>
+            <span className="truncate text-sm font-semibold sm:text-base">{companyName}</span>
           </div>
           <div className="hidden min-w-0 flex-1 md:block">
             <Breadcrumb />

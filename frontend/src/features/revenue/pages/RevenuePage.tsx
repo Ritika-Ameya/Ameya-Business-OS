@@ -46,7 +46,7 @@ export function RevenuePage() {
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        className="gap-6"
+        className="gap-3"
       >
         <div className="overflow-x-auto pb-1">
           <TabsList

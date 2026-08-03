@@ -75,6 +75,7 @@ import type {
 } from "@/features/settings/types/settings";
 import { normalizePhoneToE164 } from "@/shared/utils/phone";
 import { setActiveDateFormat } from "@/shared/utils/format-date";
+import { cacheCompanyBrand } from "@/shared/utils/company-brand";
 
 const PREFERENCES_KEY = "ameya-settings-preferences";
 const EMPLOYEES_KEY = "ameya-settings-employees";
@@ -157,46 +158,34 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     clearMessages();
     try {
-      const [
-        companyDto,
-        financeDto,
-        brandingDto,
-        stagesDto,
-        opportunitySourcesDto,
-        industriesDto,
-        dealTypesDto,
-        paymentMethodsDto,
-        expenseCategoriesDto,
-        renewalFrequenciesDto,
-        countriesDto,
-        statesDto,
-      ] = await Promise.all([
-        mastersApi.company.get(),
-        mastersApi.invoiceConfiguration.get(),
-        mastersApi.branding.get(),
-        mastersApi.stages.list(),
-        mastersApi.opportunitySources.list(),
-        mastersApi.industries.list(),
-        mastersApi.dealTypes.list(),
-        mastersApi.paymentMethods.list(),
-        mastersApi.expenseCategories.list(),
-        mastersApi.renewalFrequencies.list(),
-        mastersApi.countries.list(),
-        mastersApi.states.list(),
-      ]);
+      const snapshot = await mastersApi.bootstrap();
 
-      setCompany(companyDto ? mapCompanyFromDto(companyDto) : defaultCompanySettings);
-      setFinance(financeDto ? mapFinanceFromDto(financeDto) : defaultFinanceSettings);
-      setBranding(brandingDto ? mapBrandingFromDto(brandingDto) : defaultBrandingSettings);
-      setStages(stagesDto.map(mapStageFromDto).sort((a, b) => a.sequence - b.sequence));
-      setOpportunitySources(opportunitySourcesDto.map(mapOpportunitySourceFromDto));
-      setIndustries(industriesDto.map(mapIndustryFromDto));
-      setDealTypes(dealTypesDto.map(mapDealTypeFromDto));
-      setPaymentMethods(paymentMethodsDto.map(mapPaymentMethodFromDto));
-      setExpenseCategories(expenseCategoriesDto.map(mapExpenseCategoryFromDto));
-      setRenewalTypes(renewalFrequenciesDto.map(mapRenewalTypeFromDto));
-      setCountries(countriesDto.map(mapCountryFromDto));
-      setStates(statesDto.map(mapStateFromDto));
+      const nextCompany = snapshot.company
+        ? mapCompanyFromDto(snapshot.company)
+        : defaultCompanySettings;
+      const nextBranding = snapshot.branding
+        ? mapBrandingFromDto(snapshot.branding)
+        : defaultBrandingSettings;
+
+      setCompany(nextCompany);
+      setFinance(
+        snapshot.invoiceConfiguration
+          ? mapFinanceFromDto(snapshot.invoiceConfiguration)
+          : defaultFinanceSettings
+      );
+      setBranding(nextBranding);
+      setStages(
+        snapshot.stages.map(mapStageFromDto).sort((a, b) => a.sequence - b.sequence)
+      );
+      setOpportunitySources(snapshot.opportunitySources.map(mapOpportunitySourceFromDto));
+      setIndustries(snapshot.industries.map(mapIndustryFromDto));
+      setDealTypes(snapshot.dealTypes.map(mapDealTypeFromDto));
+      setPaymentMethods(snapshot.paymentMethods.map(mapPaymentMethodFromDto));
+      setExpenseCategories(snapshot.expenseCategories.map(mapExpenseCategoryFromDto));
+      setRenewalTypes(snapshot.renewalFrequencies.map(mapRenewalTypeFromDto));
+      setCountries(snapshot.countries.map(mapCountryFromDto));
+      setStates(snapshot.states.map(mapStateFromDto));
+      cacheCompanyBrand(nextBranding.logoUrl, nextCompany.companyName);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -214,10 +203,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     async (data: CompanySettings) => {
       await runSave(async () => {
         const saved = await mastersApi.company.save(mapCompanyToDto(data));
-        setCompany(mapCompanyFromDto(saved));
+        const mapped = mapCompanyFromDto(saved);
+        setCompany(mapped);
+        cacheCompanyBrand(branding.logoUrl, mapped.companyName);
       }, "Company settings saved.");
     },
-    [runSave]
+    [runSave, branding.logoUrl]
   );
 
   const updateFinance = useCallback(
@@ -234,10 +225,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     async (data: BrandingFormData) => {
       await runSave(async () => {
         const saved = await mastersApi.branding.save(mapBrandingToDto(data));
-        setBranding(mapBrandingFromDto(saved));
+        const mapped = mapBrandingFromDto(saved);
+        setBranding(mapped);
+        cacheCompanyBrand(mapped.logoUrl, company.companyName);
       }, "Branding settings saved.");
     },
-    [runSave]
+    [runSave, company.companyName]
   );
 
   const updatePreferences = useCallback((data: PreferencesSettings) => {

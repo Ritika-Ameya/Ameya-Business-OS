@@ -112,7 +112,7 @@ export function ExpensesPage() {
         }
       />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-3">
         <div className="overflow-x-auto pb-1">
           <TabsList
             variant="line"

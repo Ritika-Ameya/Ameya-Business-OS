@@ -148,6 +148,7 @@ export const INVOICES_CONTRACT: PersistenceContract = {
     'cancelledReason',
     'cancelledAt',
     'cancelledBy',
+    'nextActionDate',
   ]),
 };
 

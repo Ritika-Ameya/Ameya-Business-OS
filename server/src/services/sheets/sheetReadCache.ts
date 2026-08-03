@@ -7,8 +7,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  * - Writes must call invalidateSheetReadsForRange / invalidateSheetReadsForTab.
  */
 
-const PROCESS_CACHE_TTL_MS = 3_000;
-const MAX_CONCURRENT_SHEET_READS = 4;
+const PROCESS_CACHE_TTL_MS = 30_000;
+const MAX_CONCURRENT_SHEET_READS = 8;
 
 interface SheetReadCacheStore {
   ranges: Map<string, Promise<string[][]>>;

@@ -18,11 +18,18 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
   private readonly config: GoogleSheetsConfig;
   private readonly authService: GoogleAuthService;
   private readonly requestOptions: ReturnType<typeof getGoogleRequestOptions>;
+  private sheetTabsCache: { expiresAt: number; tabs: SheetTabInfo[] } | null = null;
+  private sheetTabsInFlight: Promise<SheetTabInfo[]> | null = null;
 
   constructor(config: GoogleSheetsConfig, authService: GoogleAuthService = googleAuthService) {
     this.config = config;
     this.authService = authService;
     this.requestOptions = getGoogleRequestOptions();
+  }
+
+  private invalidateSheetTabsCache(): void {
+    this.sheetTabsCache = null;
+    this.sheetTabsInFlight = null;
   }
 
   isConfigured(): boolean {
@@ -66,7 +73,15 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
   }
 
   async getSheetTabs(): Promise<SheetTabInfo[]> {
-    return wrapGoogleOperation('Google Sheets getSheetTabs', async () =>
+    const now = Date.now();
+    if (this.sheetTabsCache && this.sheetTabsCache.expiresAt > now) {
+      return this.sheetTabsCache.tabs;
+    }
+    if (this.sheetTabsInFlight) {
+      return this.sheetTabsInFlight;
+    }
+
+    this.sheetTabsInFlight = wrapGoogleOperation('Google Sheets getSheetTabs', async () =>
       withGoogleRetry(async () => {
         const sheets = this.getSheetsApi();
         const response = await sheets.spreadsheets.get(
@@ -85,7 +100,16 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
           })) ?? []
         );
       }, { maxRetries: this.requestOptions.maxRetries }),
-    );
+    )
+      .then((tabs) => {
+        this.sheetTabsCache = { expiresAt: Date.now() + 60_000, tabs };
+        return tabs;
+      })
+      .finally(() => {
+        this.sheetTabsInFlight = null;
+      });
+
+    return this.sheetTabsInFlight;
   }
 
   async getSheetIdByName(sheetName: string): Promise<number> {
@@ -206,6 +230,8 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
           { timeout: this.requestOptions.timeout },
         );
 
+        this.invalidateSheetTabsCache();
+
         const sheetId =
           response.data.replies?.[0]?.addSheet?.properties?.sheetId ??
           (await this.getSheetIdByName(title));
@@ -221,6 +247,7 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
         deleteSheet: { sheetId },
       },
     ]);
+    this.invalidateSheetTabsCache();
   }
 
   async batchUpdate(requests: sheets_v4.Schema$Request[]): Promise<void> {
@@ -240,5 +267,12 @@ export class GoogleSheetsClient implements GoogleSheetsClientInterface {
         );
       }, { maxRetries: this.requestOptions.maxRetries }),
     );
+
+    const mutatesTabs = requests.some(
+      (request) => Boolean(request.addSheet) || Boolean(request.deleteSheet),
+    );
+    if (mutatesTabs) {
+      this.invalidateSheetTabsCache();
+    }
   }
 }

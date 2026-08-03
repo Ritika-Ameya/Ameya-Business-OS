@@ -23,7 +23,7 @@ export function CustomerPaymentsTab({ customer }: CustomerPaymentsTabProps) {
 
   if (paymentHistory.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-8 text-center sm:py-10">
         <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
           <Wallet className="size-6 text-muted-foreground" />
         </div>

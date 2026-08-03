@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { AddCustomerDialog } from "@/features/customers/components/AddCustomerDialog";
 import { CustomerSearchFilters } from "@/features/customers/components/CustomerSearchFilters";
 import { CustomerStatsCards } from "@/features/customers/components/CustomerStatsCards";
@@ -13,6 +14,7 @@ import { defaultFilters, filterCustomers } from "@/features/customers/utils/cust
 import type { Customer, CustomerFilters, CustomerFormData } from "@/features/customers/types/customer";
 
 export function CustomersPage() {
+  const location = useLocation();
   const { customers, loading, error, addCustomer, updateCustomer, removeCustomer } =
     useCustomers();
   const { stages } = useAppConfig();
@@ -20,6 +22,14 @@ export function CustomersPage() {
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | undefined>();
+
+  useEffect(() => {
+    const state = location.state as { openAdd?: boolean } | null;
+    if (!state?.openAdd) return;
+    setEditingCustomer(undefined);
+    setDialogOpen(true);
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   const deferredQuery = useDeferredValue(query);
   const isSearching = query !== deferredQuery;

@@ -32,6 +32,8 @@ export abstract class GoogleSheetRepository<
   TEntity extends BaseEntity & Record<string, unknown>,
 > extends BaseRepository<TEntity> {
   protected readonly contractColumns: string[];
+  /** Cached header row per tab — avoids full-tab reads for append-only creates. */
+  private static readonly headerCache = new Map<string, string[]>();
 
   constructor(
     repositoryName: string,
@@ -48,6 +50,15 @@ export abstract class GoogleSheetRepository<
     return this.contract.tabName;
   }
 
+  /** Drop cached headers for a tab (call after header schema changes). */
+  static invalidateHeaderCache(tabName?: string): void {
+    if (!tabName) {
+      GoogleSheetRepository.headerCache.clear();
+      return;
+    }
+    GoogleSheetRepository.headerCache.delete(tabName);
+  }
+
   protected get fullRange(): string {
     // Wide enough for inherited/stub headers + expanded contract columns
     return buildFullRange(this.contract.tabName, Math.max(this.contractColumns.length + 15, 50));
@@ -61,12 +72,11 @@ export abstract class GoogleSheetRepository<
     return parseSheetRows(rows);
   }
 
-  /**
-   * Reads live headers, builds name→index map, validates mandatory contract columns.
-   */
-  protected async loadMappedSheetData(): Promise<MappedSheetData> {
-    const { headers: sheetHeaders, dataRows } = await this.loadSheetData();
+  protected cacheHeaders(sheetHeaders: string[]): void {
+    GoogleSheetRepository.headerCache.set(this.contract.tabName, [...sheetHeaders]);
+  }
 
+  protected assertHeaders(sheetHeaders: string[]): void {
     if (!sheetHeaders.some((header) => String(header ?? '').trim())) {
       throw new ValidationError(
         `Worksheet "${this.contract.tabName}" has no headers. ` +
@@ -80,16 +90,49 @@ export abstract class GoogleSheetRepository<
         sheetHeaders,
         this.contractColumns,
       );
-    } else {
-      const present = new Set(sheetHeaders.map((header) => String(header ?? '').trim()));
-      const missing = this.contractColumns.filter((column) => !present.has(column));
-      if (missing.length > 0) {
-        throw new ValidationError(
-          `Mandatory header(s) missing from worksheet "${this.contract.tabName}": ${missing.join(', ')}`,
-          missing.map((column) => `Missing header: ${column}`),
-        );
-      }
+      return;
     }
+
+    const present = new Set(sheetHeaders.map((header) => String(header ?? '').trim()));
+    const missing = this.contractColumns.filter((column) => !present.has(column));
+    if (missing.length > 0) {
+      throw new ValidationError(
+        `Mandatory header(s) missing from worksheet "${this.contract.tabName}": ${missing.join(', ')}`,
+        missing.map((column) => `Missing header: ${column}`),
+      );
+    }
+  }
+
+  /**
+   * Prefer cached headers; otherwise read only row 1 (not the full tab).
+   * Used by append-only create to skip a full sheet scan.
+   */
+  protected async getSheetHeaders(): Promise<string[]> {
+    const cached = GoogleSheetRepository.headerCache.get(this.contract.tabName);
+    if (cached?.some((header) => String(header ?? '').trim())) {
+      return cached;
+    }
+
+    if (this.headerManager) {
+      const headers = await this.headerManager.readHeaderRow(this.contract.tabName);
+      this.assertHeaders(headers);
+      this.cacheHeaders(headers);
+      return headers;
+    }
+
+    const { headers } = await this.loadSheetData();
+    this.assertHeaders(headers);
+    this.cacheHeaders(headers);
+    return headers;
+  }
+
+  /**
+   * Reads live headers, builds name→index map, validates mandatory contract columns.
+   */
+  protected async loadMappedSheetData(): Promise<MappedSheetData> {
+    const { headers: sheetHeaders, dataRows } = await this.loadSheetData();
+    this.assertHeaders(sheetHeaders);
+    this.cacheHeaders(sheetHeaders);
 
     const headerIndexByName = this.headerManager
       ? this.headerManager.buildHeaderIndexMap(sheetHeaders)
@@ -162,7 +205,8 @@ export abstract class GoogleSheetRepository<
   }
 
   async create(data: Omit<TEntity, 'id'>): Promise<TEntity> {
-    const { sheetHeaders } = await this.loadMappedSheetData();
+    // Append-only path: read header row (or cache) instead of scanning the full sheet.
+    const sheetHeaders = await this.getSheetHeaders();
     const entity = this.createBaseEntity(data);
     const rowValues = this.entityToRowValues(sheetHeaders, entity);
 

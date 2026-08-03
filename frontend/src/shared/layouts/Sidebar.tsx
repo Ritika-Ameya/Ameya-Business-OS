@@ -58,7 +58,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           "flex items-center border-b border-violet-300/30 px-3 dark:border-white/10",
           collapsed
             ? "h-auto flex-col justify-center gap-1 py-3"
-            : "h-16 justify-between gap-2"
+            : "h-[4.25rem] justify-between gap-2"
         )}
       >
         <CompanyBrandMark

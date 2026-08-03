@@ -29,7 +29,7 @@ export function CustomerWorkspaceTabs({
   onTabChange,
 }: CustomerWorkspaceTabsProps) {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
+    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-3">
       <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/80 px-2 pt-1 shadow-card backdrop-blur-sm [-webkit-overflow-scrolling:touch]">
         <TabsList variant="line" className="h-auto w-max min-w-full justify-start gap-1 bg-transparent p-0">
           <TabsTrigger value="overview" className="min-h-11 rounded-lg px-3 py-2.5 sm:px-4">
