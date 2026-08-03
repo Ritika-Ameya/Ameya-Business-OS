@@ -7,11 +7,42 @@ import type {
   FounderInsight,
 } from "@/features/dashboard/types/dashboard";
 
-export function getTimeOfDayGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
+export function resolveIanaTimeZone(timeZone?: string | null): string | undefined {
+  const raw = timeZone?.trim();
+  if (!raw) return undefined;
+  if (raw.toUpperCase() === "UTC") return "UTC";
+  // Preferences store values like "Asia/Kolkata (IST)"
+  const match = raw.match(/^([A-Za-z_]+\/[A-Za-z_]+)/);
+  return match?.[1] ?? (raw.includes("/") ? raw.split(/\s+/)[0] : undefined);
+}
+
+function getHourInTimeZone(timeZone?: string | null): number {
+  const iana = resolveIanaTimeZone(timeZone);
+  if (!iana) return new Date().getHours();
+
+  try {
+    const hourPart = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: iana,
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === "hour")?.value;
+
+    const hour = Number(hourPart);
+    if (Number.isFinite(hour)) return hour === 24 ? 0 : hour;
+  } catch {
+    // Fall through to local clock
+  }
+
+  return new Date().getHours();
+}
+
+export function getTimeOfDayGreeting(timeZone?: string | null): string {
+  const hour = getHourInTimeZone(timeZone);
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export function formatTodayDate(): string {
