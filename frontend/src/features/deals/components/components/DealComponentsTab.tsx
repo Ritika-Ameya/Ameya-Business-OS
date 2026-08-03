@@ -38,7 +38,7 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <PageHeader
         title="Deal Components"
         subtitle="Manage all billable components of this deal."

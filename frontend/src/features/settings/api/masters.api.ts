@@ -124,4 +124,21 @@ export const mastersApi = {
       updateItem<StateMasterDto>(`${MASTERS_BASE}/states`, id, body),
     delete: (id: string) => deleteItem(`${MASTERS_BASE}/states`, id),
   },
+
+  /** One request for company/finance/branding + all master lists. */
+  bootstrap: () =>
+    apiRequest<{
+      company: CompanyMasterDto | null;
+      invoiceConfiguration: InvoiceConfigurationDto | null;
+      branding: BrandingDto | null;
+      stages: StageMasterDto[];
+      opportunitySources: NamedMasterDto[];
+      industries: NamedMasterDto[];
+      dealTypes: SlugMasterDto[];
+      paymentMethods: SlugMasterDto[];
+      expenseCategories: NamedMasterDto[];
+      renewalFrequencies: SimpleMasterDto[];
+      countries: CountryMasterDto[];
+      states: StateMasterDto[];
+    }>(`${MASTERS_BASE}/bootstrap`),
 };

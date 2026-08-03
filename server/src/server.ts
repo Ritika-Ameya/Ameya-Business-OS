@@ -34,6 +34,15 @@ const start = async (): Promise<void> => {
     logger.warn('Super admin seed skipped or failed', err);
   }
 
+  // Warm auth user index so the first login is not a cold Sheets scan.
+  try {
+    const { userRepository } = await import('./modules/auth/repositories/user.repository.js');
+    await runWithSheetReadCache(() => userRepository.warmCache());
+    logger.info('Auth user cache warmed');
+  } catch (err) {
+    logger.warn('Auth user cache warm skipped or failed', err);
+  }
+
   const app = createApp();
 
   const server = app.listen(env.PORT, () => {

@@ -33,21 +33,23 @@ export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
   };
 
   const handleGenerate = (invoice: Invoice) => {
-    navigate(`/invoices/${invoice.id}`);
+    navigate(`/invoices/${invoice.id}`, {
+      state: { from: `/deals/${dealId}?tab=invoices` },
+    });
   };
 
   if (dealInvoices.length === 0) {
     return (
       <>
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-muted/50">
-            <Receipt className="size-6 text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-8 text-center sm:py-10">
+          <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted/50">
+            <Receipt className="size-5 text-muted-foreground" />
           </div>
           <h3 className="text-base font-medium">No invoices available</h3>
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             Generate an invoice from this deal to start billing.
           </p>
-          <Button className="mt-6 rounded-xl" onClick={() => setDialogOpen(true)}>
+          <Button className="mt-4 rounded-xl" onClick={() => setDialogOpen(true)}>
             <Plus />
             Generate Invoice
           </Button>
@@ -64,7 +66,7 @@ export function DealInvoicesTab({ dealId }: DealInvoicesTabProps) {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex justify-end">
           <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
             <Plus />

@@ -54,9 +54,12 @@ export interface DashboardExpenseStatsDto {
 
 export interface FollowUpItemDto {
   id: string;
-  entityType: "customer" | "deal";
+  entityType: "customer" | "deal" | "invoice";
   customerId: string;
   dealId?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  recordType?: "opportunity" | "customer";
   company: string;
   contactPerson: string;
   dealTitle?: string;
@@ -87,6 +90,7 @@ export interface DashboardSummaryDto {
     today: FollowUpItemDto[];
     tomorrow: FollowUpItemDto[];
     overdue: FollowUpItemDto[];
+    upcoming: FollowUpItemDto[];
   };
   activity: DashboardActivityDto[];
   pipeline: {

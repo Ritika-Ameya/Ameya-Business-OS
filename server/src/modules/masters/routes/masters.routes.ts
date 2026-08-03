@@ -46,6 +46,7 @@ import {
   stageMasterService,
   stateService,
 } from '../services/master.services';
+import { mastersBootstrap } from '../controllers/mastersBootstrap.controller';
 
 const companyController = new MasterSingletonController(
   companyMasterService,
@@ -150,6 +151,8 @@ const mountSingletonRoutes = <TEntity extends BaseEntity & Record<string, unknow
 };
 
 export const mastersRouter = Router();
+
+mastersRouter.get('/bootstrap', mastersBootstrap);
 
 mountSingletonRoutes(mastersRouter, '/company', companyController);
 mountCrudRoutes(mastersRouter, '/stages', stageController);

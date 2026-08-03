@@ -65,6 +65,8 @@ export class HeaderManager extends BaseService {
       const endLetter = columnIndexToLetter(Math.max(headers.length - 1, 0));
       await this.sheetsService.updateRows(`'${tabName}'!A1:${endLetter}1`, [headers]);
       this.logInfo(`Created header row on "${tabName}" (${headers.length} columns)`);
+      const { GoogleSheetRepository } = await import('../../repositories/googleSheet.repository.js');
+      GoogleSheetRepository.invalidateHeaderCache(tabName);
 
       return {
         tabName,
@@ -104,6 +106,8 @@ export class HeaderManager extends BaseService {
     this.logInfo(
       `Appended ${missing.length} missing header(s) on "${tabName}": ${missing.join(', ')}`,
     );
+    const { GoogleSheetRepository } = await import('../../repositories/googleSheet.repository.js');
+    GoogleSheetRepository.invalidateHeaderCache(tabName);
 
     return {
       tabName,

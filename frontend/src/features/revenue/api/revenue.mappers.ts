@@ -37,6 +37,7 @@ export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
     cancelledReason: dto.cancelledReason || undefined,
     cancelledAt: dto.cancelledAt || undefined,
     cancelledBy: dto.cancelledBy || undefined,
+    nextActionDate: dto.nextActionDate || undefined,
   };
 }
 

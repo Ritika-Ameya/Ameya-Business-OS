@@ -32,6 +32,7 @@ export interface InvoiceDto extends BaseEntityDto {
   cancelledReason?: string;
   cancelledAt?: string;
   cancelledBy?: string;
+  nextActionDate?: string;
 }
 
 export interface PaymentDto extends BaseEntityDto {
@@ -74,6 +75,7 @@ export interface InvoiceCreateBody {
   currency?: string;
   componentIds?: string[];
   notes?: string;
+  nextActionDate?: string;
 }
 
 export interface PaymentCreateBody {

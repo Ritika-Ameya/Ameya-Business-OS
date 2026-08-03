@@ -18,7 +18,7 @@ export function InvoiceWorkspaceTabs({
   onTabChange,
 }: InvoiceWorkspaceTabsProps) {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
+    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-3">
       <div className="overflow-x-auto pb-1">
         <TabsList
           variant="line"

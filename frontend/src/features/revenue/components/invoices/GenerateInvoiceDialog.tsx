@@ -22,6 +22,7 @@ import { Textarea } from "@/shared/ui/textarea";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import {
@@ -59,6 +60,7 @@ export function GenerateInvoiceDialog({
   const { customers } = useCustomers();
   const { deals, getComponentsByDeal } = useDeals();
   const { createInvoice } = useRevenue();
+  const { refreshDashboard } = useDashboard();
   const defaultTax = getDefaultTaxPercentage(finance);
   const isLocked = Boolean(context);
 
@@ -72,6 +74,7 @@ export function GenerateInvoiceDialog({
   const [addressType, setAddressType] = useState<InvoiceAddressType>("billing");
   const [invoiceDate, setInvoiceDate] = useState(todayIsoDate);
   const [dueDate, setDueDate] = useState(() => addDaysIso(30));
+  const [nextActionDate, setNextActionDate] = useState(() => addDaysIso(7));
   const [gstPercent, setGstPercent] = useState(String(defaultTax));
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -116,6 +119,7 @@ export function GenerateInvoiceDialog({
       setAddressType("billing");
       setInvoiceDate(todayIsoDate());
       setDueDate(addDaysIso(30));
+      setNextActionDate(addDaysIso(7));
       setGstPercent(String(defaultTax));
       setNotes("");
       setError(null);
@@ -141,6 +145,10 @@ export function GenerateInvoiceDialog({
       setError("Invoice date and due date are required.");
       return;
     }
+    if (!nextActionDate) {
+      setError("Next follow-up date is required.");
+      return;
+    }
     if (selectedComponents.length === 0) {
       setError("Select at least one component.");
       return;
@@ -163,10 +171,12 @@ export function GenerateInvoiceDialog({
         total: summary.total,
         componentIds: selectedComponents,
         notes: notes.trim(),
+        nextActionDate,
       });
       onOpenChange(false);
       setSelectedComponents([]);
       onGenerate?.(invoice);
+      void refreshDashboard({ silent: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -345,6 +355,22 @@ export function GenerateInvoiceDialog({
                     className="rounded-xl"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="next-follow-up-date">Next Follow-up Date</Label>
+                <Input
+                  id="next-follow-up-date"
+                  type="date"
+                  value={nextActionDate}
+                  onChange={(e) => setNextActionDate(e.target.value)}
+                  required
+                  className="rounded-xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This date appears on the dashboard so you know when to follow up for
+                  this invoice collection.
+                </p>
               </div>
 
               <div className="space-y-2">

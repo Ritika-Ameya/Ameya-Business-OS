@@ -33,6 +33,7 @@ export interface Invoice {
   cancelledReason?: string;
   cancelledAt?: string;
   cancelledBy?: string;
+  nextActionDate?: string;
 }
 
 export type InvoiceStatusFilter = "all" | InvoiceStatus;

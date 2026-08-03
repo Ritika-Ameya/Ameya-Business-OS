@@ -38,7 +38,7 @@ export function CustomerWorkspacePage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" size="sm" className="-ml-2 rounded-xl" asChild>
           <Link to="/customers">

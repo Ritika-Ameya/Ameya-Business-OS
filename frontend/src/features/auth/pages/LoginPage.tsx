@@ -15,6 +15,11 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { CompanyLogoImage } from "@/shared/components/CompanyLogoImage";
+import {
+  getCachedCompanyDisplayName,
+  getCachedCompanyLogoUrl,
+} from "@/shared/utils/company-brand";
 import { useAuth } from "../hooks/useAuth";
 
 export function LoginPage() {
@@ -26,6 +31,9 @@ export function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const logoUrl = getCachedCompanyLogoUrl();
+  const companyName = getCachedCompanyDisplayName();
+  const hasLogo = Boolean(logoUrl);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -34,7 +42,6 @@ export function LoginPage() {
 
     try {
       await login(email, password, rememberMe);
-      // Navigate immediately after tokens/user are set — do not wait on UI teardown.
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
@@ -46,7 +53,6 @@ export function LoginPage() {
 
   return (
     <div className="relative min-h-svh overflow-hidden bg-[#07081a] text-white">
-      {/* Ambient innovation canvas */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#4f46e5_0%,_transparent_45%),radial-gradient(ellipse_at_bottom_right,_#db2777_0%,_transparent_40%),radial-gradient(ellipse_at_bottom_left,_#0891b2_0%,_transparent_40%)] opacity-70" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
@@ -58,7 +64,6 @@ export function LoginPage() {
       </div>
 
       <div className="relative z-10 mx-auto grid min-h-svh max-w-6xl items-center gap-8 px-4 py-8 sm:gap-10 sm:py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
-        {/* Brand / story panel */}
         <div className="hidden space-y-8 lg:block">
           <div className="login-rise inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md">
             <Sparkles className="size-3.5 text-amber-300" />
@@ -67,7 +72,7 @@ export function LoginPage() {
 
           <div className="login-rise-2 space-y-4">
             <h1 className="login-shimmer-text bg-gradient-to-r from-white via-cyan-200 to-fuchsia-200 bg-clip-text text-5xl font-bold tracking-tight text-transparent xl:text-6xl">
-              Ameya Biz Shree
+              {companyName}
             </h1>
             <p className="max-w-md text-lg leading-relaxed text-white/75">
               Where business clarity meets imaginative execution — customers,
@@ -114,7 +119,6 @@ export function LoginPage() {
           </div>
         </div>
 
-        {/* Auth card */}
         <div className="login-rise-4 mx-auto w-full max-w-[440px]">
           <div className="relative overflow-hidden rounded-[1.75rem] border border-white/15 bg-white/10 p-6 shadow-[0_20px_80px_rgba(79,70,229,0.35)] backdrop-blur-xl sm:p-8">
             <div
@@ -126,14 +130,21 @@ export function LoginPage() {
               aria-hidden
             />
 
-            <div className="relative mb-8 space-y-4 text-center lg:text-left">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/30 lg:mx-0">
-                <Sparkles className="size-7" aria-hidden />
+            <div className="relative mb-8 space-y-5 text-center">
+              <div className="mx-auto flex h-[5.5rem] w-[5.5rem] items-center justify-center overflow-hidden rounded-[1.35rem] bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/55 sm:h-28 sm:w-28 sm:rounded-[1.5rem] sm:p-3.5">
+                {hasLogo ? (
+                  <CompanyLogoImage
+                    logoUrl={logoUrl}
+                    alt={companyName}
+                    className="size-full"
+                  />
+                ) : (
+                  <span className="text-2xl font-bold tracking-tight text-slate-800">
+                    {companyName.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/80 lg:hidden">
-                  Ameya Biz Shree
-                </p>
                 <h2 className="text-2xl font-bold tracking-tight text-white sm:text-[1.7rem]">
                   Begin your journey
                 </h2>
@@ -232,7 +243,7 @@ export function LoginPage() {
                 ) : (
                   <>
                     <span className="sm:hidden">Enter workspace</span>
-                    <span className="hidden sm:inline">Enter Ameya Biz Shree</span>
+                    <span className="hidden sm:inline">Enter {companyName}</span>
                     <ArrowRight className="size-4 shrink-0" />
                   </>
                 )}

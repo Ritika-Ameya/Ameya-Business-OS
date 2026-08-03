@@ -38,7 +38,7 @@ export function DealWorkspacePage() {
   const { dealId } = useParams<{ dealId: string }>();
   const location = useLocation();
   const navigationState = location.state as DealNavigationState | null;
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { getDeal, loading, error } = useDeals();
   const [activeTab, setActiveTab] = useState(() =>
     parseDealTab(searchParams.get("tab"), navigationState?.tab)
@@ -51,11 +51,16 @@ export function DealWorkspacePage() {
     }
   }, [searchParams]);
 
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams(tab === "overview" ? {} : { tab }, { replace: true });
+  };
+
   const deal = dealId ? getDeal(dealId) : undefined;
 
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-5">
         <TableSkeleton rows={8} />
       </div>
     );
@@ -66,9 +71,9 @@ export function DealWorkspacePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       <div>
-        <Button variant="ghost" size="sm" className="mb-4 -ml-2 rounded-xl" asChild>
+        <Button variant="ghost" size="sm" className="mb-3 -ml-2 rounded-xl" asChild>
           <Link to="/deals">
             <ArrowLeft />
             Back to Deals
@@ -90,7 +95,7 @@ export function DealWorkspacePage() {
       <DealWorkspaceTabs
         dealId={deal.id}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
     </div>
   );

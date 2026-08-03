@@ -1,5 +1,5 @@
 import { Edit, Eye, MoreHorizontal, Receipt } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { InvoiceStatusBadge } from "@/features/revenue/components/invoices/InvoiceStatusBadge";
@@ -44,6 +44,10 @@ export function InvoiceTable({
   onDelete,
   hideCustomerColumn = false,
 }: InvoiceTableProps) {
+  const location = useLocation();
+  const fromPath = `${location.pathname}${location.search}`;
+  const invoiceLinkState = { from: fromPath };
+
   if (invoices.length === 0) {
     return (
       <EmptyState
@@ -78,6 +82,7 @@ export function InvoiceTable({
               <TableCell className="pl-4">
                 <Link
                   to={`/invoices/${invoice.id}`}
+                  state={invoiceLinkState}
                   className="font-medium transition-colors hover:text-primary"
                 >
                   {invoice.invoiceNo}
@@ -131,6 +136,7 @@ export function InvoiceTable({
                   <Button variant="ghost" size="icon-sm" asChild>
                     <Link
                       to={`/invoices/${invoice.id}`}
+                      state={invoiceLinkState}
                       aria-label={`View invoice ${invoice.invoiceNo}`}
                     >
                       <Eye />
@@ -157,7 +163,9 @@ export function InvoiceTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link to={`/invoices/${invoice.id}`}>View workspace</Link>
+                        <Link to={`/invoices/${invoice.id}`} state={invoiceLinkState}>
+                          View workspace
+                        </Link>
                       </DropdownMenuItem>
                       {onEdit && invoice.status !== "cancelled" && (
                         <DropdownMenuItem onClick={() => onEdit(invoice)}>

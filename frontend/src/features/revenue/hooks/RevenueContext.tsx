@@ -67,19 +67,12 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const items = await invoicesApi.list();
-      const mapped = items.map(mapInvoiceFromDto);
-      setInvoices(mapped);
-      const paymentLists = await Promise.all(
-        mapped.map(async (invoice) => {
-          try {
-            return await invoicesApi.listPayments(invoice.id);
-          } catch {
-            return [];
-          }
-        })
-      );
-      setPayments(paymentLists.flat().map(mapPaymentFromDto));
+      const [items, paymentItems] = await Promise.all([
+        invoicesApi.list(),
+        invoicesApi.listAllPayments(),
+      ]);
+      setInvoices(items.map(mapInvoiceFromDto));
+      setPayments(paymentItems.map(mapPaymentFromDto));
     } catch (err) {
       setError(getErrorMessage(err));
       setInvoices([]);

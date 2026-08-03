@@ -37,7 +37,7 @@ export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorksp
   if (!deal) return null;
 
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-6">
+    <Tabs value={activeTab} onValueChange={onTabChange} className="gap-3">
       <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card/80 px-2 pt-1 shadow-card backdrop-blur-sm">
         <TabsList
           variant="line"

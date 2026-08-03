@@ -7,6 +7,8 @@ const router = Router();
 router.get('/', invoiceController.list);
 router.post('/', ...invoiceController.create);
 
+router.get('/payments', invoiceController.listAllPayments);
+
 router.post('/:id/restore', ...invoiceController.restore);
 router.patch('/:id/status', ...invoiceController.changeStatus);
 router.post('/:id/cancel', ...invoiceController.cancel);

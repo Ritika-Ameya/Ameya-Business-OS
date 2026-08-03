@@ -119,6 +119,11 @@ export class InvoiceController {
     }),
   ];
 
+  readonly listAllPayments = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const payments = await invoiceService.listAllPayments();
+    ApiResponse.success(res, payments, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+  });
+
   readonly addPayment = [
     validate({ params: invoiceIdParamSchema, body: paymentCreateSchema }),
     asyncHandler(async (req: Request, res: Response): Promise<void> => {

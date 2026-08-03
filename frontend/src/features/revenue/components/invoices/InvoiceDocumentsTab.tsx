@@ -121,7 +121,7 @@ export function InvoiceDocumentsTab({ invoice }: InvoiceDocumentsTabProps) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading documents…</p>
       ) : files.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-16 text-center">
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 px-6 py-8 text-center sm:py-10">
           <FileText className="mx-auto mb-3 size-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             Invoice PDFs and related documents will appear here.
