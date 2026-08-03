@@ -1,5 +1,8 @@
 export const DEFAULT_APP_NAME = "Ameya Business OS";
 
+/** Browser tab / document metadata fallback when no company name is configured. */
+export const DOCUMENT_TITLE_FALLBACK = "Ameya Biz Shree";
+
 const LOGO_CACHE_KEY = "ameya-company-logo-url";
 const COMPANY_NAME_CACHE_KEY = "ameya-company-display-name";
 
@@ -7,6 +10,23 @@ const COMPANY_NAME_CACHE_KEY = "ameya-company-display-name";
 export function getCompanyDisplayName(companyName?: string | null): string {
   const name = companyName?.trim();
   return name || DEFAULT_APP_NAME;
+}
+
+/** Company name for document.title — Settings value, else Ameya Biz Shree. */
+export function getDocumentCompanyName(companyName?: string | null): string {
+  const name = companyName?.trim();
+  if (!name || name === DEFAULT_APP_NAME) return DOCUMENT_TITLE_FALLBACK;
+  return name;
+}
+
+/** Cached company name for public surfaces (login) document titles. */
+export function getCachedDocumentCompanyName(): string {
+  try {
+    const cached = localStorage.getItem(COMPANY_NAME_CACHE_KEY)?.trim();
+    return getDocumentCompanyName(cached);
+  } catch {
+    return DOCUMENT_TITLE_FALLBACK;
+  }
 }
 
 /** Persist logo/name so login (unauthenticated) can show the same brand mark. */

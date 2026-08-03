@@ -131,7 +131,7 @@ export function LoginPage() {
             />
 
             <div className="relative mb-8 space-y-5 text-center">
-              <div className="mx-auto flex h-[5.5rem] w-[5.5rem] items-center justify-center overflow-hidden rounded-[1.35rem] bg-white p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/55 sm:h-28 sm:w-28 sm:rounded-[1.5rem] sm:p-3.5">
+              <div className="mx-auto flex size-36 items-center justify-center overflow-hidden rounded-[1.5rem] bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/55 sm:size-40 sm:rounded-3xl sm:p-2">
                 {hasLogo ? (
                   <CompanyLogoImage
                     logoUrl={logoUrl}

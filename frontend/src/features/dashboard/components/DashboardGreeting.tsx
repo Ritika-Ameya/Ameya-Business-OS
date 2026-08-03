@@ -20,7 +20,7 @@ export function DashboardGreeting() {
       />
 
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-8">
-        <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white p-3 shadow-md ring-1 ring-slate-200/90 sm:size-28 lg:size-32 dark:bg-white dark:ring-white/25">
+        <div className="flex size-32 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-white p-1.5 shadow-md ring-1 ring-slate-200/90 sm:size-36 sm:p-2 lg:size-40 dark:bg-white dark:ring-white/25">
           {hasLogo ? (
             <CompanyLogoImage
               logoUrl={branding.logoUrl}
