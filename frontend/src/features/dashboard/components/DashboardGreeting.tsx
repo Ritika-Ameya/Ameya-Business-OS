@@ -1,12 +1,16 @@
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
-import { formatTodayDate } from "@/features/dashboard/utils/dashboard-utils";
+import {
+  formatTodayDate,
+  getTimeOfDayGreeting,
+} from "@/features/dashboard/utils/dashboard-utils";
 import { CompanyLogoImage } from "@/shared/components/CompanyLogoImage";
 import { getCompanyDisplayName } from "@/shared/utils/company-brand";
 
 export function DashboardGreeting() {
-  const { company, branding } = useAppConfig();
+  const { company, branding, preferences } = useAppConfig();
   const companyName = getCompanyDisplayName(company.companyName);
   const hasLogo = Boolean(branding.logoUrl?.trim());
+  const greeting = getTimeOfDayGreeting(preferences.timeZone);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-sky-50 p-5 shadow-sm sm:p-6 lg:p-8 dark:border-white/10 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
@@ -39,7 +43,7 @@ export function DashboardGreeting() {
             {formatTodayDate()}
           </p>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl dark:text-white">
-            Good evening, Abhay
+            {greeting}, Abhay
           </h1>
           <p className="max-w-xl text-sm text-slate-600 md:text-base dark:text-slate-300">
             Welcome to {companyName} — your command center for customers, revenue,
