@@ -55,45 +55,46 @@ export const getCompanyRenewals = (
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const dealById = new Map(deals.map((deal) => [deal.id, deal]));
+  const rows: RenewalRow[] = [];
 
-  return components
-    .filter((component) => hasRenewalFrequency(component.renewalFrequency))
-    .map((component) => {
-      const deal = dealById.get(component.dealId);
-      const dueIso = getComponentCurrentDueDate(component);
-      if (!dueIso) return null;
+  for (const component of components) {
+    if (!hasRenewalFrequency(component.renewalFrequency)) continue;
 
-      const renewalDate = new Date(dueIso);
-      renewalDate.setHours(0, 0, 0, 0);
-      if (Number.isNaN(renewalDate.getTime())) return null;
+    const deal = dealById.get(component.dealId);
+    const dueIso = getComponentCurrentDueDate(component);
+    if (!dueIso) continue;
 
-      const lastRenewedDate = component.lastRenewedDate?.trim() || '';
-      const status: RenewalStatus = renewalDate < now ? 'overdue' : 'upcoming';
+    const renewalDate = new Date(dueIso);
+    renewalDate.setHours(0, 0, 0, 0);
+    if (Number.isNaN(renewalDate.getTime())) continue;
 
-      return {
-        id: `renewal-${component.id}`,
-        dealId: component.dealId,
-        componentId: component.id,
-        componentName: component.name,
-        customerId: deal?.customerId ?? '',
-        customerName: resolveCustomerName(deal, customers) || '—',
-        renewalLabel: component.name,
-        dealTitle: deal?.title ?? '',
-        renewalStartDate: lastRenewedDate
-          ? component.renewalStartDate || dueIso
-          : dueIso,
-        renewalDate: dueIso,
-        lastRenewedDate,
-        amount: componentLineTotal(component),
-        status,
-        renewalType: mapComponentRenewalType(component.renewalFrequency),
-        renewalFrequency: component.renewalFrequency,
-      };
-    })
-    .filter((row): row is RenewalRow => row !== null)
-    .sort(
-      (a, b) => new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime(),
-    );
+    const lastRenewedDate = component.lastRenewedDate?.trim() || '';
+    const status: RenewalStatus = renewalDate < now ? 'overdue' : 'upcoming';
+
+    rows.push({
+      id: `renewal-${component.id}`,
+      dealId: component.dealId,
+      componentId: component.id,
+      componentName: component.name,
+      customerId: deal?.customerId ?? '',
+      customerName: resolveCustomerName(deal, customers) || '—',
+      renewalLabel: component.name,
+      dealTitle: deal?.title ?? '',
+      renewalStartDate: lastRenewedDate
+        ? component.renewalStartDate || dueIso
+        : dueIso,
+      renewalDate: dueIso,
+      lastRenewedDate,
+      amount: componentLineTotal(component),
+      status,
+      renewalType: mapComponentRenewalType(component.renewalFrequency),
+      renewalFrequency: component.renewalFrequency,
+    });
+  }
+
+  return rows.sort(
+    (a, b) => new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime(),
+  );
 };
 
 /** Ensure migration ran, then aggregate from components. */
