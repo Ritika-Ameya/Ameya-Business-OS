@@ -24,7 +24,7 @@ export const invoiceCreateSchema = z.object({
   currency: z.string().default('INR'),
   componentIds: z.array(z.string()).default([]),
   notes: z.string().max(5000).default(''),
-  invoiceNumber: z.string().default(''),
+  invoiceNumber: z.string().trim().min(1, 'Invoice number is required'),
   nextActionDate: z.string().default(''),
 });
 

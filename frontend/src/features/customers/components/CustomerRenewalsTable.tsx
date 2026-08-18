@@ -59,7 +59,12 @@ export function CustomerRenewalsTable({ renewals }: CustomerRenewalsTableProps) 
                 {componentRenewalFrequencyLabels[renewal.renewalFrequency]}
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {formatDate(renewal.dueDate)}
+                <div>
+                  <p>{formatDate(renewal.dueDate)}</p>
+                  {renewal.lastPaidDate ? (
+                    <p className="text-xs">Paid for {formatDate(renewal.lastPaidDate)}</p>
+                  ) : null}
+                </div>
               </TableCell>
               <TableCell>{renewal.amount}</TableCell>
               <TableCell className="pr-4">

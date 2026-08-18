@@ -79,12 +79,19 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
               </TableCell>
               <TableCell>{renewal.amount}</TableCell>
               <TableCell>
-                <Badge
-                  variant="secondary"
-                  className={cn(companyRenewalStatusStyles[renewal.status])}
-                >
-                  {renewalStatusLabels[renewal.status]}
-                </Badge>
+                <div className="space-y-1">
+                  <Badge
+                    variant="secondary"
+                    className={cn(companyRenewalStatusStyles[renewal.status])}
+                  >
+                    {renewalStatusLabels[renewal.status]}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">
+                    {renewal.lastRenewedDate
+                      ? `Paid for ${formatDate(renewal.lastRenewedDate)} · Next ${formatDate(renewal.renewalDate)}`
+                      : `Unpaid · Due ${formatDate(renewal.renewalDate)}`}
+                  </p>
+                </div>
               </TableCell>
             </TableRow>
           ))}

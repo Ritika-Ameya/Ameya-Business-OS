@@ -44,11 +44,15 @@ export function mapComponentFromDto(dto: DealComponentDto): DealComponent {
     category: dto.category,
     description: dto.description,
     amount: dto.amount,
+    gstPercent: dto.gstPercent ?? 0,
+    quantity: dto.quantity > 0 ? dto.quantity : 1,
+    discount: dto.discount ?? 0,
     billingType: dto.billingType,
     status: dto.status,
     renewalFrequency: (dto.renewalFrequency || "none") as ComponentRenewalFrequency,
     renewalStartDate: dto.renewalStartDate || undefined,
     renewalDate: dto.renewalDate || undefined,
+    lastRenewedDate: dto.lastRenewedDate || undefined,
   };
 }
 
@@ -87,6 +91,9 @@ export function mapComponentFormToBody(data: ComponentFormData): DealComponentCr
     category: data.category.trim(),
     description: data.description.trim(),
     amount: parseAmount(data.amount),
+    gstPercent: parseAmount(data.gstPercent),
+    quantity: parseAmount(data.quantity) || 1,
+    discount: parseAmount(data.discount),
     billingType: data.billingType,
     status: data.status,
     renewalFrequency,

@@ -99,11 +99,15 @@ export const dealComponentCreateSchema = z
     category: z.string().default(''),
     description: z.string().default(''),
     amount: z.coerce.number().min(0, 'Amount must be 0 or greater'),
+    gstPercent: z.coerce.number().min(0).max(100).default(0),
+    quantity: z.coerce.number().positive('Quantity must be greater than 0').default(1),
+    discount: z.coerce.number().min(0).default(0),
     billingType: billingTypeSchema.default('one-time'),
     status: componentStatusSchema.default('pending'),
     renewalFrequency: componentRenewalFrequencySchema.default('none'),
     renewalStartDate: z.string().default(''),
     renewalDate: z.string().default(''),
+    lastRenewedDate: z.string().default(''),
   })
   .superRefine(componentRenewalRefine);
 
@@ -113,11 +117,15 @@ export const dealComponentUpdateSchema = z
     category: z.string().optional(),
     description: z.string().optional(),
     amount: z.coerce.number().min(0, 'Amount must be 0 or greater').optional(),
+    gstPercent: z.coerce.number().min(0).max(100).optional(),
+    quantity: z.coerce.number().positive('Quantity must be greater than 0').optional(),
+    discount: z.coerce.number().min(0).optional(),
     billingType: billingTypeSchema.optional(),
     status: componentStatusSchema.optional(),
     renewalFrequency: componentRenewalFrequencySchema.optional(),
     renewalStartDate: z.string().optional(),
     renewalDate: z.string().optional(),
+    lastRenewedDate: z.string().optional(),
   })
   .superRefine(componentRenewalRefine);
 

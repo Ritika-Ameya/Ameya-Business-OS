@@ -12,10 +12,10 @@ import { assertUniqueField } from '../../../utils/uniqueness.util';
 import { applyFilters } from '../../../utils/filtering.util';
 import { applySort } from '../../../utils/sorting.util';
 import { paginateArray } from '../../../utils/pagination.util';
-import { invoiceConfigurationRepository } from '../../masters/services/master.services';
+import { invoiceRepository, paymentRepository } from './revenue.repository';
 import { customerRepository, documentRepository } from '../../customers';
 import type { DocumentEntity } from '../../customers';
-import { dealRepository } from '../../deals';
+import { dealRepository, dealComponentRepository } from '../../deals';
 import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
 import type {
   InvoiceCancelInput,
@@ -25,7 +25,6 @@ import type {
   PaymentCreateInput,
   PaymentUpdateInput,
 } from '../validators/revenue.validators';
-import { invoiceRepository, paymentRepository } from './revenue.repository';
 import {
   applyInvoiceSearch,
   parseSearchFields,
@@ -38,12 +37,9 @@ import {
   resolveUpdateAmounts,
   roundMoney,
 } from '../utils/invoiceCalculation.util';
-import {
-  hasInvoiceNumberFormatting,
-  incrementFormattedInvoiceNumber,
-} from '../utils/invoiceNumber.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
 import { toISOString } from '../../../utils/date.util';
+import { tryAdvanceComponentRenewal } from '../../deals/utils/renewalHelpers.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
 
@@ -102,8 +98,10 @@ export class InvoiceService extends BaseService {
       total: input.total,
     });
 
-    const invoiceNumber =
-      input.invoiceNumber.trim() || (await this.allocateInvoiceNumber());
+    const invoiceNumber = input.invoiceNumber.trim();
+    if (!invoiceNumber) {
+      throw new ValidationError('Invoice number is required');
+    }
 
     await this.assertUniqueInvoiceNumber(invoiceNumber);
 
@@ -152,8 +150,8 @@ export class InvoiceService extends BaseService {
       });
     }
 
-    if (input.invoiceNumber && input.invoiceNumber !== existing.invoiceNumber) {
-      await this.assertUniqueInvoiceNumber(input.invoiceNumber, id);
+    if (input.invoiceNumber && input.invoiceNumber.trim() !== existing.invoiceNumber) {
+      await this.assertUniqueInvoiceNumber(input.invoiceNumber.trim(), id);
     }
 
     const { subtotal, taxPercent, tax, total } = resolveUpdateAmounts(existing, {
@@ -175,6 +173,9 @@ export class InvoiceService extends BaseService {
       id,
       {
         ...input,
+        ...(input.invoiceNumber !== undefined
+          ? { invoiceNumber: input.invoiceNumber.trim() }
+          : {}),
         customerName: input.customerName?.trim(),
         dealTitle: input.dealTitle?.trim(),
         notes: input.notes?.trim(),
@@ -530,7 +531,31 @@ export class InvoiceService extends BaseService {
     );
 
     await this.syncCustomerOutstanding(updated.customerId);
+    if (updated.status === 'paid') {
+      await this.advanceLinkedComponentRenewals(updated);
+    }
     return updated;
+  }
+
+  /** When an invoice is fully paid, that payment covers the current unpaid renewal cycle. */
+  private async advanceLinkedComponentRenewals(invoice: InvoiceEntity): Promise<void> {
+    const componentIds = Array.isArray(invoice.componentIds) ? invoice.componentIds : [];
+    for (const componentId of componentIds) {
+      if (!componentId?.trim()) continue;
+      const component = await dealComponentRepository.findById(componentId);
+      if (!component) continue;
+      const advanced = tryAdvanceComponentRenewal(component);
+      if (!advanced) continue;
+      await dealComponentRepository.updateOrThrow(
+        componentId,
+        {
+          lastRenewedDate: advanced.lastRenewedDate,
+          renewalDate: advanced.renewalDate,
+          status: advanced.status,
+        },
+        'Component',
+      );
+    }
   }
 
   /** Keep denormalized customer.outstandingAmount aligned with invoice balances. */
@@ -552,43 +577,6 @@ export class InvoiceService extends BaseService {
     }
 
     await customerRepository.update(customerId, { outstandingAmount: outstanding });
-  }
-
-  private async allocateInvoiceNumber(): Promise<string> {
-    const configs = await invoiceConfigurationRepository.findAll();
-    const config = configs[0];
-    const prefix = config?.invoicePrefix?.trim() || 'INV';
-    const configuredRaw = config?.nextInvoiceNumber?.trim() || '0001';
-
-    const existing = await invoiceRepository.findAll();
-    const used = new Set(
-      existing
-        .map((invoice) => String(invoice.invoiceNumber || '').trim().toUpperCase())
-        .filter(Boolean),
-    );
-
-    // Preserve exact formatting from Settings (dashes, slashes, spaces, etc.).
-    // Digits-only sequences still use the legacy `${prefix}-${sequence}` shape.
-    const formatted = hasInvoiceNumberFormatting(configuredRaw);
-    const toInvoiceNumber = (sequence: string): string =>
-      formatted ? sequence : `${prefix}-${sequence}`;
-
-    let sequence = configuredRaw;
-    let invoiceNumber = toInvoiceNumber(sequence);
-    while (used.has(invoiceNumber.toUpperCase())) {
-      sequence = incrementFormattedInvoiceNumber(sequence);
-      invoiceNumber = toInvoiceNumber(sequence);
-    }
-
-    if (config) {
-      await invoiceConfigurationRepository.updateOrThrow(
-        config.id,
-        { nextInvoiceNumber: incrementFormattedInvoiceNumber(sequence) },
-        'Invoice Configuration',
-      );
-    }
-
-    return invoiceNumber;
   }
 
   private async assertUniqueInvoiceNumber(

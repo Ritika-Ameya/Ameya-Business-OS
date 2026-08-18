@@ -38,11 +38,15 @@ export interface DealComponentDto extends BaseEntityDto {
   category: string;
   description: string;
   amount: number;
+  gstPercent: number;
+  quantity: number;
+  discount: number;
   billingType: BillingType;
   status: ComponentStatus;
   renewalFrequency: ComponentRenewalFrequency;
   renewalStartDate: string;
   renewalDate: string;
+  lastRenewedDate?: string;
 }
 
 export interface DealDocumentDto extends BaseEntityDto {
@@ -82,6 +86,9 @@ export interface DealComponentCreateBody {
   category?: string;
   description?: string;
   amount: number;
+  gstPercent?: number;
+  quantity?: number;
+  discount?: number;
   billingType: BillingType;
   status: ComponentStatus;
   renewalFrequency?: ComponentRenewalFrequency;

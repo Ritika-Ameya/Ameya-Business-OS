@@ -3,10 +3,12 @@ export { preventNestedOverlayDismiss } from "./dialog-utils";
 export { formatCurrency } from "./format-currency";
 export {
   addLocalDaysIso,
+  displayDateToIso,
   formatDate,
   formatDateTime,
   isRenewalThisMonth,
   isUpcomingRenewal,
+  isoToDisplayDate,
   toLocalIsoDate,
 } from "./format-date";
 export { isNavItemActive } from "./navigation-utils";

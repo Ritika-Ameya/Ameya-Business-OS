@@ -267,6 +267,19 @@ export function CompanySettingsPage() {
               {driveError}
             </p>
           )}
+
+          {driveStatus?.redirectUri ? (
+            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+              <p className="font-medium">If Google shows redirect_uri_mismatch</p>
+              <p className="mt-1 text-muted-foreground">
+                In Google Cloud → APIs &amp; Services → Credentials → your OAuth client,
+                add this exact Authorized redirect URI, save, then click Connect again:
+              </p>
+              <code className="mt-2 block break-all rounded-lg bg-muted/60 px-2 py-1.5 text-xs">
+                {driveStatus.redirectUri}
+              </code>
+            </div>
+          ) : null}
         </div>
       )}
 

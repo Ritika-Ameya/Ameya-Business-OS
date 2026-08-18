@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useCustomers } from "@/features/customers/hooks/use-customers";
 import {
   defaultRenewalFilters,
   getCompanyRenewals,
@@ -38,13 +39,17 @@ export function RevenueRenewalsFilters({
   onFiltersChange,
 }: RevenueRenewalsFiltersProps) {
   const { deals, components } = useDeals();
+  const { customers: customerRecords } = useCustomers();
   const customers = useMemo(() => {
     const map = new Map<string, string>();
-    for (const renewal of getCompanyRenewals(deals, components)) {
-      map.set(renewal.customerId, renewal.customerName);
+    for (const renewal of getCompanyRenewals(deals, components, customerRecords)) {
+      if (!renewal.customerId) continue;
+      if (!map.get(renewal.customerId) || map.get(renewal.customerId) === "—") {
+        map.set(renewal.customerId, renewal.customerName);
+      }
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [deals, components]);
+  }, [deals, components, customerRecords]);
 
   const quarterOptions = useMemo(() => buildQuarterOptions(), []);
 

@@ -109,11 +109,15 @@ export const migrateDealRenewalsToComponents = async (): Promise<number> => {
             category: 'Renewal',
             description: 'Migrated from deal-level renewal schedule',
             amount: Number(deal.contractValue || 0),
+            gstPercent: 0,
+            quantity: 1,
+            discount: 0,
             billingType: frequency === 'yearly' ? 'yearly' : frequency === 'monthly' ? 'monthly' : frequency === 'quarterly' ? 'quarterly' : 'one-time',
             status: 'pending',
             renewalFrequency: frequency,
             renewalStartDate,
             renewalDate: legacyNext,
+            lastRenewedDate: '',
           } as Omit<DealComponentEntity, 'id'>);
 
           const list = byDeal.get(deal.id) ?? [];

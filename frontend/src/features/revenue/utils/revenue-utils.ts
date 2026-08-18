@@ -4,7 +4,12 @@ import type {
   ComponentRenewalFrequency,
   DealComponent,
 } from "@/features/deals/types/deal-component";
-import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
+import {
+  computeComponentLineTotal,
+  getComponentCurrentDueDate,
+  hasComponentRenewal,
+} from "@/features/deals/utils/deal-component-utils";
+import type { Customer } from "@/features/customers/types/customer";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment } from "@/features/revenue/types/payment";
 import type {
@@ -51,12 +56,13 @@ export interface CompanyRenewalRow {
   dealTitle: string;
   renewalStartDate: string;
   renewalDate: string;
+  lastRenewedDate: string;
   amount: string;
   amountValue: number;
   status: CompanyRenewalStatus;
   renewalType: CompanyRenewalType;
   renewalFrequency: ComponentRenewalFrequency;
-  /** True when the deal timeline recorded at least one renewal update. */
+  /** True when at least one cycle has been marked completed or paid. */
   wasRenewed: boolean;
 }
 
@@ -229,11 +235,14 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     })
     .reduce((sum, payment) => sum + payment.amount, 0);
 
+  const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
   return {
     outstandingAmount: formatInvoiceCurrency(outstandingAmount),
     pendingCount: String(pendingCount),
     overdueCount: String(overdueCount),
     collectedThisMonth: formatInvoiceCurrency(collectedThisMonth),
+    totalCollected: formatInvoiceCurrency(totalCollected),
   };
 }
 
@@ -258,37 +267,42 @@ function mapRenewalType(
   }
 }
 
-function dealWasRenewed(deal?: Deal): boolean {
-  return (deal?.timeline ?? []).some((entry) => entry.action === "renewal_updated");
+function resolveDealCustomerName(
+  deal: Deal | undefined,
+  customers: Customer[]
+): string {
+  const fromDeal = deal?.customerName?.trim();
+  if (fromDeal) return fromDeal;
+  const customer = customers.find((item) => item.id === deal?.customerId);
+  return (customer?.name || customer?.company || "").trim();
 }
 
 export function getCompanyRenewals(
   deals: Deal[] = [],
-  components: DealComponent[] = []
+  components: DealComponent[] = [],
+  customers: Customer[] = []
 ): CompanyRenewalRow[] {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const dealById = new Map(deals.map((deal) => [deal.id, deal]));
 
   return components
-    .filter(
-      (component) =>
-        hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(component.renewalDate)
-    )
+    .filter((component) => hasComponentRenewal(component.renewalFrequency))
     .map((component) => {
       const deal = dealById.get(component.dealId);
-      const renewalDate = new Date(component.renewalDate!);
-      renewalDate.setHours(0, 0, 0, 0);
-      const wasRenewed = dealWasRenewed(deal);
-      const isExpired = renewalDate < now;
-      const status: CompanyRenewalStatus = isExpired
-        ? "expired"
-        : wasRenewed
-          ? "renewed"
-          : "upcoming";
+      const dueIso = getComponentCurrentDueDate(component);
+      if (!dueIso) return null;
 
-      const amountValue = Number(component.amount || 0);
+      const renewalDate = new Date(dueIso);
+      renewalDate.setHours(0, 0, 0, 0);
+      if (Number.isNaN(renewalDate.getTime())) return null;
+
+      const lastRenewedDate = component.lastRenewedDate?.trim() || "";
+      const wasRenewed = Boolean(lastRenewedDate);
+      const isExpired = renewalDate < now;
+      const status: CompanyRenewalStatus = isExpired ? "expired" : "upcoming";
+
+      const amountValue = computeComponentLineTotal(component);
 
       return {
         id: `renewal-${component.id}`,
@@ -296,11 +310,14 @@ export function getCompanyRenewals(
         componentId: component.id,
         componentName: component.name,
         customerId: deal?.customerId ?? "",
-        customerName: deal?.customerName ?? "",
+        customerName: resolveDealCustomerName(deal, customers) || "—",
         renewalLabel: component.name,
         dealTitle: deal?.title ?? "",
-        renewalStartDate: component.renewalStartDate || "",
-        renewalDate: component.renewalDate!,
+        renewalStartDate: lastRenewedDate
+          ? component.renewalStartDate || dueIso
+          : dueIso,
+        renewalDate: dueIso,
+        lastRenewedDate,
         amount: amountValue ? formatInvoiceCurrency(amountValue) : "—",
         amountValue,
         status,
@@ -309,7 +326,7 @@ export function getCompanyRenewals(
         wasRenewed,
       };
     })
-    .filter((row) => Boolean(row.customerId))
+    .filter((row): row is CompanyRenewalRow => row !== null)
     .sort(
       (a, b) =>
         new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime()
@@ -369,6 +386,7 @@ export interface RenewalPeriodStats {
   nextQuarter: string;
   expired: string;
   renewed: string;
+  renewedCustomers: string;
 }
 
 /** Period cards from scoped renewals (customer/type), independent of date/status filters. */
@@ -398,7 +416,8 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodSta
     )
   ).length;
   const expired = renewals.filter((r) => r.status === "expired").length;
-  const renewed = renewals.filter((r) => r.wasRenewed).length;
+  const renewedRows = renewals.filter((r) => r.wasRenewed);
+  const renewedCustomers = new Set(renewedRows.map((r) => r.customerId).filter(Boolean)).size;
 
   return {
     upcomingThisMonth: String(upcomingThisMonth),
@@ -406,7 +425,8 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodSta
     quarter: String(quarterCount),
     nextQuarter: String(nextQuarter),
     expired: String(expired),
-    renewed: String(renewed),
+    renewed: String(renewedRows.length),
+    renewedCustomers: String(renewedCustomers),
   };
 }
 

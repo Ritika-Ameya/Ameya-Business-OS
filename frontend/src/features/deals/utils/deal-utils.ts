@@ -1,6 +1,6 @@
 import type { Deal, DealFilters } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
-import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
+import { hasComponentRenewal, getComponentCurrentDueDate } from "@/features/deals/utils/deal-component-utils";
 import { isRenewalThisMonth, isUpcomingRenewal } from "@/shared/utils/format-date";
 
 export const defaultDealFilters: DealFilters = {
@@ -32,9 +32,9 @@ function getDealRenewalDates(
       (component) =>
         component.dealId === dealId &&
         hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(component.renewalDate)
+        Boolean(getComponentCurrentDueDate(component))
     )
-    .map((component) => component.renewalDate!)
+    .map((component) => getComponentCurrentDueDate(component))
     .filter(Boolean);
 }
 
@@ -54,12 +54,12 @@ export function getNextComponentRenewal(
       (component) =>
         component.dealId === dealId &&
         hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(component.renewalDate)
+        Boolean(getComponentCurrentDueDate(component))
     )
     .map((component) => ({
-      date: component.renewalDate!,
+      date: getComponentCurrentDueDate(component),
       componentName: component.name,
-      time: new Date(component.renewalDate!).getTime(),
+      time: new Date(getComponentCurrentDueDate(component)).getTime(),
     }))
     .filter((item) => !Number.isNaN(item.time))
     .sort((a, b) => a.time - b.time);

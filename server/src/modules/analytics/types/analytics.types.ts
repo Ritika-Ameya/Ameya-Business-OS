@@ -49,6 +49,7 @@ export interface RenewalRow {
   dealTitle: string;
   renewalStartDate: string;
   renewalDate: string;
+  lastRenewedDate?: string;
   amount: number;
   status: RenewalStatus;
   renewalType: RenewalType;

@@ -142,12 +142,17 @@ export interface DealComponentEntity extends BaseEntity {
   category: string;
   description: string;
   amount: number;
+  gstPercent: number;
+  quantity: number;
+  discount: number;
   billingType: DealBillingType;
   status: DealComponentStatus;
   renewalFrequency: ComponentRenewalFrequency;
   renewalStartDate: string;
-  /** Next renewal date (or custom renewal date when frequency is custom). */
+  /** Currently due / next renewal date. */
   renewalDate: string;
+  /** Date of the last completed/paid renewal cycle. */
+  lastRenewedDate: string;
 }
 
 export type InvoiceStatus = 'draft' | 'due' | 'partially_paid' | 'paid' | 'cancelled';

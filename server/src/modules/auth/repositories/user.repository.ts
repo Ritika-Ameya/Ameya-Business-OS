@@ -6,7 +6,7 @@ import { userMapper } from '../mappers/auth.mappers';
 
 type UserRow = UserEntity & Record<string, unknown>;
 
-const USERS_CACHE_TTL_MS = 60_000;
+const USERS_CACHE_TTL_MS = 15 * 60_000;
 
 class UserRepository extends GoogleSheetRepository<UserRow> {
   private cache:

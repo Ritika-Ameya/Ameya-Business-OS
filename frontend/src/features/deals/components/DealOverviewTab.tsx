@@ -4,6 +4,7 @@ import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
   componentRenewalFrequencyLabels,
   formatComponentDate,
+  getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import { getNextComponentRenewal } from "@/features/deals/utils/deal-utils";
@@ -20,11 +21,13 @@ export function DealOverviewTab({ deal }: DealOverviewTabProps) {
   const renewing = dealComponents
     .filter(
       (component) =>
-        hasComponentRenewal(component.renewalFrequency) && Boolean(component.renewalDate)
+        hasComponentRenewal(component.renewalFrequency) &&
+        Boolean(getComponentCurrentDueDate(component))
     )
     .sort(
       (a, b) =>
-        new Date(a.renewalDate!).getTime() - new Date(b.renewalDate!).getTime()
+        new Date(getComponentCurrentDueDate(a)).getTime() -
+        new Date(getComponentCurrentDueDate(b)).getTime()
     );
   const nextRenewal = getNextComponentRenewal(deal.id, components);
   const frequencies = Array.from(
@@ -123,8 +126,13 @@ export function DealOverviewTab({ deal }: DealOverviewTabProps) {
                 <dt className="min-w-0 truncate text-muted-foreground">
                   {component.name}
                 </dt>
-                <dd className="shrink-0 font-medium">
-                  {formatComponentDate(component.renewalDate)}
+                <dd className="shrink-0 text-right font-medium">
+                  <p>{formatComponentDate(getComponentCurrentDueDate(component))}</p>
+                  {component.lastRenewedDate ? (
+                    <p className="text-xs font-normal text-muted-foreground">
+                      Paid {formatComponentDate(component.lastRenewedDate)}
+                    </p>
+                  ) : null}
                 </dd>
               </div>
             ))

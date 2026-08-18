@@ -24,6 +24,36 @@ export function hasComponentRenewal(
   return Boolean(frequency) && frequency !== "none";
 }
 
+function parseLocalIsoDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function addRenewalInterval(
+  isoDate: string,
+  frequency: ComponentRenewalFrequency
+): string {
+  if (!hasComponentRenewal(frequency) || frequency === "custom") {
+    return isoDate.trim();
+  }
+
+  const date = parseLocalIsoDate(isoDate);
+  if (!date) return "";
+
+  if (frequency === "monthly") date.setMonth(date.getMonth() + 1);
+  else if (frequency === "quarterly") date.setMonth(date.getMonth() + 3);
+  else if (frequency === "half-yearly") date.setMonth(date.getMonth() + 6);
+  else if (frequency === "yearly") date.setFullYear(date.getFullYear() + 1);
+  else if (frequency === "biennial") date.setFullYear(date.getFullYear() + 2);
+
+  return toLocalIsoDate(date);
+}
+
+/** First due date is the start date. Interval add is only used after a cycle is completed. */
 export function computeComponentNextRenewal(
   startDate: string,
   frequency: ComponentRenewalFrequency,
@@ -35,21 +65,43 @@ export function computeComponentNextRenewal(
     return customNextDate.trim() || startDate.trim() || "";
   }
 
-  if (!startDate.trim()) return "";
+  return startDate.trim();
+}
 
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate.trim());
-  const date = match
-    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-    : new Date(startDate);
-  if (Number.isNaN(date.getTime())) return "";
+export function getComponentCurrentDueDate(component: {
+  renewalStartDate?: string;
+  renewalDate?: string;
+  lastRenewedDate?: string;
+}): string {
+  const start = (component.renewalStartDate || "").trim();
+  const next = (component.renewalDate || "").trim();
+  if (component.lastRenewedDate?.trim()) {
+    return next || start;
+  }
+  if (!start) return next;
+  if (!next) return start;
+  const today = toLocalIsoDate();
+  if (start >= today) return start;
+  return next;
+}
 
-  if (frequency === "monthly") date.setMonth(date.getMonth() + 1);
-  else if (frequency === "quarterly") date.setMonth(date.getMonth() + 3);
-  else if (frequency === "half-yearly") date.setMonth(date.getMonth() + 6);
-  else if (frequency === "yearly") date.setFullYear(date.getFullYear() + 1);
-  else if (frequency === "biennial") date.setFullYear(date.getFullYear() + 2);
+/** What "Paid for this cycle" will record, and where next due will move. */
+export function previewRenewalCyclePayment(component: {
+  renewalFrequency?: ComponentRenewalFrequency | "" | null;
+  renewalStartDate?: string;
+  renewalDate?: string;
+  lastRenewedDate?: string;
+}): { paidForDate: string; nextDueDate: string } | null {
+  const frequency = (component.renewalFrequency || "none") as ComponentRenewalFrequency;
+  if (!hasComponentRenewal(frequency) || frequency === "custom") return null;
 
-  return toLocalIsoDate(date);
+  const paidForDate = getComponentCurrentDueDate(component);
+  if (!paidForDate) return null;
+  if ((component.lastRenewedDate || "").trim() === paidForDate) return null;
+
+  const nextDueDate = addRenewalInterval(paidForDate, frequency);
+  if (!nextDueDate || nextDueDate === paidForDate) return null;
+  return { paidForDate, nextDueDate };
 }
 
 export function resolveComponentRenewalDate(input: {
@@ -65,7 +117,7 @@ export function resolveComponentRenewalDate(input: {
     return explicit || input.renewalStartDate.trim();
   }
 
-  return explicit || computeComponentNextRenewal(input.renewalStartDate, frequency);
+  return explicit || input.renewalStartDate.trim();
 }
 
 export function validateComponentForm(
@@ -83,6 +135,21 @@ export function validateComponentForm(
     errors.amount = "Enter a valid amount";
   }
 
+  if (data.gstPercent.trim()) {
+    const gst = parseAmount(data.gstPercent);
+    if (gst < 0 || gst > 100) {
+      errors.gstPercent = "GST must be between 0 and 100";
+    }
+  }
+
+  if (data.quantity.trim() && parseAmount(data.quantity) <= 0) {
+    errors.quantity = "Enter a valid quantity";
+  }
+
+  if (data.discount.trim() && parseAmount(data.discount) < 0) {
+    errors.discount = "Discount cannot be negative";
+  }
+
   if (hasComponentRenewal(data.renewalFrequency)) {
     if (!data.renewalStartDate.trim()) {
       errors.renewalStartDate = "Renewal start date is required when frequency is selected";
@@ -95,9 +162,31 @@ export function validateComponentForm(
   return errors;
 }
 
-function parseAmount(value: string): number {
+export function parseAmount(value: string): number {
   const parsed = Number.parseFloat(value.replace(/,/g, ""));
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+export function computeComponentLineTotal(input: {
+  amount: number;
+  gstPercent?: number;
+  quantity?: number;
+  discount?: number;
+}): number {
+  const quantity = input.quantity && input.quantity > 0 ? input.quantity : 1;
+  const discount = Number(input.discount || 0);
+  const gstPercent = Number(input.gstPercent || 0);
+  const taxable = Math.max(0, Number(input.amount || 0) * quantity - discount);
+  return Math.round((taxable + (taxable * gstPercent) / 100) * 100) / 100;
+}
+
+export function computeComponentFormTotal(data: ComponentFormData): number {
+  return computeComponentLineTotal({
+    amount: parseAmount(data.amount),
+    gstPercent: parseAmount(data.gstPercent),
+    quantity: parseAmount(data.quantity) || 1,
+    discount: parseAmount(data.discount),
+  });
 }
 
 export const billingTypeLabels: Record<BillingType, string> = {
@@ -122,6 +211,13 @@ export const componentStatusLabels: Record<ComponentStatus, string> = {
   pending: "Pending",
   "in-progress": "In Progress",
   completed: "Completed",
+};
+
+/** Status meaning when the component has a renewal schedule. */
+export const renewalComponentStatusLabels: Record<ComponentStatus, string> = {
+  pending: "Unpaid",
+  "in-progress": "In Progress",
+  completed: "Paid for this cycle",
 };
 
 export const billingTypeStyles: Record<BillingType, string> = {

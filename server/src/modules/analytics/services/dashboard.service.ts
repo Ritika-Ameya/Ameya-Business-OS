@@ -302,8 +302,11 @@ export class DashboardService extends BaseService {
     ).length;
 
     // Single renewals pass — previously insight rebuilt the same sheet-backed list.
-    const renewals = getCompanyRenewals(deals, components);
-    const upcomingRenewals = renewals.filter((r) => r.status === 'upcoming').length;
+    const renewals = getCompanyRenewals(deals, components, customers);
+    const upcomingRenewalRows = renewals.filter(
+      (renewal) => renewal.status === 'upcoming' || renewal.status === 'renewed',
+    );
+    const upcomingRenewals = upcomingRenewalRows.length;
 
     const totalReceived = roundMoney(
       invoices.reduce((sum, invoice) => sum + Number(invoice.received || 0), 0),
@@ -348,10 +351,7 @@ export class DashboardService extends BaseService {
       cashPosition,
       insight,
       pendingCollections: getPendingCollectionsTopN(invoices, 5),
-      upcomingRenewalsList: renewals
-        .filter((renewal) => renewal.status === 'upcoming')
-        .slice(0, 5)
-        .map((renewal) => ({
+      upcomingRenewalsList: upcomingRenewalRows.slice(0, 5).map((renewal) => ({
           id: renewal.id,
           customer: renewal.customerName,
           renewal: renewal.componentName || renewal.renewalLabel,

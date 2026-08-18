@@ -95,6 +95,9 @@ export const dealComponentMapper = createBaseEntityMapper<DealComponentEntity>((
     category: str(record, 'category'),
     description: str(record, 'description'),
     amount: num(record, 'amount'),
+    gstPercent: num(record, 'gstPercent'),
+    quantity: num(record, 'quantity', 1),
+    discount: num(record, 'discount'),
     billingType: (str(record, 'billingType', 'one-time') as DealComponentEntity['billingType']),
     status: (str(record, 'status', 'pending') as DealComponentEntity['status']),
     renewalFrequency: (str(
@@ -104,6 +107,7 @@ export const dealComponentMapper = createBaseEntityMapper<DealComponentEntity>((
     ) as DealComponentEntity['renewalFrequency']),
     renewalStartDate: str(record, 'renewalStartDate'),
     renewalDate: str(record, 'renewalDate'),
+    lastRenewedDate: str(record, 'lastRenewedDate'),
   }),
   (entity) => ({
     dealId: rowStr(entity, 'dealId'),
@@ -111,10 +115,14 @@ export const dealComponentMapper = createBaseEntityMapper<DealComponentEntity>((
     category: rowStr(entity, 'category'),
     description: rowStr(entity, 'description'),
     amount: String(entity.amount ?? 0),
+    gstPercent: String(entity.gstPercent ?? 0),
+    quantity: String(entity.quantity ?? 1),
+    discount: String(entity.discount ?? 0),
     billingType: rowStr(entity, 'billingType'),
     status: rowStr(entity, 'status'),
     renewalFrequency: rowStr(entity, 'renewalFrequency') || 'none',
     renewalStartDate: rowStr(entity, 'renewalStartDate'),
     renewalDate: rowStr(entity, 'renewalDate'),
+    lastRenewedDate: rowStr(entity, 'lastRenewedDate'),
   }),
 );

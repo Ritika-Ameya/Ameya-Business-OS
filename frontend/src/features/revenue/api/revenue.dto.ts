@@ -76,6 +76,7 @@ export interface InvoiceCreateBody {
   componentIds?: string[];
   notes?: string;
   nextActionDate?: string;
+  invoiceNumber: string;
 }
 
 export interface PaymentCreateBody {

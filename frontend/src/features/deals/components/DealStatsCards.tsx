@@ -1,7 +1,7 @@
 import { CalendarClock, Handshake, Layers, Sparkles } from "lucide-react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { isRenewalThisMonth } from "@/shared/utils/format-date";
-import { hasComponentRenewal } from "@/features/deals/utils/deal-component-utils";
+import { hasComponentRenewal, getComponentCurrentDueDate } from "@/features/deals/utils/deal-component-utils";
 import type { Deal } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
 
@@ -15,7 +15,7 @@ export function DealStatsCards({ deals, components = [] }: DealStatsCardsProps) 
   const renewalsThisMonth = components.filter(
     (component) =>
       hasComponentRenewal(component.renewalFrequency) &&
-      isRenewalThisMonth(component.renewalDate)
+      isRenewalThisMonth(getComponentCurrentDueDate(component))
   ).length;
 
   return (

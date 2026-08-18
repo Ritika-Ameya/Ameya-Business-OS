@@ -158,3 +158,36 @@ export function getInvoiceStats(invoices: Invoice[]) {
 
   return { total, paid, partiallyPaid, due, outstanding };
 }
+
+/** Combine settings prefix with the user-entered remainder. */
+export function composeInvoiceNumber(prefix: string, rest: string): string {
+  const trimmedPrefix = prefix.trim();
+  const trimmedRest = rest.trim();
+  if (!trimmedRest) return "";
+  if (!trimmedPrefix) return trimmedRest;
+  if (trimmedRest.toUpperCase().startsWith(trimmedPrefix.toUpperCase())) {
+    return trimmedRest;
+  }
+  if (/[-/]$/.test(trimmedPrefix) || /^[-/]/.test(trimmedRest)) {
+    return `${trimmedPrefix}${trimmedRest}`;
+  }
+  return `${trimmedPrefix}-${trimmedRest}`;
+}
+
+export function splitInvoiceNumber(
+  invoiceNumber: string,
+  prefix: string
+): { prefix: string; rest: string } {
+  const trimmedPrefix = prefix.trim();
+  const trimmedNumber = invoiceNumber.trim();
+  if (
+    trimmedPrefix &&
+    trimmedNumber.toUpperCase().startsWith(trimmedPrefix.toUpperCase())
+  ) {
+    return {
+      prefix: trimmedPrefix,
+      rest: trimmedNumber.slice(trimmedPrefix.length).replace(/^[-/]/, ""),
+    };
+  }
+  return { prefix: trimmedPrefix, rest: trimmedNumber };
+}

@@ -19,6 +19,7 @@ import {
   type RenewalCardKey,
 } from "@/features/revenue/utils/revenue-utils";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useCustomers } from "@/features/customers/hooks/use-customers";
 
 interface RevenueRenewalsStatsProps {
   filters: RenewalFilters;
@@ -30,14 +31,15 @@ export function RevenueRenewalsStats({
   onFiltersChange,
 }: RevenueRenewalsStatsProps) {
   const { deals, components } = useDeals();
+  const { customers } = useCustomers();
 
   const stats = useMemo(() => {
     const scoped = filterRenewalsByScope(
-      getCompanyRenewals(deals, components),
+      getCompanyRenewals(deals, components, customers),
       filters
     );
     return getRenewalStats(scoped);
-  }, [deals, components, filters]);
+  }, [deals, components, customers, filters]);
 
   const cards: Array<{
     key: RenewalCardKey;
@@ -83,8 +85,8 @@ export function RevenueRenewalsStats({
     },
     {
       key: "renewed",
-      label: "Renewed",
-      value: stats.renewed,
+      label: "Customers Renewed",
+      value: stats.renewedCustomers,
       icon: <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />,
       accent: "bg-emerald-500/10",
     },

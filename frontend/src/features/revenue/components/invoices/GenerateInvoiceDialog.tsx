@@ -30,8 +30,8 @@ import {
   resolveCustomerAddress,
   type InvoiceAddressType,
 } from "@/features/settings/utils/app-config-utils";
-import { formatComponentCurrency } from "@/features/deals/utils/deal-component-utils";
-import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
+import { formatComponentCurrency, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
+import { composeInvoiceNumber, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
 import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
 
@@ -76,6 +76,7 @@ export function GenerateInvoiceDialog({
   const [dueDate, setDueDate] = useState(() => addDaysIso(30));
   const [nextActionDate, setNextActionDate] = useState(() => addDaysIso(7));
   const [gstPercent, setGstPercent] = useState(String(defaultTax));
+  const [invoiceNumberRest, setInvoiceNumberRest] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +122,7 @@ export function GenerateInvoiceDialog({
       setDueDate(addDaysIso(30));
       setNextActionDate(addDaysIso(7));
       setGstPercent(String(defaultTax));
+      setInvoiceNumberRest("");
       setNotes("");
       setError(null);
       setSelectedCustomerId(context?.customerId ?? customers[0]?.id ?? "");
@@ -153,6 +155,14 @@ export function GenerateInvoiceDialog({
       setError("Select at least one component.");
       return;
     }
+    const invoiceNumber = composeInvoiceNumber(
+      finance.invoicePrefix,
+      invoiceNumberRest
+    );
+    if (!invoiceNumberRest.trim()) {
+      setError("Enter the invoice number after the prefix.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -172,6 +182,7 @@ export function GenerateInvoiceDialog({
         componentIds: selectedComponents,
         notes: notes.trim(),
         nextActionDate,
+        invoiceNumber,
       });
       onOpenChange(false);
       setSelectedComponents([]);
@@ -296,6 +307,8 @@ export function GenerateInvoiceDialog({
                   ) : (
                     dealComponents.map((component) => {
                       const isSelected = selectedComponents.includes(component.id);
+                      const dueIso = getComponentCurrentDueDate(component);
+                      const paymentPreview = previewRenewalCyclePayment(component);
                       return (
                         <button
                           key={component.id}
@@ -322,7 +335,16 @@ export function GenerateInvoiceDialog({
                             <p className="text-sm font-medium">{component.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {component.category}
+                              {hasComponentRenewal(component.renewalFrequency) && dueIso
+                                ? ` · Invoice for cycle ${formatComponentDate(dueIso)}`
+                                : ""}
                             </p>
+                            {isSelected && paymentPreview ? (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                When this invoice is fully paid, that cycle is marked paid
+                                and next due becomes {formatComponentDate(paymentPreview.nextDueDate)}.
+                              </p>
+                            ) : null}
                           </div>
                           <span className="shrink-0 text-sm font-medium">
                             {formatComponentCurrency(component.amount)}
@@ -332,6 +354,29 @@ export function GenerateInvoiceDialog({
                     })
                   )}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number">
+                  Invoice Number <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex overflow-hidden rounded-xl border border-input/90 bg-card shadow-sm focus-within:border-primary/50 focus-within:ring-3 focus-within:ring-ring/30">
+                  <span className="flex items-center border-r border-border/70 bg-muted/50 px-3 text-sm font-medium text-muted-foreground">
+                    {finance.invoicePrefix.trim() || "INV"}
+                  </span>
+                  <Input
+                    id="invoice-number"
+                    value={invoiceNumberRest}
+                    onChange={(e) => setInvoiceNumberRest(e.target.value)}
+                    placeholder="0001 or 2026/27-A"
+                    className="rounded-none border-0 shadow-none focus-visible:ring-0"
+                    autoComplete="off"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Prefix comes from Settings. Type the rest of this invoice number
+                  yourself — it is not auto-incremented.
+                </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

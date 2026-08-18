@@ -115,11 +115,15 @@ export const DEAL_COMPONENTS_CONTRACT: PersistenceContract = {
     'category',
     'description',
     'amount',
+    'gstPercent',
+    'quantity',
+    'discount',
     'billingType',
     'status',
     'renewalFrequency',
     'renewalStartDate',
     'renewalDate',
+    'lastRenewedDate',
   ]),
 };
 

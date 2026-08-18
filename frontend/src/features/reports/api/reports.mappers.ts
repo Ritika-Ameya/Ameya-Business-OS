@@ -85,13 +85,14 @@ export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
     dealTitle: dto.dealTitle,
     renewalStartDate: dto.renewalStartDate || "",
     renewalDate: dto.renewalDate,
+    lastRenewedDate: dto.lastRenewedDate || "",
     amount: dto.amount > 0 ? formatInvoiceCurrency(dto.amount) : "—",
     amountValue: dto.amount,
     status,
     renewalType:
       dto.renewalType === "annual" ? "yearly" : (dto.renewalType as CompanyRenewalRow["renewalType"]),
     renewalFrequency,
-    wasRenewed: status === "renewed",
+    wasRenewed: Boolean(dto.lastRenewedDate) || status === "renewed",
   };
 }
 

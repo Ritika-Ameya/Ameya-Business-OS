@@ -71,7 +71,7 @@ export function RevenueRenewalsTable({
               }
             >
               <TableCell className="pl-4 font-medium">
-                {renewal.customerName}
+                {renewal.customerName || "—"}
               </TableCell>
               <TableCell className="hidden max-w-[160px] truncate text-muted-foreground md:table-cell">
                 {renewal.dealTitle}
@@ -88,12 +88,19 @@ export function RevenueRenewalsTable({
                 {formatDate(renewal.renewalDate)}
               </TableCell>
               <TableCell>
-                <Badge
-                  variant="secondary"
-                  className={cn(companyRenewalStatusStyles[renewal.status])}
-                >
-                  {renewalStatusLabels[renewal.status]}
-                </Badge>
+                <div className="space-y-1">
+                  <Badge
+                    variant="secondary"
+                    className={cn(companyRenewalStatusStyles[renewal.status])}
+                  >
+                    {renewalStatusLabels[renewal.status]}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">
+                    {renewal.lastRenewedDate
+                      ? `Paid for ${formatDate(renewal.lastRenewedDate)} · Next ${formatDate(renewal.renewalDate)}`
+                      : `Unpaid · Due ${formatDate(renewal.renewalDate)}`}
+                  </p>
+                </div>
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <Button
