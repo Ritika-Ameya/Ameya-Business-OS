@@ -23,11 +23,15 @@ export interface DealComponent {
   category: string;
   description: string;
   amount: number;
+  gstPercent: number;
+  quantity: number;
+  discount: number;
   billingType: BillingType;
   status: ComponentStatus;
   renewalFrequency: ComponentRenewalFrequency;
   renewalStartDate?: string;
   renewalDate?: string;
+  lastRenewedDate?: string;
 }
 
 export interface ComponentFormData {

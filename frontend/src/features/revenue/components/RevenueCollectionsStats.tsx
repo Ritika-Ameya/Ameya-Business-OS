@@ -16,7 +16,7 @@ export function RevenueCollectionsStats({
   const stats = getCollectionStats(invoices, payments);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <StatCard
         label="Outstanding Amount"
         value={stats.outstandingAmount}
@@ -39,6 +39,12 @@ export function RevenueCollectionsStats({
         label="Collected This Month"
         value={stats.collectedThisMonth}
         icon={<CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />}
+        accent="bg-emerald-500/10"
+      />
+      <StatCard
+        label="Total Collected"
+        value={stats.totalCollected}
+        icon={<IndianRupee className="size-5 text-emerald-600 dark:text-emerald-400" />}
         accent="bg-emerald-500/10"
       />
     </div>

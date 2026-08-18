@@ -4,6 +4,7 @@ import { RevenueRenewalsStats } from "@/features/revenue/components/RevenueRenew
 import { RevenueRenewalsTable } from "@/features/revenue/components/RevenueRenewalsTable";
 import { StatsSkeleton, TableSkeleton } from "@/shared/components/ListSkeleton";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useCustomers } from "@/features/customers/hooks/use-customers";
 import {
   defaultRenewalFilters,
   filterCompanyRenewals,
@@ -13,6 +14,7 @@ import type { RenewalFilters } from "@/features/revenue/types/revenue";
 
 export function RevenueRenewalsTab() {
   const { deals, components } = useDeals();
+  const { customers } = useCustomers();
   const [filters, setFilters] = useState<RenewalFilters>(defaultRenewalFilters);
   const [ready, setReady] = useState(false);
   const deferredFilters = useDeferredValue(filters);
@@ -25,8 +27,8 @@ export function RevenueRenewalsTab() {
   const loading = !ready || filters !== deferredFilters;
 
   const allRenewals = useMemo(
-    () => getCompanyRenewals(deals, components),
-    [deals, components]
+    () => getCompanyRenewals(deals, components, customers),
+    [deals, components, customers]
   );
 
   const filteredRenewals = useMemo(

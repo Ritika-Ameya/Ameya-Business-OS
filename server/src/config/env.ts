@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: z.coerce.number().int().positive().default(3002),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),

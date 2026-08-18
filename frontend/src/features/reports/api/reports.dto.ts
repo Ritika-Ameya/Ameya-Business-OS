@@ -51,6 +51,7 @@ export interface RenewalReportItemDto {
   dealTitle: string;
   renewalStartDate?: string;
   renewalDate: string;
+  lastRenewedDate?: string;
   amount: number;
   status: "upcoming" | "overdue" | "renewed";
   renewalType:

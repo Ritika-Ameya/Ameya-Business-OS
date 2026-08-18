@@ -22,8 +22,10 @@ import {
   ComponentStatusBadge,
 } from "@/features/deals/components/components/ComponentBadges";
 import {
+  computeComponentLineTotal,
   formatComponentCurrency,
   formatComponentDate,
+  getComponentCurrentDueDate,
 } from "@/features/deals/utils/deal-component-utils";
 import type { DealComponent } from "@/features/deals/types/deal-component";
 
@@ -73,15 +75,39 @@ export function DealComponentsTable({
                 <BillingTypeBadge type={component.billingType} />
               </TableCell>
               <TableCell className="font-medium">
-                {formatComponentCurrency(component.amount)}
+                <div>
+                  {formatComponentCurrency(computeComponentLineTotal(component))}
+                  {component.gstPercent > 0 && (
+                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                      Incl. {component.gstPercent}% GST
+                    </p>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {component.renewalFrequency && component.renewalFrequency !== "none"
-                  ? formatComponentDate(component.renewalDate)
-                  : "—"}
+                {component.renewalFrequency && component.renewalFrequency !== "none" ? (
+                  <div>
+                    <p>Next {formatComponentDate(getComponentCurrentDueDate(component))}</p>
+                    {component.lastRenewedDate ? (
+                      <p className="mt-0.5 text-xs">
+                        Paid for {formatComponentDate(component.lastRenewedDate)}
+                      </p>
+                    ) : (
+                      <p className="mt-0.5 text-xs">Not paid yet</p>
+                    )}
+                  </div>
+                ) : (
+                  "—"
+                )}
               </TableCell>
               <TableCell>
-                <ComponentStatusBadge status={component.status} />
+                <ComponentStatusBadge
+                  status={component.status}
+                  hasRenewal={
+                    Boolean(component.renewalFrequency) &&
+                    component.renewalFrequency !== "none"
+                  }
+                />
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">

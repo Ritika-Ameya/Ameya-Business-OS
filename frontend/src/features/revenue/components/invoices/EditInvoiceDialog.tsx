@@ -27,6 +27,7 @@ export function EditInvoiceDialog({
   onOpenChange,
 }: EditInvoiceDialogProps) {
   const { updateInvoice } = useRevenue();
+  const [invoiceNo, setInvoiceNo] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [gstPercent, setGstPercent] = useState("");
   const [notes, setNotes] = useState("");
@@ -36,6 +37,7 @@ export function EditInvoiceDialog({
   useEffect(() => {
     if (!open || !invoice) return;
     setDueDate(invoice.dueDate || "");
+    setInvoiceNo(invoice.invoiceNo || "");
     setGstPercent(String(invoice.gstPercent ?? ""));
     setNotes(invoice.notes || "");
     setError(null);
@@ -48,10 +50,15 @@ export function EditInvoiceDialog({
       setError("Due date is required");
       return;
     }
+    if (!invoiceNo.trim()) {
+      setError("Invoice number is required");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await updateInvoice(invoice.id, {
+        invoiceNumber: invoiceNo.trim(),
         dueDate,
         taxPercent: Number.parseFloat(gstPercent) || 0,
         notes: notes.trim(),
@@ -74,6 +81,17 @@ export function EditInvoiceDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-invoice-number">Invoice Number</Label>
+            <Input
+              id="edit-invoice-number"
+              value={invoiceNo}
+              onChange={(e) => setInvoiceNo(e.target.value)}
+              className="rounded-xl"
+              disabled={saving}
+              autoComplete="off"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="edit-invoice-due">Due Date</Label>
             <Input

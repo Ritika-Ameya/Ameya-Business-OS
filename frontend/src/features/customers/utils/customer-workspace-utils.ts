@@ -1,6 +1,8 @@
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import {
+  computeComponentLineTotal,
   formatComponentCurrency,
+  getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
@@ -33,6 +35,7 @@ export interface CustomerRenewalItem {
   renewalLabel: string;
   dealTitle: string;
   dueDate: string;
+  lastPaidDate: string;
   amount: string;
   status: CustomerRenewalStatus;
   renewalFrequency: ComponentRenewalFrequency;
@@ -83,11 +86,12 @@ export function getCustomerRenewals(
       (component) =>
         dealById.has(component.dealId) &&
         hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(component.renewalDate)
+        Boolean(getComponentCurrentDueDate(component))
     )
     .map((component) => {
       const deal = dealById.get(component.dealId)!;
-      const dueDate = new Date(component.renewalDate!);
+      const dueIso = getComponentCurrentDueDate(component);
+      const dueDate = new Date(dueIso);
       const status: CustomerRenewalStatus =
         dueDate < now ? "overdue" : "upcoming";
 
@@ -97,11 +101,12 @@ export function getCustomerRenewals(
         componentName: component.name,
         renewalLabel: component.name,
         dealTitle: deal.title,
-        dueDate: component.renewalDate!,
-        amount: formatComponentCurrency(component.amount),
+        dueDate: dueIso,
+        lastPaidDate: component.lastRenewedDate?.trim() || "",
+        amount: formatComponentCurrency(computeComponentLineTotal(component)),
         status,
         renewalFrequency: component.renewalFrequency,
-        renewalStartDate: component.renewalStartDate || "",
+        renewalStartDate: component.renewalStartDate || dueIso,
       };
     })
     .sort(

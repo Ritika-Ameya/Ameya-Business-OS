@@ -32,11 +32,21 @@ function parseDateParts(date?: string): DateParts | null {
 
   const isoDateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (isoDateOnly) {
-    return {
-      year: Number(isoDateOnly[1]),
-      month: Number(isoDateOnly[2]),
-      day: Number(isoDateOnly[3]),
-    };
+    return validParts(
+      Number(isoDateOnly[1]),
+      Number(isoDateOnly[2]),
+      Number(isoDateOnly[3]),
+    );
+  }
+
+  const dmy = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/.exec(trimmed);
+  if (dmy) {
+    return validParts(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
+  }
+
+  const compact = /^(\d{2})(\d{2})(\d{4})$/.exec(trimmed);
+  if (compact) {
+    return validParts(Number(compact[3]), Number(compact[2]), Number(compact[1]));
   }
 
   const parsed = new Date(trimmed);
@@ -48,8 +58,41 @@ function parseDateParts(date?: string): DateParts | null {
   };
 }
 
+function validParts(year: number, month: number, day: number): DateParts | null {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  if (year < 1000 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  const check = new Date(year, month - 1, day);
+  if (
+    check.getFullYear() !== year ||
+    check.getMonth() !== month - 1 ||
+    check.getDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
+}
+
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
+}
+
+/** Convert stored YYYY-MM-DD to DD/MM/YYYY for date fields. */
+export function isoToDisplayDate(iso?: string): string {
+  const parts = parseDateParts(iso);
+  if (!parts) return "";
+  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+}
+
+/** Parse a typed date (DD/MM/YYYY) into YYYY-MM-DD. Empty string if blank; null if invalid. */
+export function displayDateToIso(value?: string): string | null {
+  if (!value?.trim()) return "";
+  const parts = parseDateParts(value);
+  if (!parts) return null;
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
 }
 
 /** Local calendar YYYY-MM-DD (avoids UTC off-by-one from toISOString). */

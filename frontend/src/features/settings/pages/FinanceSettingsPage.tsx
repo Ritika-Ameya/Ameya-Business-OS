@@ -31,7 +31,7 @@ export function FinanceSettingsPage() {
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Finance</h2>
         <p className="text-sm text-muted-foreground">
-          Invoice numbering, tax defaults and payment terms.
+          Invoice prefix, tax defaults and payment terms.
         </p>
       </div>
 
@@ -45,16 +45,10 @@ export function FinanceSettingsPage() {
               onChange={(e) => updateField("invoicePrefix", e.target.value)}
               className="rounded-xl"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="next-invoice">Next Invoice Number</Label>
-            <Input
-              id="next-invoice"
-              value={form.nextInvoiceNumber}
-              onChange={(e) => updateField("nextInvoiceNumber", e.target.value)}
-              className="rounded-xl"
-            />
+            <p className="text-xs text-muted-foreground">
+              Shown as a fixed prefix when generating invoices (for example INV).
+              Each invoice number after the prefix is entered manually.
+            </p>
           </div>
 
           <div className="space-y-2">

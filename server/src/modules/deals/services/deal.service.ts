@@ -43,6 +43,7 @@ import {
 import {
   hasRenewalFrequency,
   resolveComponentRenewalDate,
+  tryAdvanceComponentRenewal,
 } from '../utils/renewalHelpers.util';
 import { migrateDealRenewalsToComponents } from '../utils/renewalMigration.util';
 import { createDealTimelineEntry, prependDealTimelineEntry } from '../utils/timeline.util';
@@ -366,11 +367,15 @@ export class DealService extends BaseService {
       category: input.category.trim(),
       description: input.description.trim(),
       amount: input.amount,
+      gstPercent: input.gstPercent ?? 0,
+      quantity: input.quantity > 0 ? input.quantity : 1,
+      discount: input.discount ?? 0,
       billingType: input.billingType,
       status: input.status,
       renewalFrequency,
       renewalStartDate,
       renewalDate,
+      lastRenewedDate: '',
     } as Omit<DealComponentEntity, 'id'>);
 
     let timeline = prependDealTimelineEntry(
@@ -435,19 +440,61 @@ export class DealService extends BaseService {
         })
       : '';
 
-    return dealComponentRepository.updateOrThrow(
+    const lastRenewedDate = component.lastRenewedDate || '';
+    const mergedForAdvance = {
+      ...component,
+      renewalFrequency,
+      renewalStartDate,
+      renewalDate,
+      lastRenewedDate,
+    };
+
+    const resultingStatus = input.status ?? component.status;
+    const paidThisCycle =
+      hasRenewalFrequency(renewalFrequency) && resultingStatus === 'completed';
+    const advanced = paidThisCycle
+      ? tryAdvanceComponentRenewal(mergedForAdvance)
+      : null;
+
+    const updated = await dealComponentRepository.updateOrThrow(
       componentId,
       {
         ...input,
         name: input.name?.trim(),
         category: input.category?.trim(),
         description: input.description?.trim(),
+        gstPercent: input.gstPercent ?? component.gstPercent ?? 0,
+        quantity: input.quantity ?? component.quantity ?? 1,
+        discount: input.discount ?? component.discount ?? 0,
         renewalFrequency,
         renewalStartDate,
-        renewalDate,
+        renewalDate: advanced?.renewalDate ?? renewalDate,
+        lastRenewedDate: advanced?.lastRenewedDate ?? lastRenewedDate,
+        status: advanced?.status ?? input.status ?? component.status,
       } as Partial<DealComponentEntity>,
       'Component',
     );
+
+    if (advanced) {
+      const deal = await this.getById(dealId);
+      await dealRepository.updateOrThrow(
+        dealId,
+        {
+          timeline: prependDealTimelineEntry(
+            deal.timeline,
+            createDealTimelineEntry({
+              action: 'renewal_updated',
+              stageId: deal.currentStageId,
+              stageName: 'Renewal Completed',
+              notes: `${updated.name}: renewed ${advanced.lastRenewedDate}, next ${advanced.renewalDate}`,
+            }),
+          ),
+        },
+        'Deal',
+      );
+    }
+
+    return updated;
   }
 
   async removeComponent(dealId: string, componentId: string): Promise<DealEntity> {

@@ -2,8 +2,10 @@ import { History, RefreshCw } from "lucide-react";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
   componentRenewalFrequencyLabels,
+  computeComponentLineTotal,
   formatComponentCurrency,
   formatComponentDate,
+  getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import type { Deal } from "@/features/deals/types/deal";
@@ -17,7 +19,7 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
   const renewingComponents = getComponentsByDeal(deal.id).filter(
     (component) =>
       hasComponentRenewal(component.renewalFrequency) &&
-      Boolean(component.renewalDate)
+      Boolean(getComponentCurrentDueDate(component))
   );
 
   return (
@@ -28,7 +30,9 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
         </div>
         <h3 className="text-sm font-medium">Component Renewal Schedules</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Each component maintains its own renewal cadence
+          Next unpaid cycle is the date the client still owes. Mark the component
+          Paid for this cycle, or fully pay a linked invoice, to record payment for
+          that date and move next due forward.
         </p>
 
         {renewingComponents.length === 0 ? (
@@ -44,12 +48,17 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                   <th className="px-3 py-2 font-medium">Component</th>
                   <th className="hidden px-3 py-2 font-medium sm:table-cell">Start</th>
                   <th className="px-3 py-2 font-medium">Frequency</th>
-                  <th className="px-3 py-2 font-medium">Next Renewal</th>
+                  <th className="px-3 py-2 font-medium">Last paid</th>
+                  <th className="px-3 py-2 font-medium">Next unpaid</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {renewingComponents.map((component) => (
+                {renewingComponents.map((component) => {
+                  const dueDate = getComponentCurrentDueDate(component);
+                  const lastRenewed = component.lastRenewedDate?.trim();
+                  return (
                   <tr key={component.id} className="border-t border-border/50">
                     <td className="px-3 py-2 font-medium">
                       {component.name}
@@ -64,13 +73,24 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                       {componentRenewalFrequencyLabels[component.renewalFrequency]}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {formatComponentDate(component.renewalDate)}
+                      {lastRenewed ? formatComponentDate(lastRenewed) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {formatComponentDate(dueDate)}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {lastRenewed
+                        ? `Paid for ${formatComponentDate(lastRenewed)} · Next ${formatComponentDate(dueDate)}`
+                        : component.status === "completed"
+                          ? `Marked paid — open the component and save to record ${formatComponentDate(dueDate)} and move next due`
+                          : `Unpaid · Due ${formatComponentDate(dueDate)}`}
                     </td>
                     <td className="px-3 py-2">
-                      {formatComponentCurrency(component.amount)}
+                      {formatComponentCurrency(computeComponentLineTotal(component))}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -81,11 +101,33 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
         <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-blue-500/10">
           <History className="size-5 text-blue-600 dark:text-blue-400" />
         </div>
-        <h3 className="text-sm font-medium">Renewal History</h3>
-        <p className="mt-1 text-xs text-muted-foreground">Past renewals</p>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Previous renewals will be tracked here once the renewals history module is live.
+        <h3 className="text-sm font-medium">Paid cycles</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Each row is the last cycle date that was marked paid for that component
         </p>
+        {renewingComponents.some((component) => component.lastRenewedDate) ? (
+          <ul className="mt-4 space-y-2 text-sm">
+            {renewingComponents
+              .filter((component) => component.lastRenewedDate)
+              .map((component) => (
+                <li
+                  key={component.id}
+                  className="flex flex-wrap justify-between gap-2 rounded-xl border border-border/60 px-3 py-2"
+                >
+                  <span className="font-medium">{component.name}</span>
+                  <span className="text-muted-foreground">
+                    Paid for {formatComponentDate(component.lastRenewedDate)} · Next unpaid{" "}
+                    {formatComponentDate(getComponentCurrentDueDate(component))}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No paid cycles yet. Open the component and set Payment status to Paid for
+            this cycle, or generate an invoice for it and mark that invoice paid.
+          </p>
+        )}
       </div>
     </div>
   );

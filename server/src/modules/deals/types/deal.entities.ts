@@ -51,11 +51,15 @@ export interface DealComponentEntity extends DealEntityBase {
   category: string;
   description: string;
   amount: number;
+  gstPercent: number;
+  quantity: number;
+  discount: number;
   billingType: DealBillingType;
   status: DealComponentStatus;
   renewalFrequency: ComponentRenewalFrequency;
   renewalStartDate: string;
   renewalDate: string;
+  lastRenewedDate: string;
 }
 
 export type DealTimelineAction =

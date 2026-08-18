@@ -300,7 +300,7 @@ export class ReportService extends BaseService {
 
     const upcomingRenewals = renewals.filter((r) => r.status === 'upcoming').length;
     const overdueRenewals = renewals.filter((r) => r.status === 'overdue').length;
-    const renewed = renewals.filter((r) => r.status === 'renewed').length;
+    const renewed = renewals.filter((r) => Boolean(r.lastRenewedDate?.trim())).length;
     const renewalValue = roundMoney(
       renewals.reduce((sum, renewal) => sum + Number(renewal.amount || 0), 0),
     );

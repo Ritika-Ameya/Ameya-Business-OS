@@ -12,6 +12,7 @@ export interface GoogleDriveStatusResponse {
   folderId: string;
   folderName: string;
   oauthConfigured: boolean;
+  redirectUri: string;
 }
 
 export interface GoogleDriveConnectResponse {
@@ -73,6 +74,7 @@ export class GoogleDriveConnectionService {
 
   async getStatus(): Promise<GoogleDriveStatusResponse> {
     const oauthConfigured = googleDriveOAuthService.isConfigured();
+    const redirectUri = env.GOOGLE_DRIVE_OAUTH_REDIRECT_URI?.trim() ?? '';
     const status = await googleDriveOAuthService.getConnectionStatus();
 
     if (!status.connected) {
@@ -82,6 +84,7 @@ export class GoogleDriveConnectionService {
         folderId: env.GOOGLE_DRIVE_FOLDER_ID,
         folderName: '',
         oauthConfigured,
+        redirectUri,
       };
     }
 
@@ -93,6 +96,7 @@ export class GoogleDriveConnectionService {
         folderId: env.GOOGLE_DRIVE_FOLDER_ID,
         folderName: folderMeta.name,
         oauthConfigured,
+        redirectUri,
       };
     } catch {
       return {
@@ -101,6 +105,7 @@ export class GoogleDriveConnectionService {
         folderId: env.GOOGLE_DRIVE_FOLDER_ID,
         folderName: '',
         oauthConfigured,
+        redirectUri,
       };
     }
   }

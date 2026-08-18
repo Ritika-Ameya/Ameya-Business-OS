@@ -6,6 +6,7 @@ export interface GoogleDriveStatusDto {
   folderId: string;
   folderName: string;
   oauthConfigured: boolean;
+  redirectUri?: string;
 }
 
 export interface GoogleDriveConnectDto {

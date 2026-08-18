@@ -38,7 +38,14 @@ class AuthService extends BaseService {
     userAgent: string,
     ipAddress: string,
   ): Promise<LoginResult> {
+    const startedAt = Date.now();
+    const mark = (step: string, from: number) => {
+      this.logInfo(`Login ${step} ${Date.now() - from}ms (total ${Date.now() - startedAt}ms)`);
+    };
+
+    const userLookupAt = Date.now();
     const user = await userRepository.findByEmail(email);
+    mark('user lookup', userLookupAt);
     if (!user) {
       throw new UnauthorizedError('Invalid email or password');
     }
@@ -55,7 +62,9 @@ class AuthService extends BaseService {
       throw new UnauthorizedError('Password not set. Contact your administrator.');
     }
 
+    const passwordAt = Date.now();
     const valid = await verifyPassword(password, user.passwordHash);
+    mark('password verify', passwordAt);
     if (!valid) {
       const attempts = (user.failedLoginAttempts || 0) + 1;
       const updates: Partial<UserEntity & Record<string, unknown>> = { failedLoginAttempts: attempts };
@@ -94,8 +103,7 @@ class AuthService extends BaseService {
     };
     const accessToken = generateAccessToken(requestUser);
     const refreshToken = generateRefreshToken(user.id, sessionId);
-
-    await sessionRepository.create({
+    const session = {
       id: sessionId,
       userId: user.id,
       refreshTokenHash: hashToken(refreshToken),
@@ -103,17 +111,22 @@ class AuthService extends BaseService {
       userAgent: userAgent.slice(0, 200),
       ipAddress,
       isRevoked: false,
-    } as unknown as Omit<SessionEntity & Record<string, unknown>, 'id'>);
+    };
 
-    // Non-critical Sheets work (session cap + lastLoginAt + audit) runs after response
-    // so the client is not blocked on extra Google Sheets round-trips.
+    sessionRepository.rememberPending(session as SessionEntity & Record<string, unknown>);
+
+    // Session row + lastLoginAt + audit are Google Sheets writes. Do not block
+    // the login response on them — JWT access token is already valid.
     void this.finalizeSuccessfulLogin({
+      session,
       userId: user.id,
       postLoginUserUpdate,
       needsSecurityReset,
       ipAddress,
       keepSessionId: sessionId,
     });
+
+    mark('ready', startedAt);
 
     return {
       accessToken,
@@ -130,14 +143,37 @@ class AuthService extends BaseService {
 
   /** Background post-login housekeeping — never awaited on the login hot path. */
   private async finalizeSuccessfulLogin(params: {
+    session: {
+      id: string;
+      userId: string;
+      refreshTokenHash: string;
+      expiresAt: string;
+      userAgent: string;
+      ipAddress: string;
+      isRevoked: boolean;
+    };
     userId: string;
     postLoginUserUpdate: Partial<UserEntity & Record<string, unknown>>;
     needsSecurityReset: boolean;
     ipAddress: string;
     keepSessionId: string;
   }): Promise<void> {
-    const { userId, postLoginUserUpdate, needsSecurityReset, ipAddress, keepSessionId } =
-      params;
+    const {
+      session,
+      userId,
+      postLoginUserUpdate,
+      needsSecurityReset,
+      ipAddress,
+      keepSessionId,
+    } = params;
+
+    try {
+      await sessionRepository.create(
+        session as unknown as Omit<SessionEntity & Record<string, unknown>, 'id'>,
+      );
+    } catch (err) {
+      this.logError('Failed to persist session after login', err);
+    }
 
     try {
       await this.enforceMaxSessions(userId, keepSessionId);
