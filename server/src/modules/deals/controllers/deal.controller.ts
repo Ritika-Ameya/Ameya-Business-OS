@@ -155,6 +155,17 @@ export class DealController {
     }),
   ];
 
+  readonly undoComponentRenewal = [
+    validate({ params: dealComponentParamsSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const entity = await dealService.undoComponentRenewal(
+        getRouteParam(req.params.id),
+        getRouteParam(req.params.componentId),
+      );
+      ApiResponse.updated(res, entity, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
   readonly removeComponent = [
     validate({ params: dealComponentParamsSchema }),
     asyncHandler(async (req: Request, res: Response): Promise<void> => {

@@ -10,7 +10,7 @@ import type {
   DealCreateBody,
   DealDto,
 } from "@/features/deals/api/deal.dto";
-import { resolveComponentRenewalDate } from "@/features/deals/utils/deal-component-utils";
+import { resolveComponentRenewalDate, billingTypeFromRenewalFrequency } from "@/features/deals/utils/deal-component-utils";
 
 export function mapDealFromDto(dto: DealDto): Deal {
   return {
@@ -94,7 +94,7 @@ export function mapComponentFormToBody(data: ComponentFormData): DealComponentCr
     gstPercent: parseAmount(data.gstPercent),
     quantity: parseAmount(data.quantity) || 1,
     discount: parseAmount(data.discount),
-    billingType: data.billingType,
+    billingType: billingTypeFromRenewalFrequency(renewalFrequency),
     status: data.status,
     renewalFrequency,
     renewalStartDate,

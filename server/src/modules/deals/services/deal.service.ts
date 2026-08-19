@@ -44,6 +44,7 @@ import {
   hasRenewalFrequency,
   resolveComponentRenewalDate,
   tryAdvanceComponentRenewal,
+  tryRollbackComponentRenewal,
 } from '../utils/renewalHelpers.util';
 import { migrateDealRenewalsToComponents } from '../utils/renewalMigration.util';
 import { createDealTimelineEntry, prependDealTimelineEntry } from '../utils/timeline.util';
@@ -493,6 +494,53 @@ export class DealService extends BaseService {
         'Deal',
       );
     }
+
+    return updated;
+  }
+
+  async undoComponentRenewal(
+    dealId: string,
+    componentId: string,
+  ): Promise<DealComponentEntity> {
+    await this.getById(dealId);
+    const component = await dealComponentRepository.findById(componentId);
+    if (!component || component.dealId !== dealId) {
+      throw new NotFoundError('Component not found');
+    }
+
+    const rolledBack = tryRollbackComponentRenewal(component);
+    if (!rolledBack) {
+      throw new ValidationError(
+        'Nothing to undo. This component has no paid renewal cycle recorded.',
+      );
+    }
+
+    const updated = await dealComponentRepository.updateOrThrow(
+      componentId,
+      {
+        lastRenewedDate: rolledBack.lastRenewedDate,
+        renewalDate: rolledBack.renewalDate,
+        status: rolledBack.status,
+      },
+      'Component',
+    );
+
+    const deal = await this.getById(dealId);
+    await dealRepository.updateOrThrow(
+      dealId,
+      {
+        timeline: prependDealTimelineEntry(
+          deal.timeline,
+          createDealTimelineEntry({
+            action: 'renewal_updated',
+            stageId: deal.currentStageId,
+            stageName: 'Renewal Payment Undone',
+            notes: `${updated.name}: unpaid again ${rolledBack.renewalDate}`,
+          }),
+        ),
+      },
+      'Deal',
+    );
 
     return updated;
   }

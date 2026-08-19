@@ -16,7 +16,8 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingComponent, setEditingComponent] = useState<DealComponent | null>(null);
   const [loading, setLoading] = useState(true);
-  const { getComponentsByDeal, loadComponentsForDeal, removeComponent } = useDeals();
+  const { getComponentsByDeal, loadComponentsForDeal, removeComponent, undoComponentRenewal } =
+    useDeals();
   const components = getComponentsByDeal(dealId);
 
   useEffect(() => {
@@ -30,6 +31,15 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
       cancelled = true;
     };
   }, [dealId, loadComponentsForDeal]);
+
+  const handleUndoLastPayment = async (component: DealComponent) => {
+    if (!component.lastRenewedDate) return;
+    const confirmed = window.confirm(
+      `Mark ${component.lastRenewedDate} as unpaid again? Next unpaid cycle will go back to that date.`
+    );
+    if (!confirmed) return;
+    await undoComponentRenewal(dealId, component.id);
+  };
 
   const handleDelete = async (component: DealComponent) => {
     const confirmed = window.confirm(`Delete component "${component.name}"?`);
@@ -74,6 +84,9 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
           }}
           onDelete={(component) => {
             void handleDelete(component);
+          }}
+          onUndoLastPayment={(component) => {
+            void handleUndoLastPayment(component);
           }}
         />
       )}

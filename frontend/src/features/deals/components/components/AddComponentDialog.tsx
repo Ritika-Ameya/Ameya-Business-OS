@@ -20,7 +20,6 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
-  billingTypeLabels,
   componentRenewalFrequencyLabels,
   componentStatusLabels,
   computeComponentFormTotal,
@@ -30,12 +29,11 @@ import {
   hasComponentRenewal,
   parseAmount,
   previewRenewalCyclePayment,
-  renewalComponentStatusLabels,
+  previewRenewalCycleRollback,
   validateComponentForm,
 } from "@/features/deals/utils/deal-component-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type {
-  BillingType,
   ComponentFormData,
   ComponentRenewalFrequency,
   ComponentStatus,
@@ -70,7 +68,7 @@ export function AddComponentDialog({
   onOpenChange,
   initialComponent = null,
 }: AddComponentDialogProps) {
-  const { addComponent, updateComponent } = useDeals();
+  const { addComponent, updateComponent, undoComponentRenewal } = useDeals();
   const [form, setForm] = useState<ComponentFormData>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof ComponentFormData, string>>>(
     {}
@@ -81,18 +79,17 @@ export function AddComponentDialog({
 
   const renewalEnabled = hasComponentRenewal(form.renewalFrequency);
   const isCustomRenewal = form.renewalFrequency === "custom";
+  const unpaidCycleDate = form.renewalDate || getComponentCurrentDueDate({
+    renewalStartDate: form.renewalStartDate,
+    renewalDate: form.renewalDate,
+    lastRenewedDate: initialComponent?.lastRenewedDate,
+  });
   const renewalPaymentPreview = previewRenewalCyclePayment({
     renewalFrequency: form.renewalFrequency,
     renewalStartDate: form.renewalStartDate,
     renewalDate: form.renewalDate,
     lastRenewedDate: initialComponent?.lastRenewedDate,
   });
-  const renewalPaymentHint =
-    form.status === "completed" && renewalPaymentPreview
-      ? `This records that the client paid for ${formatComponentDate(renewalPaymentPreview.paidForDate)}. After save, last paid is that date and next unpaid cycle becomes ${formatComponentDate(renewalPaymentPreview.nextDueDate)}.`
-      : form.status === "completed" && isCustomRenewal
-        ? "This records payment for the current custom date. Also change that date to the next cycle so it can move forward."
-        : "Unpaid = this cycle is still due. Paid for this cycle = the client has paid for the date above. Generating an invoice for this component and marking it paid does the same thing.";
 
   const formFromComponent = (component: DealComponent): ComponentFormData => ({
     name: component.name,
@@ -107,7 +104,7 @@ export function AddComponentDialog({
       component.renewalFrequency === "none" ? "" : component.renewalFrequency,
     renewalStartDate: component.renewalStartDate || "",
     renewalDate: getComponentCurrentDueDate(component),
-    status: component.status,
+    status: hasComponentRenewal(component.renewalFrequency) ? "pending" : component.status,
   });
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -138,11 +135,74 @@ export function AddComponentDialog({
     setSaving(true);
     setSubmitError(null);
     try {
+      const payload = renewalEnabled ? { ...form, status: "pending" as ComponentStatus } : form;
       if (isEditing && initialComponent) {
-        await updateComponent(dealId, initialComponent.id, form);
+        await updateComponent(dealId, initialComponent.id, payload);
       } else {
-        await addComponent(dealId, form);
+        await addComponent(dealId, payload);
       }
+      onOpenChange(false);
+      setForm(emptyForm);
+      setErrors({});
+    } catch (err) {
+      setSubmitError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMarkCyclePaid = async () => {
+    if (!initialComponent) return;
+
+    const validationErrors = validateComponentForm(form);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    const paidForDate =
+      renewalPaymentPreview?.paidForDate || unpaidCycleDate || form.renewalDate;
+    const nextDueDate = renewalPaymentPreview?.nextDueDate;
+    const confirmed = window.confirm(
+      paidForDate && nextDueDate
+        ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\nLast paid cycle will become ${formatComponentDate(paidForDate)}. Next unpaid cycle will move to ${formatComponentDate(nextDueDate)}.`
+        : paidForDate
+          ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\nIf this is a custom date, also set the next unpaid cycle after saving.`
+          : "Mark the current unpaid cycle as paid?"
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      await updateComponent(dealId, initialComponent.id, {
+        ...form,
+        status: "completed",
+      });
+      onOpenChange(false);
+      setForm(emptyForm);
+      setErrors({});
+    } catch (err) {
+      setSubmitError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUndoLastPayment = async () => {
+    if (!initialComponent?.lastRenewedDate) return;
+    const preview = previewRenewalCycleRollback(initialComponent);
+    const confirmed = window.confirm(
+      preview
+        ? `Mark ${formatComponentDate(preview.unpaidDate)} as unpaid again?\n\nNext unpaid cycle will go back to ${formatComponentDate(preview.unpaidDate)}.`
+        : "Undo the last paid renewal cycle?"
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      await undoComponentRenewal(dealId, initialComponent.id);
       onOpenChange(false);
       setForm(emptyForm);
       setErrors({});
@@ -316,27 +376,6 @@ export function AddComponentDialog({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="billing-type">Billing Type</Label>
-              <Select
-                value={form.billingType}
-                onValueChange={(value) =>
-                  updateField("billingType", value as BillingType)
-                }
-              >
-                <SelectTrigger id="billing-type" className="w-full rounded-xl">
-                  <SelectValue placeholder="Select billing type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(billingTypeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="renewal-frequency">Renewal Frequency</Label>
               <Select
                 value={form.renewalFrequency || "none"}
@@ -364,7 +403,7 @@ export function AddComponentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="renewal-start-date">
-                Renewal Start Date
+                First renewal date
                 {renewalEnabled ? (
                   <span className="text-destructive"> *</span>
                 ) : null}
@@ -383,77 +422,110 @@ export function AddComponentDialog({
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="renewal-date">
-                {isCustomRenewal ? "Custom Renewal Date" : "Next unpaid cycle"}
-                {isCustomRenewal ? <span className="text-destructive"> *</span> : null}
-              </Label>
-              <Input
-                id="renewal-date"
-                type="date"
-                value={form.renewalDate}
-                onChange={(e) => updateField("renewalDate", e.target.value)}
-                className="rounded-xl"
-                disabled={!renewalEnabled}
-                readOnly={renewalEnabled && !isCustomRenewal}
-                aria-invalid={Boolean(errors.renewalDate)}
-              />
-              {renewalEnabled && !isCustomRenewal ? (
-                <p className="text-xs text-muted-foreground">
-                  This is the cycle that still needs payment. It moves forward only after
-                  you mark it paid or the linked invoice is fully paid.
-                </p>
-              ) : null}
-              {errors.renewalDate && (
-                <p className="text-xs text-destructive">{errors.renewalDate}</p>
-              )}
-            </div>
-
-            {initialComponent?.lastRenewedDate ? (
+            {isCustomRenewal ? (
               <div className="space-y-2">
-                <Label>Last paid cycle</Label>
+                <Label htmlFor="renewal-date">
+                  Next unpaid cycle
+                  <span className="text-destructive"> *</span>
+                </Label>
                 <Input
-                  value={formatComponentDate(initialComponent.lastRenewedDate)}
-                  readOnly
-                  className="rounded-xl bg-muted/50"
+                  id="renewal-date"
+                  type="date"
+                  value={form.renewalDate}
+                  onChange={(e) => updateField("renewalDate", e.target.value)}
+                  className="rounded-xl"
+                  aria-invalid={Boolean(errors.renewalDate)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Client already paid for this renewal date. Next unpaid cycle is above.
-                </p>
+                {errors.renewalDate && (
+                  <p className="text-xs text-destructive">{errors.renewalDate}</p>
+                )}
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <Label htmlFor="status">
-                {renewalEnabled ? "Payment status" : "Status"}
-              </Label>
-              <Select
-                value={form.status}
-                onValueChange={(value) =>
-                  updateField("status", value as ComponentStatus)
-                }
-              >
-                <SelectTrigger id="status" className="w-full rounded-xl">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(
-                    renewalEnabled
-                      ? renewalComponentStatusLabels
-                      : componentStatusLabels
-                  ).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {renewalEnabled ? (
-                <p className="text-xs text-muted-foreground">
-                  {renewalPaymentHint}
-                </p>
-              ) : null}
-            </div>
+            {renewalEnabled ? (
+              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-3 sm:col-span-2">
+                <div>
+                  <p className="text-sm font-medium">Payment cycles</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The table Status badge is always for the next unpaid cycle
+                    {unpaidCycleDate ? ` (${formatComponentDate(unpaidCycleDate)})` : ""}.
+                    Last paid is already collected — it is not the unpaid status.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Next unpaid cycle</p>
+                    <p className="mt-0.5 text-sm font-medium">
+                      {unpaidCycleDate ? formatComponentDate(unpaidCycleDate) : "—"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Still due</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-background px-3 py-2">
+                    <p className="text-xs text-muted-foreground">Last paid cycle</p>
+                    <p className="mt-0.5 text-sm font-medium">
+                      {initialComponent?.lastRenewedDate
+                        ? formatComponentDate(initialComponent.lastRenewedDate)
+                        : "None yet"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Already collected</p>
+                  </div>
+                </div>
+                {errors.renewalDate && !isCustomRenewal ? (
+                  <p className="text-xs text-destructive">{errors.renewalDate}</p>
+                ) : null}
+
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      className="rounded-xl"
+                      disabled={saving || !unpaidCycleDate}
+                      onClick={() => void handleMarkCyclePaid()}
+                    >
+                      Mark {unpaidCycleDate ? formatComponentDate(unpaidCycleDate) : "cycle"} as paid
+                    </Button>
+                    {initialComponent?.lastRenewedDate ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-xl"
+                        disabled={saving}
+                        onClick={() => void handleUndoLastPayment()}
+                      >
+                        Undo last payment
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Save this component first. After that you can mark a cycle paid, or
+                    generate an invoice and mark that invoice paid.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) =>
+                    updateField("status", value as ComponentStatus)
+                  }
+                >
+                  <SelectTrigger id="status" className="w-full rounded-xl">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(componentStatusLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {submitError && (

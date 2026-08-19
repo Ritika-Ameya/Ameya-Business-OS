@@ -53,6 +53,26 @@ export function addRenewalInterval(
   return toLocalIsoDate(date);
 }
 
+export function subtractRenewalInterval(
+  isoDate: string,
+  frequency: ComponentRenewalFrequency
+): string {
+  if (!hasComponentRenewal(frequency) || frequency === "custom") {
+    return isoDate.trim();
+  }
+
+  const date = parseLocalIsoDate(isoDate);
+  if (!date) return "";
+
+  if (frequency === "monthly") date.setMonth(date.getMonth() - 1);
+  else if (frequency === "quarterly") date.setMonth(date.getMonth() - 3);
+  else if (frequency === "half-yearly") date.setMonth(date.getMonth() - 6);
+  else if (frequency === "yearly") date.setFullYear(date.getFullYear() - 1);
+  else if (frequency === "biennial") date.setFullYear(date.getFullYear() - 2);
+
+  return toLocalIsoDate(date);
+}
+
 /** First due date is the start date. Interval add is only used after a cycle is completed. */
 export function computeComponentNextRenewal(
   startDate: string,
@@ -85,7 +105,7 @@ export function getComponentCurrentDueDate(component: {
   return next;
 }
 
-/** What "Paid for this cycle" will record, and where next due will move. */
+/** What marking the current cycle paid will record, and where next due will move. */
 export function previewRenewalCyclePayment(component: {
   renewalFrequency?: ComponentRenewalFrequency | "" | null;
   renewalStartDate?: string;
@@ -102,6 +122,27 @@ export function previewRenewalCyclePayment(component: {
   const nextDueDate = addRenewalInterval(paidForDate, frequency);
   if (!nextDueDate || nextDueDate === paidForDate) return null;
   return { paidForDate, nextDueDate };
+}
+
+/** Undo last paid cycle: that date becomes unpaid again. */
+export function previewRenewalCycleRollback(component: {
+  renewalFrequency?: ComponentRenewalFrequency | "" | null;
+  renewalStartDate?: string;
+  lastRenewedDate?: string;
+}): { unpaidDate: string; previousPaidDate: string } | null {
+  const frequency = (component.renewalFrequency || "none") as ComponentRenewalFrequency;
+  if (!hasComponentRenewal(frequency)) return null;
+
+  const unpaidDate = (component.lastRenewedDate || "").trim();
+  if (!unpaidDate) return null;
+
+  const start = (component.renewalStartDate || "").trim();
+  const previous =
+    frequency === "custom" ? "" : subtractRenewalInterval(unpaidDate, frequency);
+  const previousPaidDate =
+    previous && previous < unpaidDate && (!start || previous >= start) ? previous : "";
+
+  return { unpaidDate, previousPaidDate };
 }
 
 export function resolveComponentRenewalDate(input: {
@@ -189,14 +230,6 @@ export function computeComponentFormTotal(data: ComponentFormData): number {
   });
 }
 
-export const billingTypeLabels: Record<BillingType, string> = {
-  "one-time": "One Time",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  "half-yearly": "Half Yearly",
-  yearly: "Yearly",
-};
-
 export const componentRenewalFrequencyLabels: Record<ComponentRenewalFrequency, string> = {
   none: "No Renewal",
   monthly: "Monthly",
@@ -207,25 +240,30 @@ export const componentRenewalFrequencyLabels: Record<ComponentRenewalFrequency, 
   custom: "Custom Date",
 };
 
-export const componentStatusLabels: Record<ComponentStatus, string> = {
-  pending: "Pending",
-  "in-progress": "In Progress",
-  completed: "Completed",
-};
-
-/** Status meaning when the component has a renewal schedule. */
-export const renewalComponentStatusLabels: Record<ComponentStatus, string> = {
-  pending: "Unpaid",
-  "in-progress": "In Progress",
-  completed: "Paid for this cycle",
-};
-
-export const billingTypeStyles: Record<BillingType, string> = {
-  "one-time": "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+export const componentRenewalFrequencyStyles: Record<ComponentRenewalFrequency, string> = {
+  none: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
   monthly: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   quarterly: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
   "half-yearly": "bg-amber-500/10 text-amber-700 dark:text-amber-400",
   yearly: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  biennial: "bg-teal-500/10 text-teal-700 dark:text-teal-400",
+  custom: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+};
+
+export function billingTypeFromRenewalFrequency(
+  frequency: ComponentRenewalFrequency | "" | null | undefined
+): BillingType {
+  if (frequency === "monthly") return "monthly";
+  if (frequency === "quarterly") return "quarterly";
+  if (frequency === "half-yearly") return "half-yearly";
+  if (frequency === "yearly") return "yearly";
+  return "one-time";
+}
+
+export const componentStatusLabels: Record<ComponentStatus, string> = {
+  pending: "Pending",
+  "in-progress": "In Progress",
+  completed: "Completed",
 };
 
 export const componentStatusStyles: Record<ComponentStatus, string> = {

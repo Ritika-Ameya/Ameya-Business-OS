@@ -27,6 +27,18 @@ function getDealRenewalDates(
   dealId: string,
   components: DealComponent[]
 ): string[] {
+  return getDealComponentRenewals(dealId, components).map((item) => item.dueDate);
+}
+
+export function getDealComponentRenewals(
+  dealId: string,
+  components: DealComponent[]
+): Array<{
+  id: string;
+  name: string;
+  dueDate: string;
+  lastPaidDate: string;
+}> {
   return components
     .filter(
       (component) =>
@@ -34,8 +46,14 @@ function getDealRenewalDates(
         hasComponentRenewal(component.renewalFrequency) &&
         Boolean(getComponentCurrentDueDate(component))
     )
-    .map((component) => getComponentCurrentDueDate(component))
-    .filter(Boolean);
+    .map((component) => ({
+      id: component.id,
+      name: component.name,
+      dueDate: getComponentCurrentDueDate(component),
+      lastPaidDate: component.lastRenewedDate?.trim() || "",
+    }))
+    .filter((item) => Boolean(item.dueDate))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
 export function getEarliestComponentRenewal(
@@ -49,26 +67,12 @@ export function getNextComponentRenewal(
   dealId: string,
   components: DealComponent[]
 ): { date: string; componentName: string; moreCount: number } | undefined {
-  const renewing = components
-    .filter(
-      (component) =>
-        component.dealId === dealId &&
-        hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(getComponentCurrentDueDate(component))
-    )
-    .map((component) => ({
-      date: getComponentCurrentDueDate(component),
-      componentName: component.name,
-      time: new Date(getComponentCurrentDueDate(component)).getTime(),
-    }))
-    .filter((item) => !Number.isNaN(item.time))
-    .sort((a, b) => a.time - b.time);
-
+  const renewing = getDealComponentRenewals(dealId, components);
   const next = renewing[0];
   if (!next) return undefined;
   return {
-    date: next.date,
-    componentName: next.componentName,
+    date: next.dueDate,
+    componentName: next.name,
     moreCount: Math.max(0, renewing.length - 1),
   };
 }

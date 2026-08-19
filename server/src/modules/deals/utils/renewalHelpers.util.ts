@@ -55,6 +55,27 @@ export const addRenewalInterval = (
   return toLocalIsoDate(date);
 };
 
+/** Subtract one cadence interval from a local ISO date. Custom returns the same date. */
+export const subtractRenewalInterval = (
+  isoDate: string,
+  frequency: ComponentRenewalFrequency,
+): string => {
+  if (!hasRenewalFrequency(frequency) || frequency === 'custom') {
+    return isoDate.trim();
+  }
+
+  const date = parseLocalIsoDate(isoDate);
+  if (!date) return '';
+
+  if (frequency === 'monthly') date.setMonth(date.getMonth() - 1);
+  else if (frequency === 'quarterly') date.setMonth(date.getMonth() - 3);
+  else if (frequency === 'half-yearly') date.setMonth(date.getMonth() - 6);
+  else if (frequency === 'yearly') date.setFullYear(date.getFullYear() - 1);
+  else if (frequency === 'biennial') date.setFullYear(date.getFullYear() - 2);
+
+  return toLocalIsoDate(date);
+};
+
 /** @deprecated Use addRenewalInterval for rolling a cycle; first due date is the start date. */
 export const computeComponentNextRenewal = (
   startDate: string,
@@ -117,6 +138,37 @@ export const tryAdvanceComponentRenewal = (component: {
   return {
     lastRenewedDate: currentDue,
     renewalDate: nextDue,
+    status: 'pending',
+  };
+};
+
+/**
+ * Undo the last paid cycle. Example: paid 1 Jan 2027 by mistake → next unpaid
+ * becomes 1 Jan 2027 again.
+ */
+export const tryRollbackComponentRenewal = (component: {
+  renewalFrequency?: string | null;
+  renewalStartDate?: string;
+  renewalDate?: string;
+  lastRenewedDate?: string;
+}): RenewalAdvanceResult | null => {
+  const frequency = (component.renewalFrequency || 'none') as ComponentRenewalFrequency;
+  if (!hasRenewalFrequency(frequency)) return null;
+
+  const paidFor = (component.lastRenewedDate || '').trim();
+  if (!paidFor) return null;
+
+  const start = (component.renewalStartDate || '').trim();
+  const previousPaid =
+    frequency === 'custom' ? '' : subtractRenewalInterval(paidFor, frequency);
+  const lastRenewedDate =
+    previousPaid && previousPaid < paidFor && (!start || previousPaid >= start)
+      ? previousPaid
+      : '';
+
+  return {
+    lastRenewedDate,
+    renewalDate: paidFor,
     status: 'pending',
   };
 };

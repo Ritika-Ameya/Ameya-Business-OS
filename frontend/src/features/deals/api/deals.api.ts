@@ -70,6 +70,12 @@ export const dealsApi = {
       body,
     }),
 
+  undoComponentRenewal: (id: string, componentId: string) =>
+    apiRequest<DealComponentDto>(
+      `${DEALS_BASE}/${id}/components/${componentId}/undo-renewal`,
+      { method: "POST" }
+    ),
+
   listFiles: (id: string) =>
     apiRequest<DealDocumentDto[]>(`${DEALS_BASE}/${id}/files`),
 

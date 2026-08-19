@@ -18,14 +18,15 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 import {
-  BillingTypeBadge,
   ComponentStatusBadge,
+  RenewalFrequencyBadge,
 } from "@/features/deals/components/components/ComponentBadges";
 import {
   computeComponentLineTotal,
   formatComponentCurrency,
   formatComponentDate,
   getComponentCurrentDueDate,
+  hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import type { DealComponent } from "@/features/deals/types/deal-component";
 
@@ -33,12 +34,14 @@ interface DealComponentsTableProps {
   components: DealComponent[];
   onEdit?: (component: DealComponent) => void;
   onDelete?: (component: DealComponent) => void;
+  onUndoLastPayment?: (component: DealComponent) => void;
 }
 
 export function DealComponentsTable({
   components,
   onEdit,
   onDelete,
+  onUndoLastPayment,
 }: DealComponentsTableProps) {
   return (
     <ResponsiveTableFrame>
@@ -47,7 +50,7 @@ export function DealComponentsTable({
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Component</TableHead>
             <TableHead className="hidden md:table-cell">Category</TableHead>
-            <TableHead>Billing</TableHead>
+            <TableHead>Frequency</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead className="hidden lg:table-cell">Renewal</TableHead>
             <TableHead>Status</TableHead>
@@ -55,7 +58,10 @@ export function DealComponentsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {components.map((component) => (
+          {components.map((component) => {
+            const isRenewing = hasComponentRenewal(component.renewalFrequency);
+            const dueDate = getComponentCurrentDueDate(component);
+            return (
             <TableRow key={component.id}>
               <TableCell className="pl-4">
                 <div>
@@ -72,7 +78,7 @@ export function DealComponentsTable({
                 {component.category}
               </TableCell>
               <TableCell>
-                <BillingTypeBadge type={component.billingType} />
+                <RenewalFrequencyBadge frequency={component.renewalFrequency} />
               </TableCell>
               <TableCell className="font-medium">
                 <div>
@@ -85,17 +91,12 @@ export function DealComponentsTable({
                 </div>
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {component.renewalFrequency && component.renewalFrequency !== "none" ? (
-                  <div>
-                    <p>Next {formatComponentDate(getComponentCurrentDueDate(component))}</p>
-                    {component.lastRenewedDate ? (
-                      <p className="mt-0.5 text-xs">
-                        Paid for {formatComponentDate(component.lastRenewedDate)}
-                      </p>
-                    ) : (
-                      <p className="mt-0.5 text-xs">Not paid yet</p>
-                    )}
-                  </div>
+                {isRenewing ? (
+                  component.lastRenewedDate ? (
+                    <p>Paid through {formatComponentDate(component.lastRenewedDate)}</p>
+                  ) : (
+                    <p>No payment yet</p>
+                  )
                 ) : (
                   "—"
                 )}
@@ -103,11 +104,14 @@ export function DealComponentsTable({
               <TableCell>
                 <ComponentStatusBadge
                   status={component.status}
-                  hasRenewal={
-                    Boolean(component.renewalFrequency) &&
-                    component.renewalFrequency !== "none"
-                  }
+                  hasRenewal={isRenewing}
+                  dueDate={dueDate}
                 />
+                {isRenewing && component.lastRenewedDate ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground lg:hidden">
+                    Paid through {formatComponentDate(component.lastRenewedDate)}
+                  </p>
+                ) : null}
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <div className="flex items-center justify-end gap-1">
@@ -141,6 +145,11 @@ export function DealComponentsTable({
                           Edit component
                         </DropdownMenuItem>
                       )}
+                      {onUndoLastPayment && component.lastRenewedDate ? (
+                        <DropdownMenuItem onClick={() => onUndoLastPayment(component)}>
+                          Undo last payment
+                        </DropdownMenuItem>
+                      ) : null}
                       {onDelete && (
                         <>
                           <DropdownMenuSeparator />
@@ -157,7 +166,8 @@ export function DealComponentsTable({
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </ResponsiveTableFrame>
