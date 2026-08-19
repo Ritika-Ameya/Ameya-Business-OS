@@ -174,30 +174,29 @@ export const filterRenewalsForReport = (
   renewals: RenewalRow[],
   filters: ReportFilters,
 ): RenewalRow[] =>
-  renewals
-    .filter((renewal) => {
-      const matchesCustomer =
-        filters.customer === 'all' || renewal.customerId === filters.customer;
-      const matchesStatus =
-        filters.status === 'all' || renewal.status === filters.status;
-      return matchesCustomer && matchesStatus;
-    })
-    .filter((renewal) => {
-      const matchesDateRange = matchesDateFilter(renewal.renewalDate, filters);
-      const matchesQuery = matchesSearch(
-        [
-          renewal.customerName,
-          renewal.dealTitle,
-          renewal.renewalLabel,
-          renewal.componentName,
-          renewal.renewalDate,
-        ],
-        filters.search,
-      );
-      const matchesDeal =
-        filters.deal === 'all' || renewal.dealId === filters.deal;
-      return matchesDateRange && matchesQuery && matchesDeal;
-    });
+  renewals.filter((renewal) => {
+    const matchesCustomer =
+      filters.customer === 'all' || renewal.customerId === filters.customer;
+    const matchesStatus =
+      filters.status === 'all' ||
+      renewal.status === filters.status ||
+      (filters.status === 'expired' && renewal.status === 'overdue') ||
+      (filters.status === 'upcoming' &&
+        (renewal.status === 'upcoming' || renewal.status === 'renewed'));
+    const matchesDateRange = matchesDateFilter(renewal.renewalDate, filters);
+    const matchesQuery = matchesSearch(
+      [
+        renewal.customerName,
+        renewal.dealTitle,
+        renewal.renewalLabel,
+        renewal.componentName,
+        renewal.renewalDate,
+      ],
+      filters.search,
+    );
+    const matchesDeal = filters.deal === 'all' || renewal.dealId === filters.deal;
+    return matchesCustomer && matchesStatus && matchesDateRange && matchesQuery && matchesDeal;
+  });
 
 export class ReportService extends BaseService {
   constructor() {
@@ -298,9 +297,11 @@ export class ReportService extends BaseService {
     const deals = await dealRepository.findAll();
     const renewals = filterRenewalsForReport(await loadCompanyRenewals(deals), filters);
 
-    const upcomingRenewals = renewals.filter((r) => r.status === 'upcoming').length;
+    const upcomingRenewals = renewals.filter(
+      (r) => r.status === 'upcoming' || r.status === 'renewed',
+    ).length;
     const overdueRenewals = renewals.filter((r) => r.status === 'overdue').length;
-    const renewed = renewals.filter((r) => Boolean(r.lastRenewedDate?.trim())).length;
+    const renewed = renewals.filter((r) => r.status === 'renewed').length;
     const renewalValue = roundMoney(
       renewals.reduce((sum, renewal) => sum + Number(renewal.amount || 0), 0),
     );

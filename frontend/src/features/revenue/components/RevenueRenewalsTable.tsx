@@ -25,12 +25,14 @@ interface RevenueRenewalsTableProps {
   renewals: CompanyRenewalRow[];
   isFiltered?: boolean;
   onResetFilters?: () => void;
+  statusFilter?: string;
 }
 
 export function RevenueRenewalsTable({
   renewals,
   isFiltered = false,
   onResetFilters,
+  statusFilter = "all",
 }: RevenueRenewalsTableProps) {
   const navigate = useNavigate();
 
@@ -91,9 +93,21 @@ export function RevenueRenewalsTable({
                 <div className="space-y-1">
                   <Badge
                     variant="secondary"
-                    className={cn(companyRenewalStatusStyles[renewal.status])}
+                    className={cn(
+                      companyRenewalStatusStyles[
+                        renewal.status === "expired"
+                          ? "expired"
+                          : statusFilter === "renewed" && renewal.wasRenewed
+                            ? "renewed"
+                            : "upcoming"
+                      ]
+                    )}
                   >
-                    {renewalStatusLabels[renewal.status]}
+                    {renewal.status === "expired"
+                      ? renewalStatusLabels.expired
+                      : statusFilter === "renewed" && renewal.wasRenewed
+                        ? renewalStatusLabels.renewed
+                        : renewalStatusLabels.upcoming}
                   </Badge>
                   <p className="text-xs text-muted-foreground">
                     {renewal.lastRenewedDate

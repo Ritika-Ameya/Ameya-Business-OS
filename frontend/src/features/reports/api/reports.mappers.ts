@@ -92,7 +92,7 @@ export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
     renewalType:
       dto.renewalType === "annual" ? "yearly" : (dto.renewalType as CompanyRenewalRow["renewalType"]),
     renewalFrequency,
-    wasRenewed: Boolean(dto.lastRenewedDate) || status === "renewed",
+    wasRenewed: status === "renewed",
   };
 }
 
