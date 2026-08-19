@@ -279,15 +279,12 @@ function resolveDealCustomerName(
 
 function resolveCompanyRenewalStatus(
   dueIso: string,
-  lastPaidDate: string,
   now: Date
 ): CompanyRenewalStatus {
   const due = new Date(dueIso);
   due.setHours(0, 0, 0, 0);
   if (Number.isNaN(due.getTime())) return "upcoming";
-  if (due < now) return "expired";
-  if (lastPaidDate) return "renewed";
-  return "upcoming";
+  return due < now ? "expired" : "upcoming";
 }
 
 export function getCompanyRenewals(
@@ -312,8 +309,8 @@ export function getCompanyRenewals(
     if (Number.isNaN(renewalDate.getTime())) continue;
 
     const lastRenewedDate = component.lastRenewedDate?.trim() || "";
-    const status = resolveCompanyRenewalStatus(dueIso, lastRenewedDate, now);
-    const wasRenewed = status === "renewed";
+    const status = resolveCompanyRenewalStatus(dueIso, now);
+    const wasRenewed = status === "upcoming" && Boolean(lastRenewedDate);
     const amountValue = computeComponentLineTotal(component);
 
     rows.push({
@@ -339,10 +336,7 @@ export function getCompanyRenewals(
     });
   }
 
-  return rows.sort(
-    (a, b) =>
-      new Date(a.renewalDate).getTime() - new Date(b.renewalDate).getTime()
-  );
+  return rows.sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
 }
 
 /** Customer + type only — used as the base for period cards. */
@@ -370,10 +364,9 @@ export function filterCompanyRenewals(
   return scoped.filter((renewal) => {
     const matchesStatus =
       filters.status === "all" ||
-      (filters.status === "upcoming" &&
-        (renewal.status === "upcoming" || renewal.status === "renewed")) ||
+      (filters.status === "upcoming" && renewal.status === "upcoming") ||
       (filters.status === "expired" && renewal.status === "expired") ||
-      (filters.status === "renewed" && renewal.status === "renewed");
+      (filters.status === "renewed" && renewal.wasRenewed);
 
     const matchesDate = isDateInRenewalRange(renewal.renewalDate, from, to);
 
@@ -428,7 +421,7 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodSta
     )
   ).length;
   const expired = renewals.filter((r) => r.status === "expired").length;
-  const renewedRows = renewals.filter((r) => r.status === "renewed");
+  const renewedRows = renewals.filter((r) => r.wasRenewed);
   const renewedCustomers = new Set(renewedRows.map((r) => r.customerId).filter(Boolean)).size;
 
   return {

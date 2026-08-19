@@ -61,6 +61,7 @@ export function RevenueRenewalsTab() {
         <RevenueRenewalsTable
           renewals={filteredRenewals}
           isFiltered={hasActiveFilters}
+          statusFilter={deferredFilters.status}
           onResetFilters={() => setFilters(defaultRenewalFilters)}
         />
       )}
