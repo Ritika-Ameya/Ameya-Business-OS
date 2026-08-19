@@ -30,9 +30,9 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
         </div>
         <h3 className="text-sm font-medium">Component Renewal Schedules</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Next unpaid cycle is the date the client still owes. Mark the component
-          Paid for this cycle, or fully pay a linked invoice, to record payment for
-          that date and move next due forward.
+          Last paid is the cycle already collected. Next unpaid is the cycle still due.
+          Open the component and tap Mark that date as paid, or fully pay a linked
+          invoice. If a cycle was marked paid by mistake, use Undo last payment.
         </p>
 
         {renewingComponents.length === 0 ? (
@@ -50,7 +50,6 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                   <th className="px-3 py-2 font-medium">Frequency</th>
                   <th className="px-3 py-2 font-medium">Last paid</th>
                   <th className="px-3 py-2 font-medium">Next unpaid</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
                   <th className="px-3 py-2 font-medium">Amount</th>
                 </tr>
               </thead>
@@ -77,13 +76,6 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {formatComponentDate(dueDate)}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {lastRenewed
-                        ? `Paid for ${formatComponentDate(lastRenewed)} · Next ${formatComponentDate(dueDate)}`
-                        : component.status === "completed"
-                          ? `Marked paid — open the component and save to record ${formatComponentDate(dueDate)} and move next due`
-                          : `Unpaid · Due ${formatComponentDate(dueDate)}`}
                     </td>
                     <td className="px-3 py-2">
                       {formatComponentCurrency(computeComponentLineTotal(component))}
@@ -124,8 +116,8 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
           </ul>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">
-            No paid cycles yet. Open the component and set Payment status to Paid for
-            this cycle, or generate an invoice for it and mark that invoice paid.
+            No paid cycles yet. Open the component and tap Mark that date as paid, or
+            generate an invoice for it and mark that invoice paid.
           </p>
         )}
       </div>

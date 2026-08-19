@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
-import { BillingTypeBadge } from "@/features/deals/components/components/ComponentBadges";
+import { RenewalFrequencyBadge } from "@/features/deals/components/components/ComponentBadges";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { formatComponentCurrency } from "@/features/deals/utils/deal-component-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
@@ -49,7 +49,7 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="pl-4">Component</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Billing</TableHead>
+                    <TableHead>Frequency</TableHead>
                     <TableHead className="pr-4 text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -63,7 +63,7 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                         {component.category}
                       </TableCell>
                       <TableCell>
-                        <BillingTypeBadge type={component.billingType} />
+                        <RenewalFrequencyBadge frequency={component.renewalFrequency} />
                       </TableCell>
                       <TableCell className="pr-4 text-right font-medium">
                         {formatComponentCurrency(component.amount)}

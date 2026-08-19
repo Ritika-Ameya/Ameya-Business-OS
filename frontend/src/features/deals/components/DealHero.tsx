@@ -1,4 +1,4 @@
-import { Calendar, Handshake, Layers, User } from "lucide-react";
+import { Calendar, ChevronDown, Handshake, Layers, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
@@ -11,7 +11,7 @@ import {
 } from "@/features/customers/utils/stage-utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { getNextComponentRenewal } from "@/features/deals/utils/deal-utils";
+import { getDealComponentRenewals } from "@/features/deals/utils/deal-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { Badge } from "@/shared/ui/badge";
 import {
@@ -83,6 +83,79 @@ function HeroMetric({
   );
 }
 
+function NextRenewalMetric({
+  renewals,
+}: {
+  renewals: Array<{
+    id: string;
+    name: string;
+    dueDate: string;
+    lastPaidDate: string;
+  }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const next = renewals[0];
+  const canExpand = renewals.length > 0;
+
+  return (
+    <div className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
+      <button
+        type="button"
+        className="w-full text-left disabled:cursor-default"
+        disabled={!canExpand}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Next Renewal
+          </p>
+          {canExpand ? (
+            <ChevronDown
+              className={cn(
+                "size-4 shrink-0 text-muted-foreground transition-transform",
+                open && "rotate-180"
+              )}
+            />
+          ) : null}
+        </div>
+        <p className="mt-1 text-sm font-semibold sm:text-base">
+          {next ? formatDate(next.dueDate) : "—"}
+        </p>
+        {!open && next ? (
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {renewals.length === 1
+              ? next.name
+              : `${next.name} · ${renewals.length} components`}
+          </p>
+        ) : null}
+      </button>
+
+      {open && next ? (
+        <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto border-t border-border/50 pt-2">
+          {renewals.map((item, index) => (
+            <li key={item.id} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium">{item.name}</p>
+                {index === 0 ? (
+                  <p className="text-[10px] text-muted-foreground">Next due</p>
+                ) : item.lastPaidDate ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    Paid through {formatDate(item.lastPaidDate)}
+                  </p>
+                ) : null}
+              </div>
+              <p className="shrink-0 text-xs font-semibold tabular-nums">
+                {formatDate(item.dueDate)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function DealHero({ deal }: DealHeroProps) {
   const { stages } = useAppConfig();
   const { getCustomer } = useCustomers();
@@ -96,7 +169,8 @@ export function DealHero({ deal }: DealHeroProps) {
   const recordType = customer?.recordType ?? "customer";
   const currentStage = getStageById(stages, deal.currentStageId);
   const applicableStages = getStagesForRecordType(stages, recordType);
-  const nextRenewal = getNextComponentRenewal(deal.id, components);
+  const nextRenewals = getDealComponentRenewals(deal.id, components);
+  const nextRenewal = nextRenewals[0];
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === deal.currentStageId) return;
@@ -216,12 +290,10 @@ export function DealHero({ deal }: DealHeroProps) {
                 {nextRenewal && (
                   <span className="flex items-center gap-2">
                     <Layers className="size-4" />
-                    Renewal {formatDate(nextRenewal.date)}
-                    {nextRenewal.componentName
-                      ? ` · ${nextRenewal.componentName}`
-                      : ""}
-                    {nextRenewal.moreCount > 0
-                      ? ` (+${nextRenewal.moreCount} more)`
+                    Renewal {formatDate(nextRenewal.dueDate)}
+                    {nextRenewal.name ? ` · ${nextRenewal.name}` : ""}
+                    {nextRenewals.length > 1
+                      ? ` (+${nextRenewals.length - 1} more)`
                       : ""}
                   </span>
                 )}
@@ -230,17 +302,7 @@ export function DealHero({ deal }: DealHeroProps) {
 
             <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-md lg:grid-cols-2">
               <HeroMetric label="Start Date" value={formatDate(deal.startDate)} />
-              <HeroMetric
-                label="Next Renewal"
-                value={nextRenewal ? formatDate(nextRenewal.date) : "—"}
-                detail={
-                  nextRenewal
-                    ? nextRenewal.moreCount > 0
-                      ? `${nextRenewal.componentName} · +${nextRenewal.moreCount} more`
-                      : nextRenewal.componentName
-                    : undefined
-                }
-              />
+              <NextRenewalMetric renewals={nextRenewals} />
               <HeroMetric
                 label="Next Action"
                 value={formatDate(deal.nextActionDate)}

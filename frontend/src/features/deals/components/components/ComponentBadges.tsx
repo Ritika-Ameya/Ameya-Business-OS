@@ -1,18 +1,26 @@
 import { Badge } from "@/shared/ui/badge";
 import {
-  billingTypeLabels,
-  billingTypeStyles,
+  componentRenewalFrequencyLabels,
+  componentRenewalFrequencyStyles,
   componentStatusLabels,
   componentStatusStyles,
-  renewalComponentStatusLabels,
+  formatComponentDate,
 } from "@/features/deals/utils/deal-component-utils";
 import { cn } from "@/shared/utils";
-import type { BillingType, ComponentStatus } from "@/features/deals/types/deal-component";
+import type {
+  ComponentRenewalFrequency,
+  ComponentStatus,
+} from "@/features/deals/types/deal-component";
 
-export function BillingTypeBadge({ type }: { type: BillingType }) {
+export function RenewalFrequencyBadge({
+  frequency,
+}: {
+  frequency?: ComponentRenewalFrequency | "" | null;
+}) {
+  const value = frequency && frequency !== "none" ? frequency : "none";
   return (
-    <Badge variant="secondary" className={cn(billingTypeStyles[type])}>
-      {billingTypeLabels[type]}
+    <Badge variant="secondary" className={cn(componentRenewalFrequencyStyles[value])}>
+      {componentRenewalFrequencyLabels[value]}
     </Badge>
   );
 }
@@ -20,14 +28,23 @@ export function BillingTypeBadge({ type }: { type: BillingType }) {
 export function ComponentStatusBadge({
   status,
   hasRenewal = false,
+  dueDate,
 }: {
   status: ComponentStatus;
   hasRenewal?: boolean;
+  dueDate?: string;
 }) {
-  const labels = hasRenewal ? renewalComponentStatusLabels : componentStatusLabels;
+  if (hasRenewal) {
+    return (
+      <Badge variant="secondary" className={cn(componentStatusStyles.pending)}>
+        {dueDate ? `Due ${formatComponentDate(dueDate)}` : "Due"}
+      </Badge>
+    );
+  }
+
   return (
     <Badge variant="secondary" className={cn(componentStatusStyles[status])}>
-      {labels[status]}
+      {componentStatusLabels[status]}
     </Badge>
   );
 }

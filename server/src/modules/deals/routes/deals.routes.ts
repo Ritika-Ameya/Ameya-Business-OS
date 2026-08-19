@@ -19,6 +19,7 @@ router.post('/:id/timeline', ...dealController.addTimelineNote);
 router.get('/:id/components', ...dealController.listComponents);
 router.post('/:id/components', ...dealController.addComponent);
 router.put('/:id/components/:componentId', ...dealController.updateComponent);
+router.post('/:id/components/:componentId/undo-renewal', ...dealController.undoComponentRenewal);
 router.delete('/:id/components/:componentId', ...dealController.removeComponent);
 
 router.get('/:id/files', ...dealController.listFiles);

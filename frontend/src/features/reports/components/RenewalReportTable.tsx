@@ -88,8 +88,8 @@ export function RenewalReportTable({ renewals }: RenewalReportTableProps) {
                   </Badge>
                   <p className="text-xs text-muted-foreground">
                     {renewal.lastRenewedDate
-                      ? `Paid for ${formatDate(renewal.lastRenewedDate)} · Next ${formatDate(renewal.renewalDate)}`
-                      : `Unpaid · Due ${formatDate(renewal.renewalDate)}`}
+                      ? `Last paid ${formatDate(renewal.lastRenewedDate)}`
+                      : "No payment yet"}
                   </p>
                 </div>
               </TableCell>

@@ -57,6 +57,7 @@ interface DealsContextValue {
     componentId: string,
     data: ComponentFormData
   ) => Promise<DealComponent>;
+  undoComponentRenewal: (dealId: string, componentId: string) => Promise<DealComponent>;
   removeComponent: (dealId: string, componentId: string) => Promise<void>;
   getComponentsByDeal: (dealId: string) => DealComponent[];
 }
@@ -202,6 +203,22 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const undoComponentRenewal = useCallback(
+    async (dealId: string, componentId: string): Promise<DealComponent> => {
+      const updated = await dealsApi.undoComponentRenewal(dealId, componentId);
+      const component = mapComponentFromDto(updated);
+      setComponents((prev) => {
+        const index = prev.findIndex((item) => item.id === componentId);
+        if (index === -1) return [component, ...prev];
+        const next = [...prev];
+        next[index] = component;
+        return next;
+      });
+      return component;
+    },
+    []
+  );
+
   const removeComponent = useCallback(async (dealId: string, componentId: string) => {
     const deal = await dealsApi.removeComponent(dealId, componentId);
     setComponents((prev) => prev.filter((component) => component.id !== componentId));
@@ -234,6 +251,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       updateDealFollowUp,
       addComponent,
       updateComponent,
+      undoComponentRenewal,
       removeComponent,
       getComponentsByDeal,
     }),
@@ -252,6 +270,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       updateDealFollowUp,
       addComponent,
       updateComponent,
+      undoComponentRenewal,
       removeComponent,
       getComponentsByDeal,
     ]
