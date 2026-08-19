@@ -62,7 +62,7 @@ export interface CompanyRenewalRow {
   status: CompanyRenewalStatus;
   renewalType: CompanyRenewalType;
   renewalFrequency: ComponentRenewalFrequency;
-  /** True when at least one cycle has been marked completed or paid. */
+  /** True when this component is in good standing on its own cycle. */
   wasRenewed: boolean;
 }
 
@@ -277,6 +277,19 @@ function resolveDealCustomerName(
   return (customer?.name || customer?.company || "").trim();
 }
 
+function resolveCompanyRenewalStatus(
+  dueIso: string,
+  lastPaidDate: string,
+  now: Date
+): CompanyRenewalStatus {
+  const due = new Date(dueIso);
+  due.setHours(0, 0, 0, 0);
+  if (Number.isNaN(due.getTime())) return "upcoming";
+  if (due < now) return "expired";
+  if (lastPaidDate) return "renewed";
+  return "upcoming";
+}
+
 export function getCompanyRenewals(
   deals: Deal[] = [],
   components: DealComponent[] = [],
@@ -299,8 +312,8 @@ export function getCompanyRenewals(
     if (Number.isNaN(renewalDate.getTime())) continue;
 
     const lastRenewedDate = component.lastRenewedDate?.trim() || "";
-    const wasRenewed = Boolean(lastRenewedDate);
-    const status: CompanyRenewalStatus = renewalDate < now ? "expired" : "upcoming";
+    const status = resolveCompanyRenewalStatus(dueIso, lastRenewedDate, now);
+    const wasRenewed = status === "renewed";
     const amountValue = computeComponentLineTotal(component);
 
     rows.push({
@@ -360,7 +373,7 @@ export function filterCompanyRenewals(
       (filters.status === "upcoming" &&
         (renewal.status === "upcoming" || renewal.status === "renewed")) ||
       (filters.status === "expired" && renewal.status === "expired") ||
-      (filters.status === "renewed" && renewal.wasRenewed);
+      (filters.status === "renewed" && renewal.status === "renewed");
 
     const matchesDate = isDateInRenewalRange(renewal.renewalDate, from, to);
 
@@ -397,17 +410,17 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodSta
   const nextMonthDate = new Date(year, month + 1, 1);
   const nextQuarterDate = new Date(year, quarter * 3 + 3, 1);
 
-  const upcoming = renewals.filter((r) => r.status === "upcoming" || r.status === "renewed");
-  const upcomingThisMonth = upcoming.filter((r) =>
+  const notExpired = renewals.filter((r) => r.status !== "expired");
+  const upcomingThisMonth = notExpired.filter((r) =>
     isRenewalInMonth(r.renewalDate, year, month)
   ).length;
-  const nextMonth = upcoming.filter((r) =>
+  const nextMonth = notExpired.filter((r) =>
     isRenewalInMonth(r.renewalDate, nextMonthDate.getFullYear(), nextMonthDate.getMonth())
   ).length;
-  const quarterCount = upcoming.filter((r) =>
+  const quarterCount = notExpired.filter((r) =>
     isRenewalInQuarter(r.renewalDate, year, quarter)
   ).length;
-  const nextQuarter = upcoming.filter((r) =>
+  const nextQuarter = notExpired.filter((r) =>
     isRenewalInQuarter(
       r.renewalDate,
       nextQuarterDate.getFullYear(),
@@ -415,7 +428,7 @@ export function getRenewalStats(renewals: CompanyRenewalRow[]): RenewalPeriodSta
     )
   ).length;
   const expired = renewals.filter((r) => r.status === "expired").length;
-  const renewedRows = renewals.filter((r) => r.wasRenewed);
+  const renewedRows = renewals.filter((r) => r.status === "renewed");
   const renewedCustomers = new Set(renewedRows.map((r) => r.customerId).filter(Boolean)).size;
 
   return {

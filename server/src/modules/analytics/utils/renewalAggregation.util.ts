@@ -69,7 +69,11 @@ export const getCompanyRenewals = (
     if (Number.isNaN(renewalDate.getTime())) continue;
 
     const lastRenewedDate = component.lastRenewedDate?.trim() || '';
-    const status: RenewalStatus = renewalDate < now ? 'overdue' : 'upcoming';
+    const status: RenewalStatus = renewalDate < now
+      ? 'overdue'
+      : lastRenewedDate
+        ? 'renewed'
+        : 'upcoming';
 
     rows.push({
       id: `renewal-${component.id}`,
