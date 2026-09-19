@@ -22,11 +22,13 @@ import {
   RenewalFrequencyBadge,
 } from "@/features/deals/components/components/ComponentBadges";
 import {
+  componentBillingPeriodLabels,
   computeComponentLineTotal,
   formatComponentCurrency,
   formatComponentDate,
   getComponentCurrentDueDate,
   hasComponentRenewal,
+  resolveComponentBillingPeriod,
 } from "@/features/deals/utils/deal-component-utils";
 import type { DealComponent } from "@/features/deals/types/deal-component";
 
@@ -50,7 +52,7 @@ export function DealComponentsTable({
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Component</TableHead>
             <TableHead className="hidden md:table-cell">Category</TableHead>
-            <TableHead>Frequency</TableHead>
+            <TableHead>Billing</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead className="hidden lg:table-cell">Renewal</TableHead>
             <TableHead>Status</TableHead>
@@ -59,6 +61,7 @@ export function DealComponentsTable({
         </TableHeader>
         <TableBody>
           {components.map((component) => {
+            const billingPeriod = resolveComponentBillingPeriod(component);
             const isRenewing = hasComponentRenewal(component.renewalFrequency);
             const dueDate = getComponentCurrentDueDate(component);
             return (
@@ -78,16 +81,21 @@ export function DealComponentsTable({
                 {component.category}
               </TableCell>
               <TableCell>
-                <RenewalFrequencyBadge frequency={component.renewalFrequency} />
+                <RenewalFrequencyBadge
+                  frequency={
+                    component.renewalFrequency === "none"
+                      ? "none"
+                      : component.renewalFrequency
+                  }
+                />
               </TableCell>
               <TableCell className="font-medium">
                 <div>
                   {formatComponentCurrency(computeComponentLineTotal(component))}
-                  {component.gstPercent > 0 && (
-                    <p className="mt-0.5 text-xs font-normal text-muted-foreground">
-                      Incl. {component.gstPercent}% GST
-                    </p>
-                  )}
+                  <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                    {componentBillingPeriodLabels[billingPeriod]}
+                    {component.gstPercent > 0 ? ` · Incl. ${component.gstPercent}% GST` : ""}
+                  </p>
                 </div>
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">

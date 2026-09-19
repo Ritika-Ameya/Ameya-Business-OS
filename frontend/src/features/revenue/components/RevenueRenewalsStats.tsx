@@ -9,6 +9,14 @@ import {
 import { useMemo, type ReactNode } from "react";
 import { StatCard } from "@/shared/components/PageHeader";
 import { cn } from "@/shared/utils";
+import {
+  ALL_TIME,
+  AS_OF_TODAY,
+  calendarMonthPeriod,
+  nextCalendarMonthPeriod,
+  nextQuarterPeriod,
+  quarterPeriod,
+} from "@/shared/utils/period-label";
 import type { RenewalFilters } from "@/features/revenue/types/revenue";
 import {
   filterRenewalsByScope,
@@ -47,6 +55,7 @@ export function RevenueRenewalsStats({
     value: string;
     icon: ReactNode;
     accent: string;
+    period: string;
   }> = [
     {
       key: "upcomingThisMonth",
@@ -54,6 +63,7 @@ export function RevenueRenewalsStats({
       value: stats.upcomingThisMonth,
       icon: <CalendarClock className="size-5 text-blue-600 dark:text-blue-400" />,
       accent: "bg-blue-500/10",
+      period: calendarMonthPeriod(),
     },
     {
       key: "nextMonth",
@@ -61,6 +71,7 @@ export function RevenueRenewalsStats({
       value: stats.nextMonth,
       icon: <Clock3 className="size-5 text-sky-600 dark:text-sky-400" />,
       accent: "bg-sky-500/10",
+      period: nextCalendarMonthPeriod(),
     },
     {
       key: "quarter",
@@ -68,6 +79,7 @@ export function RevenueRenewalsStats({
       value: stats.quarter,
       icon: <CalendarRange className="size-5 text-violet-600 dark:text-violet-400" />,
       accent: "bg-violet-500/10",
+      period: quarterPeriod(),
     },
     {
       key: "nextQuarter",
@@ -75,6 +87,7 @@ export function RevenueRenewalsStats({
       value: stats.nextQuarter,
       icon: <CalendarDays className="size-5 text-indigo-600 dark:text-indigo-400" />,
       accent: "bg-indigo-500/10",
+      period: nextQuarterPeriod(),
     },
     {
       key: "expired",
@@ -82,6 +95,7 @@ export function RevenueRenewalsStats({
       value: stats.expired,
       icon: <AlertCircle className="size-5 text-red-600 dark:text-red-400" />,
       accent: "bg-red-500/10",
+      period: AS_OF_TODAY,
     },
     {
       key: "renewed",
@@ -89,6 +103,7 @@ export function RevenueRenewalsStats({
       value: stats.renewedCustomers,
       icon: <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />,
       accent: "bg-emerald-500/10",
+      period: ALL_TIME,
     },
   ];
 
@@ -112,6 +127,7 @@ export function RevenueRenewalsStats({
               value={card.value}
               icon={card.icon}
               accent={card.accent}
+              period={card.period}
             />
           </button>
         );

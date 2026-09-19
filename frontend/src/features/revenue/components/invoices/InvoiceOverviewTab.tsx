@@ -15,7 +15,10 @@ import {
 } from "@/shared/ui/table";
 import { RenewalFrequencyBadge } from "@/features/deals/components/components/ComponentBadges";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { formatComponentCurrency } from "@/features/deals/utils/deal-component-utils";
+import {
+  computeComponentLineTotal,
+  formatComponentCurrency,
+} from "@/features/deals/utils/deal-component-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
 
 interface InvoiceOverviewTabProps {
@@ -50,7 +53,7 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                     <TableHead className="pl-4">Component</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Frequency</TableHead>
-                    <TableHead className="pr-4 text-right">Amount</TableHead>
+                    <TableHead className="pr-4 text-right">Amount (incl. GST)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -66,7 +69,12 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                         <RenewalFrequencyBadge frequency={component.renewalFrequency} />
                       </TableCell>
                       <TableCell className="pr-4 text-right font-medium">
-                        {formatComponentCurrency(component.amount)}
+                        {formatComponentCurrency(computeComponentLineTotal(component))}
+                        {component.gstPercent > 0 ? (
+                          <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                            Incl. {component.gstPercent}% GST
+                          </p>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   ))}

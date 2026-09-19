@@ -5,6 +5,7 @@ import { cn } from "@/shared/utils";
 import type { Customer } from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
 import { StatCard } from "@/shared/components/PageHeader";
+import { ALL_TIME, thisMonthPeriod } from "@/shared/utils/period-label";
 
 interface CustomerStatsCardsProps {
   customers: Customer[];
@@ -19,6 +20,7 @@ function BreakdownCard({
   barClass,
   items,
   emptyLabel,
+  period,
 }: {
   label: string;
   value: number;
@@ -27,6 +29,7 @@ function BreakdownCard({
   barClass: string;
   items: Array<{ key: string; name: string; color: string; count: number }>;
   emptyLabel: string;
+  period?: string;
 }) {
   return (
     <div
@@ -48,6 +51,11 @@ function BreakdownCard({
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {label}
             </p>
+            {period ? (
+              <p className="text-[11px] font-medium leading-tight text-muted-foreground">
+                {period}
+              </p>
+            ) : null}
             <p className="text-2xl font-bold tracking-tight tabular-nums">{value}</p>
           </div>
           <div
@@ -104,13 +112,14 @@ export function CustomerStatsCards({
         icon={<Users className="size-5 text-blue-600 dark:text-blue-400" />}
         accentClass="bg-blue-500/15"
         barClass="accent-bar-blue"
-        items={stats.customerByStatus.map((item) => ({
-          key: item.status,
-          name: item.label,
-          color: item.color,
-          count: item.count,
+        items={stats.customerByStage.map((stage) => ({
+          key: stage.stageId,
+          name: stage.stageName,
+          color: stage.color,
+          count: stage.count,
         }))}
-        emptyLabel="No customers yet"
+        emptyLabel="No customer stages yet"
+        period={ALL_TIME}
       />
       <BreakdownCard
         label="Opportunities"
@@ -127,6 +136,7 @@ export function CustomerStatsCards({
           count: stage.count,
         }))}
         emptyLabel="No opportunity stages yet"
+        period={ALL_TIME}
       />
       <StatCard
         label="Outstanding Amount"
@@ -134,6 +144,7 @@ export function CustomerStatsCards({
         icon={<IndianRupee className="size-5 text-violet-600 dark:text-violet-400" />}
         accent="bg-violet-500/15"
         barClass="accent-bar-violet"
+        period={ALL_TIME}
       />
       <StatCard
         label="Renewals This Month"
@@ -141,6 +152,7 @@ export function CustomerStatsCards({
         icon={<CalendarClock className="size-5 text-teal-600 dark:text-teal-400" />}
         accent="bg-teal-500/15"
         barClass="accent-bar-teal"
+        period={thisMonthPeriod()}
       />
     </div>
   );

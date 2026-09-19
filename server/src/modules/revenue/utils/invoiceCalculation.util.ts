@@ -78,11 +78,16 @@ export const normalizeInvoiceStatus = (raw: string | undefined | null): InvoiceS
     case 'partial':
       return 'partially_paid';
     case 'draft':
+      return 'draft';
     case 'due':
+      return 'due';
     case 'partially_paid':
+      return 'partially_paid';
     case 'paid':
+      return 'paid';
     case 'cancelled':
-      return raw as InvoiceStatus;
+    case 'canceled':
+      return 'cancelled';
     default:
       return 'draft';
   }
@@ -118,11 +123,71 @@ export const applyBalance = (
   invoice: InvoiceEntity,
   payments: PaymentEntity[],
 ): Pick<InvoiceEntity, 'received' | 'outstanding' | 'status'> => {
+  const status = resolveInvoiceStatus(invoice, computeReceived(payments));
+  if (status === 'cancelled') {
+    return {
+      received: computeReceived(payments),
+      outstanding: 0,
+      status: 'cancelled',
+    };
+  }
   const received = computeReceived(payments);
   const outstanding = computeOutstanding(invoice.total, received);
   return {
     received,
     outstanding,
-    status: resolveInvoiceStatus(invoice, received),
+    status,
   };
 };
+
+/** Invoices that still count toward collections / customer outstanding. */
+export const isCollectionInvoice = (
+  invoice: Pick<InvoiceEntity, 'status' | 'outstanding'>,
+): boolean => {
+  const status = normalizeInvoiceStatus(invoice.status);
+  if (status === 'cancelled' || status === 'draft' || status === 'paid') {
+    return false;
+  }
+  return (
+    Number(invoice.outstanding || 0) > 0 ||
+    status === 'partially_paid' ||
+    status === 'due'
+  );
+};
+
+export const effectiveInvoiceOutstanding = (
+  invoice: Pick<InvoiceEntity, 'status' | 'outstanding'>,
+): number => {
+  const status = normalizeInvoiceStatus(invoice.status);
+  if (status === 'cancelled' || status === 'draft' || status === 'paid') {
+    return 0;
+  }
+  return roundMoney(Number(invoice.outstanding || 0));
+};
+
+export const sumCollectionOutstandingByCustomerId = (
+  invoices: InvoiceEntity[],
+): Map<string, number> => {
+  const totals = new Map<string, number>();
+  for (const invoice of invoices) {
+    if (!invoice.customerId || !isCollectionInvoice(invoice)) continue;
+    const next =
+      (totals.get(invoice.customerId) ?? 0) +
+      effectiveInvoiceOutstanding(invoice);
+    totals.set(invoice.customerId, roundMoney(next));
+  }
+  return totals;
+};
+
+export const sumCollectionOutstandingForCustomer = (
+  invoices: InvoiceEntity[],
+  customerId: string,
+): number =>
+  roundMoney(
+    invoices
+      .filter(
+        (invoice) =>
+          invoice.customerId === customerId && isCollectionInvoice(invoice),
+      )
+      .reduce((sum, invoice) => sum + effectiveInvoiceOutstanding(invoice), 0),
+  );

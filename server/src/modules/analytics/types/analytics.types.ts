@@ -141,6 +141,7 @@ export interface PendingCollectionRow {
 export interface UpcomingRenewalRow {
   id: string;
   customer: string;
+  deal: string;
   renewal: string;
   dueDate: string;
   amount: number;
@@ -149,7 +150,10 @@ export interface UpcomingRenewalRow {
 export interface RenewedCustomerRow {
   id: string;
   customer: string;
+  deal: string;
+  component: string;
   lastRenewedDate: string;
+  amount: number;
 }
 
 export interface RevenueMonthItem {
@@ -224,7 +228,7 @@ export interface DashboardSummary {
   upcomingRenewals: number;
   renewedCustomersThisQuarter: number;
   cashPosition: number;
-  insight: { message: string };
+  insight: { message: string; period: string };
   pendingCollections: PendingCollectionRow[];
   upcomingRenewalsList: UpcomingRenewalRow[];
   renewedCustomersList: RenewedCustomerRow[];

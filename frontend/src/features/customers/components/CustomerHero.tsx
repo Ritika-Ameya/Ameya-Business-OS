@@ -17,6 +17,8 @@ import {
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
 import { EditFollowUpDateDialog } from "@/features/customers/components/EditFollowUpDateDialog";
 import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
@@ -29,6 +31,7 @@ import {
 import {
   getStageById,
   getStagesForRecordType,
+  isInactiveStage,
   recordTypeLabels,
 } from "@/features/customers/utils/stage-utils";
 import { cn } from "@/shared/utils";
@@ -91,6 +94,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
   const { deals, components } = useDeals();
   const { stages } = useAppConfig();
   const { changeCustomerStage, updateRecordType, updateCustomerFollowUp } = useCustomers();
+  const { invoices } = useRevenue();
   const { refreshDashboard } = useDashboard();
   const [pendingStage, setPendingStage] = useState<SettingsStage | null>(null);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
@@ -108,8 +112,12 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
       : nextRenewal.componentName
     : undefined;
 
+  const outstanding = getCollectionInvoices(invoices)
+    .filter((invoice) => invoice.customerId === customer.id)
+    .reduce((sum, invoice) => sum + invoice.outstanding, 0);
   const currentStage = getStageById(stages, customer.currentStageId);
   const applicableStages = getStagesForRecordType(stages, customer.recordType);
+  const inactiveCustomer = Boolean(currentStage && isInactiveStage(currentStage));
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === customer.currentStageId) return;
@@ -178,9 +186,9 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                 <div className="min-w-0 space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="capitalize border-white/25 bg-white/15 text-white">
-                      {customer.status}
+                      {currentStage?.name ?? customer.status}
                     </Badge>
-                    {customer.outstanding > 0 && (
+                    {outstanding > 0 && (
                       <Badge className="border-amber-300/40 bg-amber-400/20 text-amber-50">
                         Outstanding
                       </Badge>
@@ -319,8 +327,8 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
             <div className="grid w-full shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:w-80 xl:grid-cols-2 2xl:w-96">
               <HeroMetric
                 label="Outstanding"
-                value={formatCurrency(customer.outstanding)}
-                highlight={customer.outstanding > 0}
+                value={formatCurrency(outstanding)}
+                highlight={outstanding > 0}
               />
               <HeroMetric
                 label="Business Value"
@@ -337,9 +345,17 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
               />
               <HeroMetric
                 label="Next Action"
-                value={formatDate(customer.nextActionDate)}
-                highlight={Boolean(customer.nextActionDate)}
-                onClick={() => setFollowUpDialogOpen(true)}
+                value={
+                  inactiveCustomer
+                    ? "—"
+                    : formatDate(customer.nextActionDate)
+                }
+                highlight={!inactiveCustomer && Boolean(customer.nextActionDate)}
+                onClick={
+                  inactiveCustomer
+                    ? undefined
+                    : () => setFollowUpDialogOpen(true)
+                }
                 actionLabel="Change"
               />
               <HeroMetric

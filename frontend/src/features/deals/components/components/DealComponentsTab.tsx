@@ -51,7 +51,7 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
     <div className="space-y-4">
       <PageHeader
         title="Deal Components"
-        subtitle="Manage all billable components of this deal."
+        subtitle="Billable items priced one time, per month, or per year."
         action={
           <Button
             className="rounded-xl"

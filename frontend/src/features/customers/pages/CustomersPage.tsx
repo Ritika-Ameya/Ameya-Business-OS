@@ -9,6 +9,10 @@ import { PageHeader } from "@/shared/components/PageHeader";
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
 import { useCustomers } from "@/features/customers/hooks/use-customers";
+import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { collectionOutstandingByCustomerId } from "@/features/revenue/utils/revenue-utils";
+import { enrichCustomersListMetrics } from "@/features/customers/utils/customer-workspace-utils";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { defaultFilters, filterCustomers } from "@/features/customers/utils/customer-utils";
 import type { Customer, CustomerFilters, CustomerFormData } from "@/features/customers/types/customer";
@@ -17,6 +21,8 @@ export function CustomersPage() {
   const location = useLocation();
   const { customers, loading, error, addCustomer, updateCustomer, removeCustomer } =
     useCustomers();
+  const { invoices } = useRevenue();
+  const { deals, components } = useDeals();
   const { stages } = useAppConfig();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
@@ -34,9 +40,18 @@ export function CustomersPage() {
   const deferredQuery = useDeferredValue(query);
   const isSearching = query !== deferredQuery;
 
+  const customersWithMetrics = useMemo(() => {
+    return enrichCustomersListMetrics(
+      customers,
+      deals,
+      components,
+      collectionOutstandingByCustomerId(invoices)
+    );
+  }, [customers, deals, components, invoices]);
+
   const filteredCustomers = useMemo(
-    () => filterCustomers(customers, deferredQuery, filters),
-    [customers, deferredQuery, filters]
+    () => filterCustomers(customersWithMetrics, deferredQuery, filters, stages),
+    [customersWithMetrics, deferredQuery, filters, stages]
   );
 
   const hasActiveFilters =
@@ -101,7 +116,7 @@ export function CustomersPage() {
         </p>
       )}
 
-      <CustomerStatsCards customers={customers} stages={stages} />
+      <CustomerStatsCards customers={customersWithMetrics} stages={stages} />
 
       <CustomerSearchFilters
         query={query}
@@ -115,6 +130,7 @@ export function CustomersPage() {
       ) : (
         <CustomerTable
           customers={filteredCustomers}
+          stages={stages}
           onEdit={handleEdit}
           onDelete={(customer) => {
             void handleDelete(customer);

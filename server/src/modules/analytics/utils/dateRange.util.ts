@@ -97,8 +97,8 @@ export const isDateInRange = (
 };
 
 export const isInCalendarMonth = (dateStr: string, year: number, month: number): boolean => {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
+  const date = parseLocalDateOnlyValue(dateStr);
+  if (!date) return false;
   return date.getMonth() === month && date.getFullYear() === year;
 };
 

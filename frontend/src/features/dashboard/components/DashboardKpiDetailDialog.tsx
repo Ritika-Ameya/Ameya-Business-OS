@@ -14,6 +14,7 @@ import {
 } from "@/shared/ui/dialog";
 import type { DashboardSummaryDto } from "@/features/dashboard/api/dashboard.dto";
 import type { DashboardKpi } from "@/features/dashboard/types/dashboard";
+import { calendarMonthPeriod, quarterPeriod } from "@/shared/utils/period-label";
 
 interface DashboardKpiDetailDialogProps {
   kpi: DashboardKpi | null;
@@ -52,10 +53,12 @@ function DetailList({
 function ListRow({
   title,
   subtitle,
+  detail,
   value,
 }: {
   title: string;
   subtitle?: string;
+  detail?: string;
   value?: string;
 }) {
   return (
@@ -65,6 +68,9 @@ function ListRow({
         {subtitle ? (
           <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
         ) : null}
+        {detail ? (
+          <p className="truncate text-xs text-muted-foreground">{detail}</p>
+        ) : null}
       </div>
       {value ? (
         <p className="shrink-0 text-right text-xs font-semibold tabular-nums sm:text-sm">
@@ -73,18 +79,6 @@ function ListRow({
       ) : null}
     </div>
   );
-}
-
-function currentMonthLabel(): string {
-  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(
-    new Date()
-  );
-}
-
-function currentQuarterLabel(): string {
-  const now = new Date();
-  const quarter = Math.floor(now.getMonth() / 3) + 1;
-  return `Q${quarter} ${now.getFullYear()}`;
 }
 
 function RevenueBody({ summary }: { summary: DashboardSummaryDto }) {
@@ -161,14 +155,15 @@ function RenewalsBody({ summary }: { summary: DashboardSummaryDto }) {
       </div>
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Next due dates in {currentQuarterLabel()}
+          Next due dates in {quarterPeriod()}
         </p>
         <DetailList empty="No renewals are due later this quarter.">
           {items.map((item) => (
             <ListRow
               key={item.id}
               title={item.customer}
-              subtitle={`${item.renewal} · ${formatDate(item.dueDate)}`}
+              subtitle={item.deal || "—"}
+              detail={`${item.renewal} · Due ${formatDate(item.dueDate)}`}
               value={formatInvoiceCurrency(item.amount)}
             />
           ))}
@@ -193,14 +188,16 @@ function RenewedBody({ summary }: { summary: DashboardSummaryDto }) {
       />
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Last renewed in {currentQuarterLabel()}
+          Last renewed in {quarterPeriod()}
         </p>
         <DetailList empty="No customers have a last-renewed date in this quarter.">
           {items.map((item) => (
             <ListRow
               key={item.id}
               title={item.customer}
-              value={formatDate(item.lastRenewedDate)}
+              subtitle={item.deal || "—"}
+              detail={`${item.component || "—"} · Renewed ${formatDate(item.lastRenewedDate)}`}
+              value={formatInvoiceCurrency(item.amount || 0)}
             />
           ))}
         </DetailList>
@@ -213,7 +210,7 @@ function getKpiCopy(id: string): { description: string; cta: string } {
   switch (id) {
     case "revenue":
       return {
-        description: `Collected amount on invoices issued in ${currentMonthLabel()}. This is not the billed total, and it does not include payments this month against older invoices.`,
+        description: `Collected amount on invoices issued in ${calendarMonthPeriod()}, excluding cancelled invoices. This is not the billed total, and it does not include payments this month against older invoices.`,
         cta: "Open invoices",
       };
     case "collections":
@@ -224,12 +221,12 @@ function getKpiCopy(id: string): { description: string; cta: string } {
       };
     case "renewals":
       return {
-        description: `Components whose next due date falls in ${currentQuarterLabel()} and is not already overdue. Overdue renewals are excluded from this count.`,
+        description: `Components whose next due date falls in ${quarterPeriod()} and is not already overdue. Overdue renewals are excluded from this count.`,
         cta: "Open renewals",
       };
     case "renewed":
       return {
-        description: `Unique customers with a last-renewed date in ${currentQuarterLabel()}. A customer with several components still counts once.`,
+        description: `Unique customers with a last-renewed date in ${quarterPeriod()}. A customer with several components still counts once. The list shows each renewed deal and component.`,
         cta: "Open renewals",
       };
     default:
@@ -253,6 +250,9 @@ export function DashboardKpiDetailDialog({
         <div className="mx-auto mt-2 hidden h-1 w-10 rounded-full bg-muted-foreground/30 max-sm:block" />
         <DialogHeader className="space-y-2 px-4 pt-3 pr-12 sm:px-5">
           <DialogTitle>{kpi?.label}</DialogTitle>
+          {kpi?.period ? (
+            <p className="text-xs font-medium text-muted-foreground">{kpi.period}</p>
+          ) : null}
           <p className="text-2xl font-bold tabular-nums tracking-tight">{kpi?.value}</p>
           <DialogDescription>{meta?.description}</DialogDescription>
         </DialogHeader>

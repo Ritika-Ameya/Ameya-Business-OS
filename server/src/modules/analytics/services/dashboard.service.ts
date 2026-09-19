@@ -10,6 +10,7 @@ import { expenseRepository } from '../../expenses';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import type { StageMasterEntity } from '../../masters/types/master.entities';
 import { stageMasterRepository } from '../../masters/services/master.services';
+import { isInactiveStage } from '../../customers/utils/stageEngine.util';
 import { invoiceRepository, paymentRepository } from '../../revenue';
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
 import type {
@@ -50,6 +51,8 @@ const buildCustomerFollowUp = (
   stagesById: Map<string, StageMasterEntity>,
 ): FollowUpItem | null => {
   if (!customer.nextActionDate) return null;
+  const stage = stagesById.get(customer.currentStageId);
+  if (stage && isInactiveStage(stage)) return null;
   const recordType =
     customer.recordType === 'opportunity' ? 'opportunity' : 'customer';
   return {
@@ -199,23 +202,33 @@ const buildFollowUps = (
 const sumReceivedInMonth = (invoices: InvoiceEntity[], year: number, month: number): number =>
   roundMoney(
     invoices
-      .filter((invoice) => isInCalendarMonth(invoice.issueDate, year, month))
+      .filter(
+        (invoice) =>
+          invoice.status !== 'cancelled' &&
+          isInCalendarMonth(invoice.issueDate, year, month),
+      )
       .reduce((sum, invoice) => sum + Number(invoice.received || 0), 0),
   );
+
+const monthPeriodLabel = (date = new Date()): string =>
+  new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(date);
 
 const buildInsightMessage = (
   invoices: InvoiceEntity[],
   renewals: RenewalRow[],
   revenueThisMonth: number,
   expensesThisMonth: number,
-): string => {
+): { message: string; period: string } => {
   const outstanding = getCollectionInvoices(invoices).reduce(
     (sum, invoice) => sum + Number(invoice.outstanding || 0),
     0,
   );
 
   if (outstanding > 0) {
-    return `You have ${formatCurrency(outstanding)} pending collections due.`;
+    return {
+      message: `You have ${formatCurrency(outstanding)} pending collections due.`,
+      period: 'All time',
+    };
   }
 
   const now = new Date();
@@ -228,16 +241,28 @@ const buildInsightMessage = (
   });
 
   if (renewalsThisWeek.length > 0) {
-    return `You have ${renewalsThisWeek.length} renewal${renewalsThisWeek.length === 1 ? '' : 's'} due in the next 7 days.`;
+    return {
+      message: `You have ${renewalsThisWeek.length} renewal${renewalsThisWeek.length === 1 ? '' : 's'} due in the next 7 days.`,
+      period: 'Next 7 days',
+    };
   }
 
   if (revenueThisMonth > expensesThisMonth) {
-    return 'Revenue is higher than expenses this month.';
+    return {
+      message: 'Revenue is higher than expenses this month.',
+      period: `This month · ${monthPeriodLabel(now)}`,
+    };
   }
   if (expensesThisMonth > revenueThisMonth) {
-    return 'Expenses are higher than revenue this month.';
+    return {
+      message: 'Expenses are higher than revenue this month.',
+      period: `This month · ${monthPeriodLabel(now)}`,
+    };
   }
-  return 'No renewals are due this week.';
+  return {
+    message: 'No renewals are due this week.',
+    period: 'This week',
+  };
 };
 
 const countByKey = <T>(items: T[], keyFn: (item: T) => string): Record<string, number> => {
@@ -308,7 +333,10 @@ export class DashboardService extends BaseService {
     ).length;
 
     // Single renewals pass — previously insight rebuilt the same sheet-backed list.
-    const renewals = getCompanyRenewals(deals, components, customers);
+    const liveDealIds = new Set(deals.map((deal) => deal.id));
+    const renewals = getCompanyRenewals(deals, components, customers).filter((renewal) =>
+      liveDealIds.has(renewal.dealId),
+    );
     const todayIso = toLocalDateOnly(now);
     const thisQuarter = getCalendarQuarterIndex(now);
     const upcomingRenewalRows = renewals.filter((renewal) => {
@@ -317,31 +345,32 @@ export class DashboardService extends BaseService {
       return isInCalendarQuarter(dueIso, thisYear, thisQuarter);
     });
     const upcomingRenewals = upcomingRenewalRows.length;
-    const renewedCustomersById = new Map<
-      string,
-      { id: string; customer: string; lastRenewedDate: string }
-    >();
-    for (const renewal of renewals) {
-      const lastRenewedDate = String(renewal.lastRenewedDate ?? '').trim().slice(0, 10);
-      if (!isInCalendarQuarter(lastRenewedDate, thisYear, thisQuarter)) continue;
-      const customerId = renewal.customerId || renewal.customerName;
-      if (!customerId) continue;
-      const existing = renewedCustomersById.get(customerId);
-      if (!existing || lastRenewedDate > existing.lastRenewedDate) {
-        renewedCustomersById.set(customerId, {
-          id: customerId,
-          customer: renewal.customerName || '—',
-          lastRenewedDate,
-        });
-      }
-    }
-    const renewedCustomersList = [...renewedCustomersById.values()].sort((a, b) =>
-      b.lastRenewedDate.localeCompare(a.lastRenewedDate),
+    const renewedThisQuarter = renewals.filter((renewal) =>
+      isInCalendarQuarter(String(renewal.lastRenewedDate ?? ''), thisYear, thisQuarter),
     );
-    const renewedCustomersThisQuarter = renewedCustomersList.length;
+    const renewedCustomersThisQuarter = new Set(
+      renewedThisQuarter
+        .map((renewal) => renewal.customerId || renewal.customerName)
+        .filter(Boolean),
+    ).size;
+    const renewedCustomersList = renewedThisQuarter
+      .map((renewal) => ({
+        id: renewal.id,
+        customer: renewal.customerName || '—',
+        deal: renewal.dealTitle || '—',
+        component: renewal.componentName || renewal.renewalLabel || '—',
+        lastRenewedDate: String(renewal.lastRenewedDate ?? '').trim().slice(0, 10),
+        amount: Number(renewal.amount || 0),
+      }))
+      .sort((a, b) => b.lastRenewedDate.localeCompare(a.lastRenewedDate))
+      .slice(0, 20);
 
     const revenueThisMonthItems = invoices
-      .filter((invoice) => isInCalendarMonth(invoice.issueDate, thisYear, thisMonth))
+      .filter(
+        (invoice) =>
+          invoice.status !== 'cancelled' &&
+          isInCalendarMonth(invoice.issueDate, thisYear, thisMonth),
+      )
       .sort((a, b) => Number(b.received || 0) - Number(a.received || 0))
       .slice(0, 20)
       .map((invoice) => ({
@@ -363,14 +392,12 @@ export class DashboardService extends BaseService {
     const cashPosition = roundMoney(totalReceived - paidExpenses);
 
     const expenseStats = getDashboardExpenseStats(expenses);
-    const insight = {
-      message: buildInsightMessage(
-        invoices,
-        renewals,
-        revenueThisMonth,
-        expenseStats.monthlyExpense,
-      ),
-    };
+    const insight = buildInsightMessage(
+      invoices,
+      renewals,
+      revenueThisMonth,
+      expenseStats.monthlyExpense,
+    );
 
     const openDeals = deals.filter((deal) => deal.status !== 'completed');
     const pipelineValue = roundMoney(
@@ -399,6 +426,7 @@ export class DashboardService extends BaseService {
       upcomingRenewalsList: upcomingRenewalRows.slice(0, 20).map((renewal) => ({
           id: renewal.id,
           customer: renewal.customerName,
+          deal: renewal.dealTitle || '—',
           renewal: renewal.componentName || renewal.renewalLabel,
           dueDate: renewal.renewalDate,
           amount: renewal.amount,

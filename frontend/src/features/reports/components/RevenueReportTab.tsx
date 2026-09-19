@@ -14,6 +14,7 @@ import {
 } from "@/features/reports/api/reports.mappers";
 import { useReportQuery } from "@/features/reports/hooks/use-report-query";
 import type { ReportFilters } from "@/features/reports/types/reports";
+import { getReportFilterPeriod } from "@/features/reports/utils/report-utils";
 
 interface RevenueReportTabProps {
   filters: ReportFilters;
@@ -42,6 +43,7 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
           },
     [data]
   );
+  const period = getReportFilterPeriod(filters);
 
   return (
     <div className="space-y-6">
@@ -58,24 +60,28 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
           value={stats.totalRevenue}
           icon={<TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />}
           accent="bg-blue-500/10"
+          period={period}
         />
         <StatCard
           label="Collected"
           value={stats.collected}
           icon={<CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />}
           accent="bg-emerald-500/10"
+          period={period}
         />
         <StatCard
           label="Outstanding"
           value={stats.outstanding}
           icon={<IndianRupee className="size-5 text-amber-600 dark:text-amber-400" />}
           accent="bg-amber-500/10"
+          period={period}
         />
         <StatCard
           label="Average Invoice Value"
           value={stats.averageInvoiceValue}
           icon={<AlertCircle className="size-5 text-violet-600 dark:text-violet-400" />}
           accent="bg-violet-500/10"
+          period={period}
         />
       </div>
 

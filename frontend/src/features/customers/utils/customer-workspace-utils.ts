@@ -13,6 +13,7 @@ import type {
 } from "@/features/deals/types/deal-component";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment, PaymentMode, PaymentStatus } from "@/features/revenue/types/payment";
+import type { Customer } from "@/features/customers/types/customer";
 
 export interface CustomerPaymentHistoryItem {
   paymentId: string;
@@ -112,6 +113,45 @@ export function getCustomerRenewals(
     .sort(
       (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     );
+}
+
+export function enrichCustomersListMetrics(
+  customers: Customer[],
+  deals: Deal[],
+  components: DealComponent[] = [],
+  outstandingByCustomer?: Map<string, number>
+): Customer[] {
+  const activeDealCount = new Map<string, number>();
+  const dealCustomerId = new Map<string, string>();
+
+  for (const deal of deals) {
+    dealCustomerId.set(deal.id, deal.customerId);
+    if (deal.status === "completed") continue;
+    activeDealCount.set(
+      deal.customerId,
+      (activeDealCount.get(deal.customerId) ?? 0) + 1
+    );
+  }
+
+  const nextRenewalByCustomer = new Map<string, string>();
+  for (const component of components) {
+    if (!hasComponentRenewal(component.renewalFrequency)) continue;
+    const dueDate = getComponentCurrentDueDate(component);
+    if (!dueDate) continue;
+    const customerId = dealCustomerId.get(component.dealId);
+    if (!customerId) continue;
+    const existing = nextRenewalByCustomer.get(customerId);
+    if (!existing || dueDate < existing) {
+      nextRenewalByCustomer.set(customerId, dueDate);
+    }
+  }
+
+  return customers.map((customer) => ({
+    ...customer,
+    outstanding: outstandingByCustomer?.get(customer.id) ?? customer.outstanding,
+    activeDeals: activeDealCount.get(customer.id) ?? 0,
+    nextRenewal: nextRenewalByCustomer.get(customer.id),
+  }));
 }
 
 export const customerRenewalStatusLabels: Record<CustomerRenewalStatus, string> = {

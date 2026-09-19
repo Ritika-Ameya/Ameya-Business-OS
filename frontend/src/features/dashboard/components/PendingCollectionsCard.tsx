@@ -1,6 +1,7 @@
 import { ArrowRight, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
+import { ALL_TIME } from "@/shared/utils/period-label";
 import { getPendingCollectionsTop5 } from "@/features/dashboard/utils/dashboard-utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
@@ -13,6 +14,7 @@ export function PendingCollectionsCard() {
       <div className="flex items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/5 px-5 py-4">
         <div>
           <h3 className="text-sm font-semibold tracking-tight">Pending Collections</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">{ALL_TIME}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">Outstanding amounts due soon</p>
         </div>
         <div className="flex size-10 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-300">

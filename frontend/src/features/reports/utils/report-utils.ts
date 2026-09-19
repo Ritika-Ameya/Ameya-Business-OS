@@ -2,6 +2,7 @@ import type { ReportFilters } from "@/features/reports/types/reports";
 import type { Customer } from "@/features/customers/types/customer";
 import type { Deal } from "@/features/deals/types/deal";
 import type { Invoice } from "@/features/revenue/types/invoice";
+import { datePresetPeriodLabel } from "@/shared/utils/period-label";
 
 export const reportQuickDatePresets = [
   "today",
@@ -64,4 +65,8 @@ export function getReportCustomers(
   return Array.from(map.entries())
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function getReportFilterPeriod(filters: ReportFilters): string {
+  return datePresetPeriodLabel(filters.datePreset, filters.dateFrom, filters.dateTo);
 }

@@ -1,20 +1,9 @@
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
+import { isCollectionInvoice } from '../../revenue/utils/invoiceCalculation.util';
 
-/** Port of frontend `getCollectionInvoices`. */
+/** Invoices that still count toward collections (same rule as customer outstanding). */
 export const getCollectionInvoices = (invoices: InvoiceEntity[]): InvoiceEntity[] =>
-  invoices.filter(
-    (invoice) =>
-      invoice.status !== 'cancelled' &&
-      invoice.status !== 'draft' &&
-      invoice.status !== 'paid' &&
-      (invoice.outstanding > 0 ||
-        invoice.status === 'partially_paid' ||
-        invoice.status === 'due' ||
-        // legacy sheet values before migration
-        (invoice.status as string) === 'partial' ||
-        (invoice.status as string) === 'overdue' ||
-        (invoice.status as string) === 'sent'),
-  );
+  invoices.filter((invoice) => isCollectionInvoice(invoice));
 
 /** Port of frontend `getDaysOverdue`. */
 export const getDaysOverdue = (dueDate: string): number => {

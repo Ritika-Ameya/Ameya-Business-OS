@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -30,7 +30,7 @@ import {
   resolveCustomerAddress,
   type InvoiceAddressType,
 } from "@/features/settings/utils/app-config-utils";
-import { formatComponentCurrency, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
+import { computeComponentLineTotal, computeComponentTaxable, formatComponentCurrency, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
 import { composeInvoiceNumber, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
 import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
@@ -107,12 +107,55 @@ export function GenerateInvoiceDialog({
     const selected = dealComponents.filter((component) =>
       selectedComponents.includes(component.id)
     );
-    const subtotal = selected.reduce((sum, component) => sum + component.amount, 0);
+    const subtotal = selected.reduce(
+      (sum, component) => sum + computeComponentTaxable(component),
+      0
+    );
     const taxRate = Number.parseFloat(gstPercent) || 0;
-    const tax = Math.round(((subtotal * taxRate) / 100) * 100) / 100;
+    const uniqueRates = [
+      ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
+    ];
+    const tax =
+      uniqueRates.length > 1
+        ? selected.reduce(
+            (sum, component) =>
+              sum +
+              (computeComponentLineTotal(component) - computeComponentTaxable(component)),
+            0
+          )
+        : Math.round(((subtotal * taxRate) / 100) * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
-    return { subtotal, tax, total, taxRate };
+    return {
+      subtotal,
+      tax: Math.round(tax * 100) / 100,
+      total,
+      taxRate: uniqueRates.length > 1 && subtotal > 0
+        ? Math.round((tax / subtotal) * 10000) / 100
+        : taxRate,
+    };
   }, [dealComponents, selectedComponents, gstPercent]);
+
+  const selectedGstKey = useMemo(() => {
+    const selected = dealComponents.filter((component) =>
+      selectedComponents.includes(component.id)
+    );
+    if (selected.length === 0) return `empty:${defaultTax}`;
+    const rates = [
+      ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
+    ];
+    return rates.length === 1 ? String(rates[0]) : "mixed";
+  }, [dealComponents, selectedComponents, defaultTax]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (selectedGstKey.startsWith("empty:")) {
+      setGstPercent(String(defaultTax));
+      return;
+    }
+    if (selectedGstKey !== "mixed") {
+      setGstPercent(selectedGstKey);
+    }
+  }, [open, selectedGstKey, defaultTax]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -346,8 +389,13 @@ export function GenerateInvoiceDialog({
                               </p>
                             ) : null}
                           </div>
-                          <span className="shrink-0 text-sm font-medium">
-                            {formatComponentCurrency(component.amount)}
+                          <span className="shrink-0 text-right text-sm font-medium">
+                            {formatComponentCurrency(computeComponentLineTotal(component))}
+                            {component.gstPercent > 0 ? (
+                              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                Incl. {component.gstPercent}% GST
+                              </span>
+                            ) : null}
                           </span>
                         </button>
                       );
@@ -465,7 +513,7 @@ export function GenerateInvoiceDialog({
                   </div>
                   <div className="border-t border-border/70 pt-3">
                     <div className="flex justify-between">
-                      <span className="font-medium">Grand Total</span>
+                      <span className="font-medium">Grand Total (incl. GST)</span>
                       <span className="text-lg font-semibold">
                         {formatInvoiceCurrency(summary.total)}
                       </span>

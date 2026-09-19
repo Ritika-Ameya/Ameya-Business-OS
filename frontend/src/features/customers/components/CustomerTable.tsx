@@ -23,6 +23,8 @@ import {
 import { formatCurrency, formatDate, formatPhoneForDisplay } from "@/shared/utils";
 import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
+import type { SettingsStage } from "@/features/settings/types/settings";
+import { getStageById } from "@/features/customers/utils/stage-utils";
 
 const statusStyles: Record<CustomerStatus, string> = {
   active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -32,6 +34,7 @@ const statusStyles: Record<CustomerStatus, string> = {
 
 interface CustomerTableProps {
   customers: Customer[];
+  stages?: SettingsStage[];
   onEdit: (customer: Customer) => void;
   onDelete?: (customer: Customer) => void;
   isFiltered?: boolean;
@@ -42,6 +45,7 @@ interface CustomerTableProps {
 
 export function CustomerTable({
   customers,
+  stages = [],
   onEdit,
   onDelete,
   isFiltered = false,
@@ -82,8 +86,8 @@ export function CustomerTable({
             <TableHead>Company</TableHead>
             <TableHead className="hidden md:table-cell">Phone</TableHead>
             <TableHead>Outstanding</TableHead>
-            <TableHead className="hidden lg:table-cell">Active Deals</TableHead>
-            <TableHead className="hidden lg:table-cell">Next Renewal</TableHead>
+            <TableHead>Active Deals</TableHead>
+            <TableHead className="hidden sm:table-cell">Next Renewal</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
           </TableRow>
@@ -120,19 +124,38 @@ export function CustomerTable({
                   {formatCurrency(customer.outstanding)}
                 </span>
               </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
+              <TableCell className="text-muted-foreground">
                 {customer.activeDeals}
               </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
                 {formatDate(customer.nextRenewal)}
               </TableCell>
               <TableCell>
-                <Badge
-                  variant="secondary"
-                  className={cn("capitalize", statusStyles[customer.status])}
-                >
-                  {customer.status}
-                </Badge>
+                {(() => {
+                  const stage = getStageById(stages, customer.currentStageId);
+                  if (stage) {
+                    return (
+                      <Badge
+                        variant="secondary"
+                        className="capitalize"
+                        style={{
+                          backgroundColor: `${stage.color}1a`,
+                          color: stage.color,
+                        }}
+                      >
+                        {stage.name}
+                      </Badge>
+                    );
+                  }
+                  return (
+                    <Badge
+                      variant="secondary"
+                      className={cn("capitalize", statusStyles[customer.status])}
+                    >
+                      {customer.status}
+                    </Badge>
+                  );
+                })()}
               </TableCell>
               <TableCell className="pr-4 text-right">
                 <DropdownMenu>

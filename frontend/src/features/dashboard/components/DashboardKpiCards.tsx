@@ -71,9 +71,16 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
       />
       <div className="relative space-y-3 sm:space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {kpi.label}
-          </p>
+          <div className="min-w-0 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {kpi.label}
+            </p>
+            {kpi.period ? (
+              <p className="text-[11px] font-medium leading-tight text-muted-foreground">
+                {kpi.period}
+              </p>
+            ) : null}
+          </div>
           <div
             className={cn(
               "flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10",

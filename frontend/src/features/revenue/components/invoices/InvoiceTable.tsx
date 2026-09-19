@@ -68,7 +68,7 @@ export function InvoiceTable({
             <TableHead className="pl-4">Invoice No</TableHead>
             {!hideCustomerColumn && <TableHead>Customer</TableHead>}
             <TableHead>Deal</TableHead>
-            <TableHead>Amount</TableHead>
+            <TableHead>Amount (incl. GST)</TableHead>
             <TableHead className="hidden lg:table-cell">Received</TableHead>
             <TableHead>Outstanding</TableHead>
             <TableHead className="hidden md:table-cell">Due Date</TableHead>

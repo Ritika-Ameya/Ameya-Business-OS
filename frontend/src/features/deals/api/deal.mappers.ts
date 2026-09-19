@@ -94,7 +94,7 @@ export function mapComponentFormToBody(data: ComponentFormData): DealComponentCr
     gstPercent: parseAmount(data.gstPercent),
     quantity: parseAmount(data.quantity) || 1,
     discount: parseAmount(data.discount),
-    billingType: billingTypeFromRenewalFrequency(renewalFrequency),
+    billingType: data.billingType || billingTypeFromRenewalFrequency(renewalFrequency),
     status: data.status,
     renewalFrequency,
     renewalStartDate,

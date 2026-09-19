@@ -16,6 +16,7 @@ import { invoiceRepository, paymentRepository } from './revenue.repository';
 import { customerRepository, documentRepository } from '../../customers';
 import type { DocumentEntity } from '../../customers';
 import { dealRepository, dealComponentRepository } from '../../deals';
+import { computeComponentLineTotal, computeComponentTaxable } from '../../deals/utils/componentAmount.util';
 import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
 import type {
   InvoiceCancelInput,
@@ -36,6 +37,7 @@ import {
   resolveCreateAmounts,
   resolveUpdateAmounts,
   roundMoney,
+  sumCollectionOutstandingForCustomer,
 } from '../utils/invoiceCalculation.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
 import { toISOString } from '../../../utils/date.util';
@@ -91,12 +93,18 @@ export class InvoiceService extends BaseService {
       throw new ValidationError('Deal does not belong to the selected customer');
     }
 
-    const { subtotal, taxPercent, tax, total } = resolveCreateAmounts({
-      subtotal: input.subtotal,
-      taxPercent: input.taxPercent,
-      tax: input.tax,
-      total: input.total,
-    });
+    const fromComponents = await this.amountsFromSelectedComponents(
+      input.componentIds,
+      input.taxPercent,
+    );
+    const { subtotal, taxPercent, tax, total } =
+      fromComponents ??
+      resolveCreateAmounts({
+        subtotal: input.subtotal,
+        taxPercent: input.taxPercent,
+        tax: input.tax,
+        total: input.total,
+      });
 
     const invoiceNumber = input.invoiceNumber.trim();
     if (!invoiceNumber) {
@@ -293,6 +301,7 @@ export class InvoiceService extends BaseService {
       id,
       {
         status: 'cancelled',
+        outstanding: 0,
         cancelledReason: reason,
         cancelledAt,
         cancelledBy: actor,
@@ -495,6 +504,55 @@ export class InvoiceService extends BaseService {
     await documentRepository.deleteOrThrow(fileId, 'Document');
   }
 
+  private async amountsFromSelectedComponents(
+    componentIds: string[] | undefined,
+    taxPercent?: number,
+  ): Promise<{
+    subtotal: number;
+    taxPercent: number;
+    tax: number;
+    total: number;
+  } | null> {
+    if (!componentIds?.length) return null;
+
+    const components = await dealComponentRepository.findAll();
+    const selected = components.filter((component) =>
+      componentIds.includes(component.id),
+    );
+    if (selected.length === 0) return null;
+
+    const subtotal = roundMoney(
+      selected.reduce((sum, component) => sum + computeComponentTaxable(component), 0),
+    );
+    const rates = [
+      ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
+    ];
+    const resolvedPercent =
+      taxPercent !== undefined && Number.isFinite(taxPercent)
+        ? taxPercent
+        : rates.length === 1
+          ? rates[0]
+          : undefined;
+
+    if (resolvedPercent !== undefined) {
+      return resolveCreateAmounts({
+        subtotal,
+        taxPercent: resolvedPercent,
+      });
+    }
+
+    const total = roundMoney(
+      selected.reduce((sum, component) => sum + computeComponentLineTotal(component), 0),
+    );
+    const tax = roundMoney(total - subtotal);
+    return {
+      subtotal,
+      taxPercent: subtotal > 0 ? roundMoney((tax / subtotal) * 100) : 0,
+      tax,
+      total,
+    };
+  }
+
   private async listPaymentsForInvoice(invoiceId: string): Promise<PaymentEntity[]> {
     const payments = await paymentRepository.findAll();
     return payments.filter((payment) => payment.invoiceId === invoiceId);
@@ -566,11 +624,7 @@ export class InvoiceService extends BaseService {
     if (!customer) return;
 
     const invoices = await invoiceRepository.findAll();
-    const outstanding = roundMoney(
-      invoices
-        .filter((invoice) => invoice.customerId === customerId)
-        .reduce((sum, invoice) => sum + Number(invoice.outstanding || 0), 0),
-    );
+    const outstanding = sumCollectionOutstandingForCustomer(invoices, customerId);
 
     if (Math.abs(Number(customer.outstandingAmount || 0) - outstanding) < 0.001) {
       return;

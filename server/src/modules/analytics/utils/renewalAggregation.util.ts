@@ -6,6 +6,7 @@ import {
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
 import { migrateDealRenewalsToComponents } from '../../deals/utils/renewalMigration.util';
+import { computeComponentLineTotal } from '../../deals/utils/componentAmount.util';
 import { dealComponentRepository } from '../../deals/services/deal.repository';
 import type { RenewalRow, RenewalStatus, RenewalType } from '../types/analytics.types';
 
@@ -36,14 +37,6 @@ const resolveCustomerName = (
   if (fromDeal) return fromDeal;
   const customer = customers.find((item) => item.id === deal?.customerId);
   return (customer?.contactPerson || customer?.companyName || '').trim();
-};
-
-const componentLineTotal = (component: DealComponentEntity): number => {
-  const quantity = component.quantity > 0 ? component.quantity : 1;
-  const discount = Number(component.discount || 0);
-  const gstPercent = Number(component.gstPercent || 0);
-  const taxable = Math.max(0, Number(component.amount || 0) * quantity - discount);
-  return Math.round((taxable + (taxable * gstPercent) / 100) * 100) / 100;
 };
 
 /** Build renewal rows from Deal Components (not Deals). */
@@ -89,7 +82,7 @@ export const getCompanyRenewals = (
         : dueIso,
       renewalDate: dueIso,
       lastRenewedDate,
-      amount: componentLineTotal(component),
+      amount: computeComponentLineTotal(component),
       status,
       renewalType: mapComponentRenewalType(component.renewalFrequency),
       renewalFrequency: component.renewalFrequency,

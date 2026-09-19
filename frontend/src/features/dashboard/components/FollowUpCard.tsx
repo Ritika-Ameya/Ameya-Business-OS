@@ -13,6 +13,7 @@ interface FollowUpCardProps {
   items: FollowUpItem[];
   emptyMessage: string;
   highlightClassName?: string;
+  period?: string;
 }
 
 function getOpenLink(item: FollowUpItem): string {
@@ -102,6 +103,7 @@ export function FollowUpCard({
   items,
   emptyMessage,
   highlightClassName,
+  period,
 }: FollowUpCardProps) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
@@ -137,6 +139,9 @@ export function FollowUpCard({
             </span>
           ) : null}
         </div>
+        {period ? (
+          <p className="mt-1 text-[11px] font-medium text-muted-foreground">{period}</p>
+        ) : null}
       </div>
 
       {items.length === 0 ? (

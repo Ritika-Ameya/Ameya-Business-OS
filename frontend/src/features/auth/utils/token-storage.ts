@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = "ameya_access_token";
 const REFRESH_TOKEN_KEY = "ameya_refresh_token";
 const PERSIST_KEY = "ameya_auth_persist";
+const LAST_EMAIL_KEY = "ameya_last_login_email";
 
 type TokenStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -49,5 +50,22 @@ export const tokenStorage = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  },
+
+  getLastLoginEmail: (): string => {
+    try {
+      return localStorage.getItem(LAST_EMAIL_KEY)?.trim() ?? "";
+    } catch {
+      return "";
+    }
+  },
+
+  setLastLoginEmail: (email: string): void => {
+    const value = email.trim();
+    if (!value) {
+      localStorage.removeItem(LAST_EMAIL_KEY);
+      return;
+    }
+    localStorage.setItem(LAST_EMAIL_KEY, value);
   },
 };

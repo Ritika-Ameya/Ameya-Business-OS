@@ -121,7 +121,7 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
 
           <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-lg lg:grid-cols-2">
             <HeroMetric
-              label="Invoice Amount"
+              label="Invoice Amount (incl. GST)"
               value={formatInvoiceCurrency(invoice.amount)}
             />
             <HeroMetric

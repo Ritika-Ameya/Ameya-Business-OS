@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Eye,
@@ -20,12 +20,17 @@ import {
   getCachedCompanyDisplayName,
   getCachedCompanyLogoUrl,
 } from "@/shared/utils/company-brand";
+import { tokenStorage } from "../utils/token-storage";
 import { useAuth } from "../hooks/useAuth";
 
+const prefersDesktopAutofocus =
+  typeof window !== "undefined" &&
+  window.matchMedia("(min-width: 1024px)").matches;
+
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => tokenStorage.getLastLoginEmail());
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -37,11 +42,16 @@ export function LoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
 
     try {
-      await login(email, password, rememberMe);
+      const trimmedEmail = email.trim();
+      await login(trimmedEmail, password, rememberMe);
+      if (rememberMe) {
+        tokenStorage.setLastLoginEmail(trimmedEmail);
+      }
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
@@ -51,19 +61,32 @@ export function LoginPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-[#07081a] text-white/70">
+        <Loader2 className="size-6 animate-spin" aria-hidden />
+        <span className="sr-only">Checking session</span>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="relative min-h-svh overflow-hidden bg-[#07081a] text-white">
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#4f46e5_0%,_transparent_45%),radial-gradient(ellipse_at_bottom_right,_#db2777_0%,_transparent_40%),radial-gradient(ellipse_at_bottom_left,_#0891b2_0%,_transparent_40%)] opacity-70" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
-        <div className="login-float login-pulse-glow absolute -left-24 top-16 size-72 rounded-full bg-fuchsia-500/30 blur-3xl" />
-        <div className="login-float-delayed login-pulse-glow absolute -right-16 top-1/3 size-80 rounded-full bg-cyan-400/25 blur-3xl" />
-        <div className="login-float absolute bottom-10 left-1/3 size-64 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="login-orbit absolute left-1/2 top-1/2 size-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5" />
-        <div className="login-orbit absolute left-1/2 top-1/2 size-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/10 [animation-direction:reverse] [animation-duration:18s]" />
+        <div className="absolute inset-0 hidden bg-[linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-size-[56px_56px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)] lg:block" />
+        <div className="login-float login-pulse-glow absolute -left-24 top-16 hidden size-72 rounded-full bg-fuchsia-500/30 blur-3xl lg:block" />
+        <div className="login-float-delayed login-pulse-glow absolute -right-16 top-1/3 hidden size-80 rounded-full bg-cyan-400/25 blur-3xl lg:block" />
+        <div className="login-float absolute bottom-10 left-1/3 hidden size-64 rounded-full bg-violet-500/25 blur-3xl lg:block" />
+        <div className="login-orbit absolute left-1/2 top-1/2 hidden size-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5 lg:block" />
+        <div className="login-orbit absolute left-1/2 top-1/2 hidden size-[360px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-white/10 [animation-direction:reverse] [animation-duration:18s] lg:block" />
       </div>
 
-      <div className="relative z-10 mx-auto grid min-h-svh max-w-6xl items-center gap-8 px-4 py-8 sm:gap-10 sm:py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
+      <div className="relative z-10 mx-auto grid min-h-svh max-w-6xl items-center gap-6 px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-10 sm:px-6 sm:py-10 lg:grid-cols-2 lg:gap-16 lg:px-8">
         <div className="hidden space-y-8 lg:block">
           <div className="login-rise inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold backdrop-blur-md">
             <Sparkles className="size-3.5 text-amber-300" />
@@ -120,18 +143,18 @@ export function LoginPage() {
         </div>
 
         <div className="login-rise-4 mx-auto w-full max-w-[440px]">
-          <div className="relative overflow-hidden rounded-[1.75rem] border border-white/15 bg-white/10 p-6 shadow-[0_20px_80px_rgba(79,70,229,0.35)] backdrop-blur-xl sm:p-8">
+          <div className="relative overflow-hidden rounded-[1.5rem] border border-white/15 bg-white/10 p-5 shadow-[0_20px_80px_rgba(79,70,229,0.35)] sm:rounded-[1.75rem] sm:p-8 sm:backdrop-blur-xl">
             <div
-              className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-fuchsia-400/30 blur-2xl"
+              className="pointer-events-none absolute -right-10 -top-10 hidden size-40 rounded-full bg-fuchsia-400/30 blur-2xl sm:block"
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute -bottom-12 -left-8 size-40 rounded-full bg-cyan-400/25 blur-2xl"
+              className="pointer-events-none absolute -bottom-12 -left-8 hidden size-40 rounded-full bg-cyan-400/25 blur-2xl sm:block"
               aria-hidden
             />
 
-            <div className="relative mb-8 space-y-5 text-center">
-              <div className="mx-auto flex size-36 items-center justify-center overflow-hidden rounded-[1.5rem] bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/55 sm:size-40 sm:rounded-3xl sm:p-2">
+            <div className="relative mb-5 space-y-3 text-center sm:mb-8 sm:space-y-5">
+              <div className="mx-auto flex size-20 items-center justify-center overflow-hidden rounded-2xl bg-white p-1 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/55 sm:size-32 sm:rounded-[1.5rem] sm:p-1.5 lg:size-36 lg:rounded-3xl lg:p-2">
                 {hasLogo ? (
                   <CompanyLogoImage
                     logoUrl={logoUrl}
@@ -139,22 +162,28 @@ export function LoginPage() {
                     className="size-full"
                   />
                 ) : (
-                  <span className="text-2xl font-bold tracking-tight text-slate-800">
+                  <span className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">
                     {companyName.slice(0, 2).toUpperCase()}
                   </span>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <h2 className="text-2xl font-bold tracking-tight text-white sm:text-[1.7rem]">
-                  Begin your journey
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-white/70 lg:hidden">
+                  {companyName}
+                </p>
+                <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl sm:text-[1.7rem]">
+                  Sign in
                 </h2>
                 <p className="text-sm text-white/65">
-                  Sign in to step into the innovation workspace
+                  Enter your email and password to continue
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="relative space-y-4">
+            <form
+              onSubmit={handleSubmit}
+              className="relative space-y-3.5 sm:space-y-4"
+            >
               {error && (
                 <div
                   role="alert"
@@ -175,14 +204,20 @@ export function LoginPage() {
                   />
                   <Input
                     id="email"
+                    name="email"
                     type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     placeholder="admin@ameya.app"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    autoComplete="email"
-                    autoFocus
-                    className="h-12 rounded-xl border-white/15 bg-white/10 pl-10 text-white placeholder:text-white/40 focus-visible:border-cyan-300/50 focus-visible:ring-cyan-400/30"
+                    autoComplete="username"
+                    autoFocus={prefersDesktopAutofocus}
+                    className="h-12 rounded-xl border-white/15 bg-white/10 pl-10 text-base text-white placeholder:text-white/40 focus-visible:border-cyan-300/50 focus-visible:ring-cyan-400/30 md:text-base"
                   />
                 </div>
               </div>
@@ -198,18 +233,20 @@ export function LoginPage() {
                   />
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="h-12 rounded-xl border-white/15 bg-white/10 pl-10 pr-11 text-white placeholder:text-white/40 focus-visible:border-fuchsia-300/50 focus-visible:ring-fuchsia-400/30"
+                    enterKeyHint="go"
+                    className="h-12 rounded-xl border-white/15 bg-white/10 pl-10 pr-12 text-base text-white placeholder:text-white/40 focus-visible:border-fuchsia-300/50 focus-visible:ring-fuchsia-400/30 md:text-base"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg bg-black/45 p-1.5 text-fuchsia-200 shadow-sm ring-1 ring-white/20 transition-colors hover:bg-black/60 hover:text-white"
+                    className="absolute right-1.5 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg bg-black/45 text-fuchsia-200 shadow-sm ring-1 ring-white/20 transition-colors hover:bg-black/60 hover:text-white"
                   >
                     {showPassword ? (
                       <EyeOff className="size-4" aria-hidden />
@@ -220,7 +257,7 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-white/65">
+              <label className="flex min-h-11 items-center gap-2 text-sm text-white/65">
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -233,24 +270,23 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-12 w-full gap-2 whitespace-normal rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition-all hover:brightness-110 hover:shadow-xl hover:shadow-fuchsia-500/25 sm:text-base"
+                className="h-12 w-full touch-manipulation gap-2 whitespace-normal rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition-all hover:brightness-110 hover:shadow-xl hover:shadow-fuchsia-500/25 sm:text-base"
               >
                 {loading ? (
                   <>
                     <Loader2 className="animate-spin" />
-                    Entering…
+                    Signing in…
                   </>
                 ) : (
                   <>
-                    <span className="sm:hidden">Enter workspace</span>
-                    <span className="hidden sm:inline">Enter {companyName}</span>
+                    Sign in
                     <ArrowRight className="size-4 shrink-0" />
                   </>
                 )}
               </Button>
             </form>
 
-            <p className="relative mt-6 text-center text-xs text-white/45">
+            <p className="relative mt-5 text-center text-xs text-white/45 sm:mt-6">
               Secure access · Built for innovators
             </p>
           </div>

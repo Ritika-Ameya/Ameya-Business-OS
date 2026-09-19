@@ -208,16 +208,24 @@ export function parseAmount(value: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+export function computeComponentTaxable(input: {
+  amount: number;
+  quantity?: number;
+  discount?: number;
+}): number {
+  const quantity = input.quantity && input.quantity > 0 ? input.quantity : 1;
+  const discount = Number(input.discount || 0);
+  return Math.max(0, Number(input.amount || 0) * quantity - discount);
+}
+
 export function computeComponentLineTotal(input: {
   amount: number;
   gstPercent?: number;
   quantity?: number;
   discount?: number;
 }): number {
-  const quantity = input.quantity && input.quantity > 0 ? input.quantity : 1;
-  const discount = Number(input.discount || 0);
+  const taxable = computeComponentTaxable(input);
   const gstPercent = Number(input.gstPercent || 0);
-  const taxable = Math.max(0, Number(input.amount || 0) * quantity - discount);
   return Math.round((taxable + (taxable * gstPercent) / 100) * 100) / 100;
 }
 
@@ -230,12 +238,114 @@ export function computeComponentFormTotal(data: ComponentFormData): number {
   });
 }
 
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export const PRIMARY_BILLING_PERIODS: BillingType[] = ["one-time", "monthly", "yearly"];
+
+export const componentBillingPeriodLabels: Record<BillingType, string> = {
+  "one-time": "One time",
+  monthly: "Per month",
+  quarterly: "Per quarter",
+  "half-yearly": "Per half year",
+  yearly: "Per year",
+};
+
+export function amountFieldLabel(billingType: BillingType): string {
+  if (billingType === "monthly") return "Amount per month";
+  if (billingType === "yearly") return "Amount per year";
+  if (billingType === "quarterly") return "Amount per quarter";
+  if (billingType === "half-yearly") return "Amount per half year";
+  return "One-time amount";
+}
+
+export function resolveComponentBillingPeriod(component: {
+  billingType?: BillingType | "";
+  renewalFrequency?: ComponentRenewalFrequency | "" | null;
+}): BillingType {
+  const frequency = component.renewalFrequency;
+  if (frequency === "monthly") return "monthly";
+  if (frequency === "yearly") return "yearly";
+  if (frequency === "quarterly") return "quarterly";
+  if (frequency === "half-yearly") return "half-yearly";
+  if (
+    component.billingType === "monthly" ||
+    component.billingType === "yearly" ||
+    component.billingType === "quarterly" ||
+    component.billingType === "half-yearly"
+  ) {
+    return component.billingType;
+  }
+  return "one-time";
+}
+
+export function applyBillingPeriod(
+  form: ComponentFormData,
+  billingType: BillingType
+): ComponentFormData {
+  const next: ComponentFormData = { ...form, billingType };
+  if (billingType === "one-time") {
+    next.renewalFrequency = "";
+    next.renewalStartDate = "";
+    next.renewalDate = "";
+    return next;
+  }
+  if (billingType === "monthly") next.renewalFrequency = "monthly";
+  else if (billingType === "yearly") next.renewalFrequency = "yearly";
+  else if (billingType === "quarterly") next.renewalFrequency = "quarterly";
+  else if (billingType === "half-yearly") next.renewalFrequency = "half-yearly";
+  if (next.renewalStartDate && next.renewalFrequency !== "custom") {
+    next.renewalDate = next.renewalStartDate;
+  }
+  return next;
+}
+
+export function computeComponentCostSummary(data: ComponentFormData): {
+  cycleTotal: number;
+  monthlyEquivalent: number;
+  yearlyEquivalent: number;
+} {
+  const cycleTotal = computeComponentFormTotal(data);
+  const billing = resolveComponentBillingPeriod(data);
+
+  if (billing === "monthly") {
+    return {
+      cycleTotal,
+      monthlyEquivalent: cycleTotal,
+      yearlyEquivalent: roundMoney(cycleTotal * 12),
+    };
+  }
+  if (billing === "yearly") {
+    return {
+      cycleTotal,
+      monthlyEquivalent: roundMoney(cycleTotal / 12),
+      yearlyEquivalent: cycleTotal,
+    };
+  }
+  if (billing === "quarterly") {
+    return {
+      cycleTotal,
+      monthlyEquivalent: roundMoney(cycleTotal / 3),
+      yearlyEquivalent: roundMoney(cycleTotal * 4),
+    };
+  }
+  if (billing === "half-yearly") {
+    return {
+      cycleTotal,
+      monthlyEquivalent: roundMoney(cycleTotal / 6),
+      yearlyEquivalent: roundMoney(cycleTotal * 2),
+    };
+  }
+  return { cycleTotal, monthlyEquivalent: 0, yearlyEquivalent: 0 };
+}
+
 export const componentRenewalFrequencyLabels: Record<ComponentRenewalFrequency, string> = {
-  none: "No Renewal",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  "half-yearly": "Half Yearly",
-  yearly: "Yearly",
+  none: "One time",
+  monthly: "Per month",
+  quarterly: "Per quarter",
+  "half-yearly": "Per half year",
+  yearly: "Per year",
   biennial: "Biennial",
   custom: "Custom Date",
 };

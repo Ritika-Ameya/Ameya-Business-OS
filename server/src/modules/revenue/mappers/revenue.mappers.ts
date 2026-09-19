@@ -49,14 +49,16 @@ const parseTimeline = (raw: string): InvoiceTimelineEntry[] => {
 };
 
 export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
-  (record, base: BaseEntity) => ({
+  (record, base: BaseEntity) => {
+    const status = normalizeInvoiceStatus(str(record, 'status', 'draft'));
+    return {
     ...base,
     invoiceNumber: str(record, 'invoiceNumber'),
     customerId: str(record, 'customerId'),
     customerName: str(record, 'customerName'),
     dealId: str(record, 'dealId'),
     dealTitle: str(record, 'dealTitle'),
-    status: normalizeInvoiceStatus(str(record, 'status', 'draft')),
+    status,
     issueDate: str(record, 'issueDate'),
     dueDate: str(record, 'dueDate'),
     subtotal: num(record, 'subtotal'),
@@ -65,7 +67,7 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     total: num(record, 'total'),
     currency: str(record, 'currency', 'INR'),
     received: num(record, 'received'),
-    outstanding: num(record, 'outstanding'),
+    outstanding: status === 'cancelled' ? 0 : num(record, 'outstanding'),
     componentIds: parseJsonArray(str(record, 'componentIds')),
     notes: str(record, 'notes'),
     timeline: parseTimeline(str(record, 'timeline')),
@@ -73,7 +75,8 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     cancelledAt: str(record, 'cancelledAt'),
     cancelledBy: str(record, 'cancelledBy'),
     nextActionDate: str(record, 'nextActionDate'),
-  }),
+    };
+  },
   (entity) => ({
     invoiceNumber: rowStr(entity, 'invoiceNumber'),
     customerId: rowStr(entity, 'customerId'),
