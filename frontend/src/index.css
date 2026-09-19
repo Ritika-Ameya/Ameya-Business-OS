@@ -369,3 +369,31 @@
     animation: login-orbit 28s linear infinite;
   }
 }
+
+@media (max-width: 1023px) {
+  .login-float,
+  .login-float-delayed,
+  .login-pulse-glow,
+  .login-orbit,
+  .login-rise,
+  .login-rise-2,
+  .login-rise-3,
+  .login-rise-4,
+  .login-shimmer-text {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-float,
+  .login-float-delayed,
+  .login-pulse-glow,
+  .login-orbit,
+  .login-rise,
+  .login-rise-2,
+  .login-rise-3,
+  .login-rise-4,
+  .login-shimmer-text {
+    animation: none !important;
+  }
+}

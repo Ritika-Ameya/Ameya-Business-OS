@@ -56,6 +56,8 @@ interface ExpensesContextValue {
   addCategory: (name: string) => Promise<ExpenseCategoryItem>;
   addVendor: (name: string) => VendorItem;
   addEmployee: (name: string) => EmployeeItem;
+  removeTransaction: (id: string) => Promise<void>;
+  removeMaster: (id: string) => Promise<void>;
 }
 
 const ExpensesContext = createContext<ExpensesContextValue | null>(null);
@@ -271,6 +273,16 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
     [transactions, masters]
   );
 
+  const removeTransaction = useCallback(async (id: string) => {
+    await expensesApi.remove(id);
+    setTransactions((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const removeMaster = useCallback(async (id: string) => {
+    await expenseMastersApi.remove(id);
+    setMasters((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
   const value = useMemo(
     () => ({
       transactions,
@@ -288,6 +300,8 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
       addCategory,
       addVendor,
       addEmployee,
+      removeTransaction,
+      removeMaster,
     }),
     [
       transactions,
@@ -305,6 +319,8 @@ function ExpensesProviderInner({ children }: { children: ReactNode }) {
       addCategory,
       addVendor,
       addEmployee,
+      removeTransaction,
+      removeMaster,
     ]
   );
 

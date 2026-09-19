@@ -96,7 +96,7 @@ export function RevenueInvoicesTable({
               <TableHead className="hidden md:table-cell">Deal</TableHead>
               <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
               <TableHead className="hidden md:table-cell">Due Date</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead>Amount (incl. GST)</TableHead>
               <TableHead className="hidden sm:table-cell">Outstanding</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="pr-4 text-right">Actions</TableHead>

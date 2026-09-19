@@ -117,15 +117,31 @@ export const companyRenewalStatusStyles: Record<string, string> = {
 };
 
 export function getCollectionInvoices(invoices: Invoice[]): Invoice[] {
-  return invoices.filter(
-    (invoice) =>
-      invoice.status !== "cancelled" &&
-      invoice.status !== "draft" &&
-      invoice.status !== "paid" &&
-      (invoice.outstanding > 0 ||
-        invoice.status === "partially_paid" ||
-        invoice.status === "due")
-  );
+  return invoices.filter((invoice) => {
+    const status = invoice.status;
+    if (status === "cancelled" || status === "draft" || status === "paid") {
+      return false;
+    }
+    return (
+      invoice.outstanding > 0 ||
+      status === "partially_paid" ||
+      status === "due"
+    );
+  });
+}
+
+export function collectionOutstandingByCustomerId(
+  invoices: Invoice[]
+): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const invoice of getCollectionInvoices(invoices)) {
+    if (!invoice.customerId) continue;
+    totals.set(
+      invoice.customerId,
+      (totals.get(invoice.customerId) ?? 0) + invoice.outstanding
+    );
+  }
+  return totals;
 }
 
 export function getDaysOverdue(dueDate: string): number {
@@ -224,8 +240,15 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     return Boolean(invoice.dueDate) && due < today && invoice.outstanding > 0;
   }).length;
 
+  const invoicesById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const collectedPayments = payments.filter((payment) => {
+    if (payment.status && payment.status !== "received") return false;
+    const invoice = invoicesById.get(payment.invoiceId);
+    return Boolean(invoice) && invoice?.status !== "cancelled";
+  });
+
   const now = new Date();
-  const collectedThisMonth = payments
+  const collectedThisMonth = collectedPayments
     .filter((payment) => {
       const date = new Date(payment.paymentDate);
       return (
@@ -235,7 +258,10 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     })
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const totalCollected = collectedPayments.reduce(
+    (sum, payment) => sum + payment.amount,
+    0
+  );
 
   return {
     outstandingAmount: formatInvoiceCurrency(outstandingAmount),

@@ -20,9 +20,13 @@ import {
 import { Textarea } from "@/shared/ui/textarea";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
+  PRIMARY_BILLING_PERIODS,
+  amountFieldLabel,
+  applyBillingPeriod,
+  componentBillingPeriodLabels,
   componentRenewalFrequencyLabels,
   componentStatusLabels,
-  computeComponentFormTotal,
+  computeComponentCostSummary,
   formatComponentCurrency,
   formatComponentDate,
   getComponentCurrentDueDate,
@@ -30,10 +34,13 @@ import {
   parseAmount,
   previewRenewalCyclePayment,
   previewRenewalCycleRollback,
+  resolveComponentBillingPeriod,
   validateComponentForm,
 } from "@/features/deals/utils/deal-component-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
+import { cn } from "@/shared/utils";
 import type {
+  BillingType,
   ComponentFormData,
   ComponentRenewalFrequency,
   ComponentStatus,
@@ -77,8 +84,15 @@ export function AddComponentDialog({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const isEditing = Boolean(initialComponent);
 
+  const billingPeriod = resolveComponentBillingPeriod(form);
   const renewalEnabled = hasComponentRenewal(form.renewalFrequency);
   const isCustomRenewal = form.renewalFrequency === "custom";
+  const isLegacyFrequency =
+    form.renewalFrequency === "quarterly" ||
+    form.renewalFrequency === "half-yearly" ||
+    form.renewalFrequency === "biennial" ||
+    form.renewalFrequency === "custom";
+  const costSummary = computeComponentCostSummary(form);
   const unpaidCycleDate = form.renewalDate || getComponentCurrentDueDate({
     renewalStartDate: form.renewalStartDate,
     renewalDate: form.renewalDate,
@@ -99,7 +113,7 @@ export function AddComponentDialog({
     gstPercent: component.gstPercent ? String(component.gstPercent) : "",
     quantity: String(component.quantity > 0 ? component.quantity : 1),
     discount: component.discount ? String(component.discount) : "",
-    billingType: component.billingType,
+    billingType: resolveComponentBillingPeriod(component),
     renewalFrequency:
       component.renewalFrequency === "none" ? "" : component.renewalFrequency,
     renewalStartDate: component.renewalStartDate || "",
@@ -220,12 +234,28 @@ export function AddComponentDialog({
     setForm((prev) => {
       const next = { ...prev, [field]: value };
 
+      if (field === "billingType") {
+        return applyBillingPeriod(prev, value as BillingType);
+      }
+
       if (field === "renewalFrequency") {
         const frequency = value as ComponentRenewalFrequency | "";
         if (!frequency || frequency === "none") {
+          next.billingType = "one-time";
           next.renewalStartDate = "";
           next.renewalDate = "";
-        } else if (frequency !== "custom" && next.renewalStartDate && !initialComponent?.lastRenewedDate) {
+        } else if (frequency === "monthly" || frequency === "yearly") {
+          next.billingType = frequency;
+        } else if (frequency === "quarterly" || frequency === "half-yearly") {
+          next.billingType = frequency;
+        }
+        if (
+          frequency &&
+          frequency !== "none" &&
+          frequency !== "custom" &&
+          next.renewalStartDate &&
+          !initialComponent?.lastRenewedDate
+        ) {
           next.renewalDate = next.renewalStartDate;
         }
       }
@@ -259,7 +289,7 @@ export function AddComponentDialog({
           <DialogDescription>
             {isEditing
               ? "Update this billable component and its renewal schedule."
-              : "Add a billable component with its own renewal schedule."}
+              : "Add a billable component as one time, per month, or per year."}
           </DialogDescription>
         </DialogHeader>
 
@@ -292,9 +322,29 @@ export function AddComponentDialog({
               />
             </div>
 
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Billing</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PRIMARY_BILLING_PERIODS.map((period) => (
+                  <Button
+                    key={period}
+                    type="button"
+                    variant={billingPeriod === period ? "default" : "outline"}
+                    className={cn("rounded-xl", billingPeriod === period && "shadow-sm")}
+                    onClick={() => updateField("billingType", period)}
+                  >
+                    {componentBillingPeriodLabels[period]}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter the rate for this period. Cost is calculated automatically.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="amount">
-                Amount <span className="text-destructive">*</span>
+                {amountFieldLabel(billingPeriod)} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="amount"
@@ -367,14 +417,47 @@ export function AddComponentDialog({
             </div>
 
             {parseAmount(form.amount) > 0 && (
-              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/40 px-3 py-2 sm:col-span-2">
-                <p className="text-xs text-muted-foreground">Amount (incl. GST)</p>
-                <p className="text-sm font-medium">
-                  {formatComponentCurrency(computeComponentFormTotal(form))}
-                </p>
+              <div className="space-y-2 rounded-xl border border-border/70 bg-muted/40 px-3 py-3 sm:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground">Calculated cost</p>
+                {billingPeriod === "one-time" ? (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm">One-time cost (incl. GST)</p>
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatComponentCurrency(costSummary.cycleTotal)}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm">
+                        {componentBillingPeriodLabels[billingPeriod]} (incl. GST)
+                      </p>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {formatComponentCurrency(costSummary.cycleTotal)}
+                      </p>
+                    </div>
+                    {billingPeriod !== "yearly" ? (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">Annual cost</p>
+                        <p className="text-sm font-medium tabular-nums">
+                          {formatComponentCurrency(costSummary.yearlyEquivalent)}
+                        </p>
+                      </div>
+                    ) : null}
+                    {billingPeriod !== "monthly" ? (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">Monthly equivalent</p>
+                        <p className="text-sm font-medium tabular-nums">
+                          {formatComponentCurrency(costSummary.monthlyEquivalent)}
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
             )}
 
+            {isLegacyFrequency ? (
             <div className="space-y-2">
               <Label htmlFor="renewal-frequency">Renewal Frequency</Label>
               <Select
@@ -400,13 +483,13 @@ export function AddComponentDialog({
                 </SelectContent>
               </Select>
             </div>
+            ) : null}
 
+            {renewalEnabled ? (
             <div className="space-y-2">
               <Label htmlFor="renewal-start-date">
-                First renewal date
-                {renewalEnabled ? (
-                  <span className="text-destructive"> *</span>
-                ) : null}
+                First billing date
+                <span className="text-destructive"> *</span>
               </Label>
               <Input
                 id="renewal-start-date"
@@ -421,6 +504,7 @@ export function AddComponentDialog({
                 <p className="text-xs text-destructive">{errors.renewalStartDate}</p>
               )}
             </div>
+            ) : null}
 
             {isCustomRenewal ? (
               <div className="space-y-2">

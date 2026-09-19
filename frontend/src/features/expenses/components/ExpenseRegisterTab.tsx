@@ -19,6 +19,7 @@ import {
   formatExpenseCurrency,
   parseAmount,
 } from "@/features/expenses/utils/expense-utils";
+import { ALL_TIME, datePresetPeriodLabel } from "@/shared/utils/period-label";
 import type { ExpenseRegisterFilters, ExpenseTransaction, ExpenseTransactionFormData } from "@/features/expenses/types/expense";
 
 interface ExpenseRegisterTabProps {
@@ -50,6 +51,7 @@ export function ExpenseRegisterTab({
     addVendor,
     addEmployee,
     addMaster,
+    removeTransaction,
     refreshExpenses,
   } = useExpenses();
 
@@ -116,6 +118,12 @@ export function ExpenseRegisterTab({
     [filteredTransactions, masters]
   );
 
+  const registerPeriod = datePresetPeriodLabel(
+    deferredFilters.datePreset,
+    deferredFilters.dateFrom,
+    deferredFilters.dateTo
+  );
+
   const handleAdd = () => {
     setEditingTransaction(undefined);
     setDialogOpen(true);
@@ -125,6 +133,17 @@ export function ExpenseRegisterTab({
   const handleEdit = (transaction: ExpenseTransaction) => {
     setEditingTransaction(transaction);
     setDialogOpen(true);
+  };
+
+  const handleDelete = async (transaction: ExpenseTransaction) => {
+    const confirmed = window.confirm(`Delete expense "${transaction.name}"?`);
+    if (!confirmed) return;
+    setSaveError(null);
+    try {
+      await removeTransaction(transaction.id);
+    } catch (err) {
+      setSaveError(getErrorMessage(err));
+    }
   };
 
   const handleSave = (data: ExpenseTransactionFormData, attachment?: File | null) => {
@@ -221,24 +240,28 @@ export function ExpenseRegisterTab({
           value={formatExpenseCurrency(stats.totalExpense)}
           icon={<ReceiptText className="size-5 text-blue-600 dark:text-blue-400" />}
           accent="bg-blue-500/10"
+          period={registerPeriod}
         />
         <StatCard
           label="Paid"
           value={formatExpenseCurrency(stats.paid)}
           icon={<IndianRupee className="size-5 text-emerald-600 dark:text-emerald-400" />}
           accent="bg-emerald-500/10"
+          period={registerPeriod}
         />
         <StatCard
           label="Pending"
           value={formatExpenseCurrency(stats.pending)}
           icon={<CalendarClock className="size-5 text-amber-600 dark:text-amber-400" />}
           accent="bg-amber-500/10"
+          period={registerPeriod}
         />
         <StatCard
           label="Upcoming Recurring"
           value={formatExpenseCurrency(stats.upcomingRecurring)}
           icon={<RefreshCw className="size-5 text-violet-600 dark:text-violet-400" />}
           accent="bg-violet-500/10"
+          period={ALL_TIME}
         />
       </div>
 
@@ -256,6 +279,9 @@ export function ExpenseRegisterTab({
         transactions={filteredTransactions}
         categories={categories}
         onEdit={handleEdit}
+        onDelete={(transaction) => {
+          void handleDelete(transaction);
+        }}
         isFiltered={hasActiveFilters}
         isEmpty={transactions.length === 0}
         onAdd={handleAdd}

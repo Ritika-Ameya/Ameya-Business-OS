@@ -3,6 +3,13 @@ import { FollowUpCard } from "@/features/dashboard/components/FollowUpCard";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import type { FollowUpItem } from "@/features/dashboard/types/dashboard";
 import { cn } from "@/shared/utils";
+import {
+  ALL_TIME,
+  AS_OF_TODAY,
+  calendarDayPeriod,
+  thisMonthPeriod,
+  tomorrowDayPeriod,
+} from "@/shared/utils/period-label";
 
 type FollowUpRange =
   | "all"
@@ -114,6 +121,21 @@ export function FollowUpWidgets() {
     [allItems, range]
   );
 
+  const rangePeriod =
+    range === "overdue"
+      ? AS_OF_TODAY
+      : range === "today"
+        ? `Today · ${calendarDayPeriod()}`
+        : range === "tomorrow"
+          ? `Tomorrow · ${tomorrowDayPeriod()}`
+          : range === "this_week"
+            ? "This week"
+            : range === "this_month"
+              ? thisMonthPeriod()
+              : range === "upcoming"
+                ? "After tomorrow"
+                : ALL_TIME;
+
   const emptyMessage =
     range === "upcoming"
       ? "No upcoming follow-ups beyond tomorrow"
@@ -129,17 +151,20 @@ export function FollowUpWidgets() {
           title="Today's Follow Ups"
           items={todaysItems}
           emptyMessage="No follow ups scheduled for today"
+          period={`Today · ${calendarDayPeriod()}`}
         />
         <FollowUpCard
           title="Tomorrow's Follow Ups"
           items={tomorrowsItems}
           emptyMessage="No follow ups scheduled for tomorrow"
+          period={`Tomorrow · ${tomorrowDayPeriod()}`}
         />
         <FollowUpCard
           title="Overdue Follow Ups"
           items={overdueItems}
           emptyMessage="No overdue follow ups"
           highlightClassName="text-red-600 dark:text-red-400"
+          period={AS_OF_TODAY}
         />
       </div>
 
@@ -148,7 +173,7 @@ export function FollowUpWidgets() {
           <div>
             <h3 className="text-sm font-semibold tracking-tight">Upcoming Follow Ups</h3>
             <p className="text-xs text-muted-foreground">
-              Detailed list with filters across all date ranges
+              {rangePeriod} · detailed list with filters
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -196,6 +221,7 @@ export function FollowUpWidgets() {
           }
           items={filteredItems}
           emptyMessage={emptyMessage}
+          period={rangePeriod}
           highlightClassName={
             range === "overdue" ? "text-red-600 dark:text-red-400" : undefined
           }

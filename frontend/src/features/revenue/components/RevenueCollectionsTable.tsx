@@ -41,7 +41,7 @@ export function RevenueCollectionsTable({ rows }: RevenueCollectionsTableProps) 
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="pl-4">Customer</TableHead>
             <TableHead>Invoice No</TableHead>
-            <TableHead>Invoice Amount</TableHead>
+            <TableHead>Invoice Amount (incl. GST)</TableHead>
             <TableHead>Collected Amount</TableHead>
             <TableHead>Balance Amount</TableHead>
             <TableHead className="hidden lg:table-cell">Payment Mode</TableHead>

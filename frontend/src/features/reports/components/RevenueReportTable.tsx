@@ -44,7 +44,7 @@ export function RevenueReportTable({ invoices }: RevenueReportTableProps) {
             <TableHead>Customer</TableHead>
             <TableHead className="hidden md:table-cell">Deal</TableHead>
             <TableHead className="hidden lg:table-cell">Invoice Date</TableHead>
-            <TableHead>Amount</TableHead>
+            <TableHead>Amount (incl. GST)</TableHead>
             <TableHead className="hidden sm:table-cell">Collected</TableHead>
             <TableHead>Outstanding</TableHead>
             <TableHead>Status</TableHead>

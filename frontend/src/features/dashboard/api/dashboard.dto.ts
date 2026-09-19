@@ -25,9 +25,27 @@ export interface PendingCollectionDto {
 export interface UpcomingRenewalDto {
   id: string;
   customer: string;
+  deal: string;
   renewal: string;
   dueDate: string;
   amount: number;
+}
+
+export interface RenewedCustomerDto {
+  id: string;
+  customer: string;
+  deal: string;
+  component: string;
+  lastRenewedDate: string;
+  amount: number;
+}
+
+export interface RevenueMonthItemDto {
+  id: string;
+  customer: string;
+  invoiceNumber: string;
+  received: number;
+  issueDate: string;
 }
 
 export interface UpcomingRevenueItemDto {
@@ -74,10 +92,13 @@ export interface DashboardSummaryDto {
   outstandingCollections: number;
   pendingInvoiceCount: number;
   upcomingRenewals: number;
+  renewedCustomersThisQuarter: number;
   cashPosition: number;
-  insight: { message: string };
+  insight: { message: string; period?: string };
   pendingCollections: PendingCollectionDto[];
   upcomingRenewalsList: UpcomingRenewalDto[];
+  renewedCustomersList: RenewedCustomerDto[];
+  revenueThisMonthItems: RevenueMonthItemDto[];
   upcomingRevenue: {
     items: UpcomingRevenueItemDto[];
     totalExpectedRevenue: number;

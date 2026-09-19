@@ -23,10 +23,12 @@ export interface DashboardKpi {
   trendDirection: "up" | "down" | "neutral";
   href?: string;
   tab?: string;
+  period?: string;
 }
 
 export interface FounderInsight {
   message: string;
+  period?: string;
 }
 
 export type FollowUpEntityType = "customer" | "deal" | "invoice";

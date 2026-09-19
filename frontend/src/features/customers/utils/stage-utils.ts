@@ -1,4 +1,4 @@
-import type { RecordType } from "@/features/customers/types/customer";
+import type { Customer, CustomerStatus, RecordType } from "@/features/customers/types/customer";
 import type {
   SettingsStage,
   StageApplicableFor,
@@ -72,6 +72,22 @@ export function getDefaultStageForRecordType(
   recordType: RecordType
 ): SettingsStage | undefined {
   return getStagesForRecordType(stages, recordType)[0];
+}
+
+export function isInactiveStage(stage: { name: string }): boolean {
+  return stage.name.trim().toLowerCase() === "inactive";
+}
+
+export function getEffectiveCustomerStatus(
+  customer: Customer,
+  stages: SettingsStage[] = []
+): CustomerStatus {
+  const stage = getStageById(stages, customer.currentStageId);
+  if (stage && isInactiveStage(stage)) return "inactive";
+  if (customer.recordType === "customer") {
+    return customer.status === "inactive" ? "inactive" : "active";
+  }
+  return customer.status;
 }
 
 export function stageRepresentsCustomer(stage: SettingsStage): boolean {

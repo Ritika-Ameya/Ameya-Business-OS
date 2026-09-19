@@ -1,5 +1,10 @@
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
 import { formatDate } from "@/shared/utils/format-date";
+import {
+  ALL_TIME,
+  thisMonthPeriod,
+  thisQuarterPeriod,
+} from "@/shared/utils/period-label";
 import type { DashboardSummaryDto } from "@/features/dashboard/api/dashboard.dto";
 import type {
   DashboardActivity,
@@ -73,6 +78,7 @@ export function getDashboardKpis(
         trend: "Loading…",
         trendDirection: "neutral",
         href: "/revenue?tab=invoices",
+        period: thisMonthPeriod(),
       },
       {
         id: "collections",
@@ -81,6 +87,7 @@ export function getDashboardKpis(
         trend: "Loading…",
         trendDirection: "neutral",
         href: "/revenue?tab=collections",
+        period: ALL_TIME,
       },
       {
         id: "renewals",
@@ -89,13 +96,16 @@ export function getDashboardKpis(
         trend: "Loading…",
         trendDirection: "neutral",
         href: "/revenue?tab=renewals",
+        period: thisQuarterPeriod(),
       },
       {
-        id: "cash",
-        label: "Cash Position",
+        id: "renewed",
+        label: "Customers Renewed",
         value: "—",
         trend: "Loading…",
         trendDirection: "neutral",
+        href: "/revenue?tab=renewals",
+        period: thisQuarterPeriod(),
       },
     ];
   }
@@ -114,6 +124,7 @@ export function getDashboardKpis(
       trend: revenueTrend,
       trendDirection: trendPct > 0 ? "up" : trendPct < 0 ? "down" : "neutral",
       href: "/revenue?tab=invoices",
+      period: thisMonthPeriod(),
     },
     {
       id: "collections",
@@ -125,6 +136,7 @@ export function getDashboardKpis(
           : `${summary.pendingInvoiceCount} invoice${summary.pendingInvoiceCount === 1 ? "" : "s"} pending`,
       trendDirection: "neutral",
       href: "/revenue?tab=collections",
+      period: ALL_TIME,
     },
     {
       id: "renewals",
@@ -134,20 +146,26 @@ export function getDashboardKpis(
         summary.upcomingRenewals > 0 ? "Due this quarter" : "None scheduled",
       trendDirection: summary.upcomingRenewals > 0 ? "down" : "neutral",
       href: "/revenue?tab=renewals",
+      period: thisQuarterPeriod(),
     },
     {
-      id: "cash",
-      label: "Cash Position",
-      value: formatInvoiceCurrency(summary.cashPosition),
-      trend: summary.cashPosition >= 0 ? "Healthy runway" : "Monitor closely",
-      trendDirection: summary.cashPosition >= 0 ? "up" : "down",
+      id: "renewed",
+      label: "Customers Renewed",
+      value: String(summary.renewedCustomersThisQuarter),
+      trend:
+        summary.renewedCustomersThisQuarter > 0
+          ? "This quarter"
+          : "None this quarter",
+      trendDirection: summary.renewedCustomersThisQuarter > 0 ? "up" : "neutral",
+      href: "/revenue?tab=renewals",
+      period: thisQuarterPeriod(),
     },
   ];
 }
 
 export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
   if (!summary) return [];
-  return summary.pendingCollections.map((item) => ({
+  return summary.pendingCollections.slice(0, 5).map((item) => ({
     id: item.id,
     customer: item.customer,
     outstanding: formatInvoiceCurrency(item.outstanding),
@@ -157,11 +175,25 @@ export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
 
 export function getUpcomingRenewalsTop5(summary: DashboardSummaryDto | null) {
   if (!summary) return [];
-  return summary.upcomingRenewalsList.map((item) => ({
+  return summary.upcomingRenewalsList.slice(0, 5).map((item) => ({
     id: item.id,
     customer: item.customer,
+    deal: item.deal || "—",
     renewal: item.renewal,
     dueDate: formatDate(item.dueDate),
+    amount: formatInvoiceCurrency(item.amount),
+  }));
+}
+
+export function getRenewedCustomersTop5(summary: DashboardSummaryDto | null) {
+  if (!summary) return [];
+  return (summary.renewedCustomersList ?? []).slice(0, 5).map((item) => ({
+    id: item.id,
+    customer: item.customer,
+    deal: item.deal || "—",
+    component: item.component || "—",
+    lastRenewedDate: formatDate(item.lastRenewedDate),
+    amount: formatInvoiceCurrency(item.amount || 0),
   }));
 }
 

@@ -27,6 +27,11 @@ import {
   invoiceRepository,
   paymentRepository,
 } from '../../revenue/services/revenue.repository';
+import { sumCollectionOutstandingByCustomerId } from '../../revenue/utils/invoiceCalculation.util';
+import {
+  getComponentCurrentDueDate,
+  hasRenewalFrequency,
+} from '../../deals/utils/renewalHelpers.util';
 import type { CustomerEntity, DocumentEntity } from '../types/customer.entities';
 import type {
   CustomerCreateInput,
@@ -46,8 +51,10 @@ import {
   assertStageChangeRequirements,
   computeReminderDate,
   getDefaultStageForRecordType,
+  isInactiveStage,
   resolveRecordTypeFromStage,
   resolveStatusAfterRecordTypeChange,
+  resolveStatusFromStage,
 } from '../utils/stageEngine.util';
 import { createTimelineEntry, prependTimelineEntry } from '../utils/timeline.util';
 
@@ -74,6 +81,7 @@ export class CustomerService extends BaseService {
   ): Promise<PaginatedResult<CustomerEntity>> {
     this.logDebug('Listing customers');
     let items = await customerRepository.findAll(options);
+    items = await this.withLiveListMetrics(items);
 
     items = applyCustomerSearch(
       items,
@@ -104,7 +112,54 @@ export class CustomerService extends BaseService {
     if (!entity) {
       throw new NotFoundError('Customer not found');
     }
-    return entity;
+    const [enriched] = await this.withLiveListMetrics([entity]);
+    return enriched ?? entity;
+  }
+
+  /** List metrics come from invoices/deals/components, not denormalized sheet fields. */
+  private async withLiveListMetrics(
+    items: CustomerEntity[],
+  ): Promise<CustomerEntity[]> {
+    if (items.length === 0) return items;
+
+    const [invoices, deals, components] = await Promise.all([
+      invoiceRepository.findAll(),
+      dealRepository.findAll(),
+      dealComponentRepository.findAll(),
+    ]);
+
+    const outstandingByCustomer = sumCollectionOutstandingByCustomerId(invoices);
+    const activeDealCount = new Map<string, number>();
+    const dealCustomerId = new Map<string, string>();
+
+    for (const deal of deals) {
+      dealCustomerId.set(deal.id, deal.customerId);
+      if (deal.status === 'completed') continue;
+      activeDealCount.set(
+        deal.customerId,
+        (activeDealCount.get(deal.customerId) ?? 0) + 1,
+      );
+    }
+
+    const nextRenewalByCustomer = new Map<string, string>();
+    for (const component of components) {
+      if (!hasRenewalFrequency(component.renewalFrequency)) continue;
+      const dueDate = getComponentCurrentDueDate(component);
+      if (!dueDate) continue;
+      const customerId = dealCustomerId.get(component.dealId);
+      if (!customerId) continue;
+      const existing = nextRenewalByCustomer.get(customerId);
+      if (!existing || dueDate < existing) {
+        nextRenewalByCustomer.set(customerId, dueDate);
+      }
+    }
+
+    return items.map((item) => ({
+      ...item,
+      outstandingAmount: outstandingByCustomer.get(item.id) ?? 0,
+      activeDeals: activeDealCount.get(item.id) ?? 0,
+      renewalDate: nextRenewalByCustomer.get(item.id) ?? '',
+    }));
   }
 
   async create(input: CustomerCreateInput): Promise<CustomerEntity> {
@@ -130,7 +185,12 @@ export class CustomerService extends BaseService {
 
     const resolvedRecordType = resolveRecordTypeFromStage(recordType, defaultStage);
     const status =
-      input.status ?? (resolvedRecordType === 'customer' ? 'active' : 'prospect');
+      input.status ??
+      resolveStatusFromStage(
+        defaultStage,
+        resolvedRecordType,
+        resolvedRecordType === 'customer' ? 'active' : 'prospect',
+      );
 
     const timeline = [
       createTimelineEntry({
@@ -165,7 +225,7 @@ export class CustomerService extends BaseService {
       notes: input.notes.trim(),
       businessValue: input.businessValue,
       expectedRevenue: input.expectedRevenue,
-      nextActionDate: input.nextActionDate,
+      nextActionDate: isInactiveStage(defaultStage) ? '' : input.nextActionDate,
       lastContactDate: input.lastContactDate,
       renewalDate: input.renewalDate,
       outstandingAmount: input.outstandingAmount,
@@ -300,7 +360,7 @@ export class CustomerService extends BaseService {
     const previousRecordType = existing.recordType;
     const recordType = resolveRecordTypeFromStage(existing.recordType, stage);
     const converted = previousRecordType === 'opportunity' && recordType === 'customer';
-    const status = resolveStatusAfterRecordTypeChange(existing.status, recordType);
+    const status = resolveStatusFromStage(stage, recordType, existing.status);
 
     let timeline = prependTimelineEntry(
       existing.timeline,
@@ -309,7 +369,7 @@ export class CustomerService extends BaseService {
         stageId: stage.id,
         stageName: stage.name,
         notes: payload.notes,
-        nextActionDate: payload.nextActionDate,
+        nextActionDate: isInactiveStage(stage) ? undefined : payload.nextActionDate,
       }),
     );
 
@@ -325,11 +385,14 @@ export class CustomerService extends BaseService {
       );
     }
 
-    const nextActionDate =
-      payload.nextActionDate !== undefined ? payload.nextActionDate : existing.nextActionDate;
+    const nextActionDate = isInactiveStage(stage)
+      ? ''
+      : payload.nextActionDate !== undefined
+        ? payload.nextActionDate
+        : existing.nextActionDate;
 
-    if (payload.nextActionDate) {
-      void computeReminderDate(payload.nextActionDate, stage.reminderOffset);
+    if (nextActionDate) {
+      void computeReminderDate(nextActionDate, stage.reminderOffset);
     }
 
     return customerRepository.updateOrThrow(
@@ -368,7 +431,10 @@ export class CustomerService extends BaseService {
       throw new ValidationError('No applicable stage configured for this record type');
     }
 
-    const status = resolveStatusAfterRecordTypeChange(existing.status, payload.recordType);
+    const nextStage = stages.find((stage) => stage.id === nextStageId);
+    const status = nextStage
+      ? resolveStatusFromStage(nextStage, payload.recordType, existing.status)
+      : resolveStatusAfterRecordTypeChange(existing.status, payload.recordType);
     const converted =
       payload.recordType === 'customer' && existing.recordType === 'opportunity';
 
@@ -387,6 +453,8 @@ export class CustomerService extends BaseService {
         recordType: payload.recordType,
         currentStageId: nextStageId,
         status,
+        nextActionDate:
+          nextStage && isInactiveStage(nextStage) ? '' : existing.nextActionDate,
         timeline,
       },
       'Customer',
@@ -398,6 +466,16 @@ export class CustomerService extends BaseService {
     payload: CustomerTimelineNoteInput,
   ): Promise<CustomerEntity> {
     const existing = await this.getById(id);
+    const currentStage = existing.currentStageId
+      ? await stageMasterRepository.findById(existing.currentStageId)
+      : undefined;
+    const inactive = Boolean(currentStage && isInactiveStage(currentStage));
+    const nextActionDate = inactive
+      ? ''
+      : payload.nextActionDate !== undefined
+        ? payload.nextActionDate
+        : existing.nextActionDate;
+
     const timeline = prependTimelineEntry(
       existing.timeline,
       createTimelineEntry({
@@ -405,7 +483,7 @@ export class CustomerService extends BaseService {
         stageId: existing.currentStageId,
         stageName: 'Notes Added',
         notes: payload.notes,
-        nextActionDate: payload.nextActionDate,
+        nextActionDate: inactive ? undefined : payload.nextActionDate,
       }),
     );
 
@@ -413,10 +491,7 @@ export class CustomerService extends BaseService {
       id,
       {
         notes: payload.notes.trim(),
-        nextActionDate:
-          payload.nextActionDate !== undefined
-            ? payload.nextActionDate
-            : existing.nextActionDate,
+        nextActionDate,
         timeline,
       },
       'Customer',

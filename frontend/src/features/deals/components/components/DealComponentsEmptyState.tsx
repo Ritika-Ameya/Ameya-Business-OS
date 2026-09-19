@@ -12,7 +12,7 @@ export function DealComponentsEmptyState({
     <EmptyState
       icon={Layers}
       title="No components added"
-      description="Start by adding the first billable component to this deal."
+      description="Add a component billed one time, per month, or per year."
       actionLabel="Add Component"
       onAction={onAddComponent}
     />

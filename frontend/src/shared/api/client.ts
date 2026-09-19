@@ -86,7 +86,13 @@ async function doRequest<T>(
   try {
     payload = (await response.json()) as ApiResponseBody<T>;
   } catch {
-    throw new ApiError("Invalid server response", response.status);
+    const serverUnreachable = response.status === 0 || response.status >= 500;
+    throw new ApiError(
+      serverUnreachable
+        ? "Cannot reach the API server. Start the backend on port 3002, then try again."
+        : "Invalid server response",
+      response.status
+    );
   }
 
   if (!payload.success) {

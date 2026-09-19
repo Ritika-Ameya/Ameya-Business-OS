@@ -35,6 +35,9 @@ export const resolveRecordTypeFromStage = (
   return currentRecordType;
 };
 
+export const isInactiveStage = (stage: { name: string }): boolean =>
+  stage.name.trim().toLowerCase() === 'inactive';
+
 export const resolveStatusAfterRecordTypeChange = (
   status: CustomerStatus,
   recordType: CustomerRecordType,
@@ -45,13 +48,28 @@ export const resolveStatusAfterRecordTypeChange = (
   return status;
 };
 
+export const resolveStatusFromStage = (
+  stage: StageMasterEntity,
+  recordType: CustomerRecordType,
+  currentStatus: CustomerStatus,
+): CustomerStatus => {
+  if (recordType !== 'customer') {
+    return resolveStatusAfterRecordTypeChange(currentStatus, recordType);
+  }
+  return isInactiveStage(stage) ? 'inactive' : 'active';
+};
+
 export const assertStageChangeRequirements = (
   stage: StageMasterEntity,
   payload: { nextActionDate?: string; notes?: string },
 ): void => {
   const errors: string[] = [];
 
-  if (stage.dateRequired && !String(payload.nextActionDate ?? '').trim()) {
+  if (
+    stage.dateRequired &&
+    !isInactiveStage(stage) &&
+    !String(payload.nextActionDate ?? '').trim()
+  ) {
     errors.push('Next action date is required for this stage');
   }
 

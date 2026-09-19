@@ -7,6 +7,8 @@ import {
   CardTitle,
 } from "@/shared/ui/card";
 import { useDeals } from "@/features/deals/hooks/use-deals";
+import { useRevenue } from "@/features/revenue/hooks/use-revenue";
+import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
 import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
 import type { Customer } from "@/features/customers/types/customer";
@@ -17,6 +19,10 @@ interface CustomerOverviewTabProps {
 
 export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
   const { deals, components } = useDeals();
+  const { invoices } = useRevenue();
+  const outstanding = getCollectionInvoices(invoices)
+    .filter((invoice) => invoice.customerId === customer.id)
+    .reduce((sum, invoice) => sum + invoice.outstanding, 0);
   const activeDealsCount = deals.filter(
     (deal) => deal.customerId === customer.id && deal.status !== "completed"
   ).length;
@@ -73,7 +79,7 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Outstanding</span>
-              <span className="font-medium">{formatCurrency(customer.outstanding)}</span>
+              <span className="font-medium">{formatCurrency(outstanding)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Last Payment</span>
@@ -82,7 +88,7 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Collection Status</span>
               <span className="font-medium">
-                {customer.outstanding > 0 ? "Pending" : "Clear"}
+                {outstanding > 0 ? "Pending" : "Clear"}
               </span>
             </div>
           </CardContent>

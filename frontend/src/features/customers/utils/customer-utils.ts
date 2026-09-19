@@ -8,6 +8,7 @@ import type {
   StatusFilter,
 } from "@/features/customers/types/customer";
 import {
+  getEffectiveCustomerStatus,
   getStageById,
   getStagesForRecordType,
 } from "@/features/customers/utils/stage-utils";
@@ -17,7 +18,8 @@ import { isRenewalThisMonth, isUpcomingRenewal } from "@/shared/utils/format-dat
 export function filterCustomers(
   customers: Customer[],
   query: string,
-  filters: CustomerFilters
+  filters: CustomerFilters,
+  stages: SettingsStage[] = []
 ): Customer[] {
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -35,7 +37,8 @@ export function filterCustomers(
       ].some((field) => field.toLowerCase().includes(normalizedQuery));
 
     const matchesStatus =
-      filters.status === "all" || customer.status === filters.status;
+      filters.status === "all" ||
+      getEffectiveCustomerStatus(customer, stages) === filters.status;
 
     const matchesOutstanding =
       filters.outstanding === "all" ||
@@ -73,11 +76,55 @@ export interface OpportunityStageCount {
   count: number;
 }
 
-export interface CustomerStatusCount {
-  status: "active" | "inactive" | "prospect";
-  label: string;
-  color: string;
-  count: number;
+function countRecordsByStage(
+  records: Customer[],
+  stages: SettingsStage[],
+  recordType: "customer" | "opportunity"
+): OpportunityStageCount[] {
+  const applicable = getStagesForRecordType(stages, recordType);
+  if (applicable.length > 0) {
+    const counts: OpportunityStageCount[] = applicable.map((stage) => ({
+      stageId: stage.id,
+      stageName: stage.name,
+      color: stage.color,
+      count: records.filter((record) => record.currentStageId === stage.id).length,
+    }));
+
+    const knownStageIds = new Set(applicable.map((stage) => stage.id));
+    const unstagedCount = records.filter(
+      (record) =>
+        !record.currentStageId || !knownStageIds.has(record.currentStageId)
+    ).length;
+    if (unstagedCount > 0) {
+      counts.push({
+        stageId: "__other__",
+        stageName: "Other",
+        color: "#64748b",
+        count: unstagedCount,
+      });
+    }
+    return counts;
+  }
+
+  if (records.length === 0) return [];
+
+  const counts = new Map<string, OpportunityStageCount>();
+  for (const record of records) {
+    const stage = getStageById(stages, record.currentStageId);
+    const stageId = record.currentStageId || "__other__";
+    const existing = counts.get(stageId);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(stageId, {
+        stageId,
+        stageName: stage?.name || "Other",
+        color: stage?.color || "#64748b",
+        count: 1,
+      });
+    }
+  }
+  return Array.from(counts.values());
 }
 
 export function computeCustomerStats(
@@ -98,69 +145,16 @@ export function computeCustomerStats(
     isRenewalThisMonth(customer.nextRenewal)
   ).length;
 
-  const customerByStatus: CustomerStatusCount[] = (
-    [
-      { status: "active", label: "Active", color: "#10b981" },
-      { status: "inactive", label: "Inactive", color: "#64748b" },
-      { status: "prospect", label: "Prospect", color: "#3b82f6" },
-    ] as const
-  ).map((item) => ({
-    status: item.status,
-    label: item.label,
-    color: item.color,
-    count: customerRecords.filter((customer) => customer.status === item.status)
-      .length,
-  }));
-
-  const opportunityStages = getStagesForRecordType(stages, "opportunity");
-  let opportunityByStage: OpportunityStageCount[] = [];
-
-  if (opportunityStages.length > 0) {
-    opportunityByStage = opportunityStages.map((stage) => ({
-      stageId: stage.id,
-      stageName: stage.name,
-      color: stage.color,
-      count: opportunityRecords.filter(
-        (opportunity) => opportunity.currentStageId === stage.id
-      ).length,
-    }));
-
-    const knownStageIds = new Set(opportunityStages.map((stage) => stage.id));
-    const unstagedCount = opportunityRecords.filter(
-      (opportunity) =>
-        !opportunity.currentStageId || !knownStageIds.has(opportunity.currentStageId)
-    ).length;
-    if (unstagedCount > 0) {
-      opportunityByStage.push({
-        stageId: "__other__",
-        stageName: "Other",
-        color: "#64748b",
-        count: unstagedCount,
-      });
-    }
-  } else if (opportunityRecords.length > 0) {
-    const counts = new Map<string, OpportunityStageCount>();
-    for (const opportunity of opportunityRecords) {
-      const stage = getStageById(stages, opportunity.currentStageId);
-      const stageId = opportunity.currentStageId || "__other__";
-      const existing = counts.get(stageId);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        counts.set(stageId, {
-          stageId,
-          stageName: stage?.name || "Other",
-          color: stage?.color || "#64748b",
-          count: 1,
-        });
-      }
-    }
-    opportunityByStage = Array.from(counts.values());
-  }
+  const customerByStage = countRecordsByStage(customerRecords, stages, "customer");
+  const opportunityByStage = countRecordsByStage(
+    opportunityRecords,
+    stages,
+    "opportunity"
+  );
 
   return {
     total: customerRecords.length,
-    customerByStatus,
+    customerByStage,
     outstandingAmount,
     renewalsThisMonth,
     opportunities: opportunityRecords.length,

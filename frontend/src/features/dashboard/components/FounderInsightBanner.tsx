@@ -13,9 +13,16 @@ export function FounderInsightBanner() {
         <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
           <Lightbulb className="size-4 text-amber-600 dark:text-amber-400" />
         </div>
-        <p className="pt-1 text-sm leading-relaxed text-foreground/90">
-          {insight.message}
-        </p>
+        <div className="min-w-0 space-y-1 pt-1">
+          {insight.period ? (
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {insight.period}
+            </p>
+          ) : null}
+          <p className="text-sm leading-relaxed text-foreground/90">
+            {insight.message}
+          </p>
+        </div>
       </div>
     </div>
   );

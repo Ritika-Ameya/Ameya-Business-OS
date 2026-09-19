@@ -6,6 +6,7 @@ import { FounderInsightBanner } from "@/features/dashboard/components/FounderIns
 import { PendingCollectionsCard } from "@/features/dashboard/components/PendingCollectionsCard";
 import { RecentActivityFeed } from "@/features/dashboard/components/RecentActivityFeed";
 import { RevenueExpenseChart } from "@/features/dashboard/components/RevenueExpenseChart";
+import { CustomersRenewedCard } from "@/features/dashboard/components/CustomersRenewedCard";
 import { UpcomingRenewalsCard } from "@/features/dashboard/components/UpcomingRenewalsCard";
 import { UpcomingRevenueCard } from "@/features/dashboard/components/UpcomingRevenueCard";
 
@@ -56,9 +57,10 @@ export function DashboardPage() {
 
       <section className="space-y-3 sm:space-y-4">
         <SectionTitle title="Action Required" subtitle="Collections and renewals needing attention" />
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-3">
           <PendingCollectionsCard />
           <UpcomingRenewalsCard />
+          <CustomersRenewedCard />
         </div>
       </section>
 

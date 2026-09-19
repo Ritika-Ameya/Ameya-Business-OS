@@ -12,6 +12,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import type { SettingsStage } from "@/features/settings/types/settings";
+import { isInactiveStage } from "@/features/customers/utils/stage-utils";
 
 interface StageChangeDialogProps {
   open: boolean;
@@ -37,19 +38,21 @@ export function StageChangeDialog({
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
 
+  const inactive = Boolean(stage && isInactiveStage(stage));
+
   useEffect(() => {
     if (!open) return;
-    setNextActionDate(initialNextActionDate?.trim() || "");
+    setNextActionDate(inactive ? "" : initialNextActionDate?.trim() || "");
     setNotes("");
     setErrors({});
-  }, [open, initialNextActionDate, stage?.id]);
+  }, [open, initialNextActionDate, stage?.id, inactive]);
 
   const validate = (): boolean => {
     if (!stage) return false;
 
     const nextErrors: FormErrors = {};
 
-    if (stage.dateRequired && !nextActionDate.trim()) {
+    if (stage.dateRequired && !inactive && !nextActionDate.trim()) {
       nextErrors.nextActionDate = "Next action date is required for this stage";
     }
     if (stage.notesRequired && !notes.trim()) {
@@ -65,7 +68,7 @@ export function StageChangeDialog({
     if (!validate()) return;
 
     onConfirm({
-      nextActionDate: nextActionDate.trim() || undefined,
+      nextActionDate: inactive ? undefined : nextActionDate.trim() || undefined,
       notes: notes.trim() || undefined,
     });
     onOpenChange(false);
@@ -79,11 +82,14 @@ export function StageChangeDialog({
         <DialogHeader>
           <DialogTitle>Move to {stage.name}</DialogTitle>
           <DialogDescription>
-            Update follow-up details for this stage change.
+            {inactive
+              ? "Inactive customers do not keep a next action date."
+              : "Update follow-up details for this stage change."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {inactive ? null : (
           <div className="space-y-2">
             <Label htmlFor="next-action-date">
               Next Action Date
@@ -110,6 +116,7 @@ export function StageChangeDialog({
               </p>
             )}
           </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="stage-notes">

@@ -35,9 +35,11 @@ interface StatCardProps {
   accent: string;
   /** Optional colored top border utility class e.g. accent-bar-blue */
   barClass?: string;
+  /** Calendar / filter window this value is calculated for */
+  period?: string;
 }
 
-export function StatCard({ label, value, icon, accent, barClass }: StatCardProps) {
+export function StatCard({ label, value, icon, accent, barClass, period }: StatCardProps) {
   return (
     <div
       className={cn(
@@ -57,6 +59,11 @@ export function StatCard({ label, value, icon, accent, barClass }: StatCardProps
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
           </p>
+          {period ? (
+            <p className="text-[11px] font-medium leading-tight text-muted-foreground">
+              {period}
+            </p>
+          ) : null}
           <p className="text-xl font-bold tracking-tight tabular-nums sm:text-2xl">{value}</p>
         </div>
         <div

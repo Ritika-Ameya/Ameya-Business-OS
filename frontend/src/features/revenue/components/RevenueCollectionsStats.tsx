@@ -1,5 +1,6 @@
 import { AlertCircle, CalendarClock, CheckCircle2, IndianRupee } from "lucide-react";
 import { StatCard } from "@/shared/components/PageHeader";
+import { ALL_TIME, AS_OF_TODAY, thisMonthPeriod } from "@/shared/utils/period-label";
 import { getCollectionStats } from "@/features/revenue/utils/revenue-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment } from "@/features/revenue/types/payment";
@@ -22,30 +23,35 @@ export function RevenueCollectionsStats({
         value={stats.outstandingAmount}
         icon={<IndianRupee className="size-5 text-amber-600 dark:text-amber-400" />}
         accent="bg-amber-500/10"
+        period={ALL_TIME}
       />
       <StatCard
         label="Invoices Pending"
         value={stats.pendingCount}
         icon={<CalendarClock className="size-5 text-blue-600 dark:text-blue-400" />}
         accent="bg-blue-500/10"
+        period={ALL_TIME}
       />
       <StatCard
         label="Overdue Collections"
         value={stats.overdueCount}
         icon={<AlertCircle className="size-5 text-red-600 dark:text-red-400" />}
         accent="bg-red-500/10"
+        period={AS_OF_TODAY}
       />
       <StatCard
         label="Collected This Month"
         value={stats.collectedThisMonth}
         icon={<CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />}
         accent="bg-emerald-500/10"
+        period={thisMonthPeriod()}
       />
       <StatCard
         label="Total Collected"
         value={stats.totalCollected}
         icon={<IndianRupee className="size-5 text-emerald-600 dark:text-emerald-400" />}
         accent="bg-emerald-500/10"
+        period={ALL_TIME}
       />
     </div>
   );

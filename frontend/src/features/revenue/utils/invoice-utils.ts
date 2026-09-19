@@ -39,21 +39,37 @@ export const invoiceStatusStyles: Record<InvoiceStatus, string> = {
 };
 
 export function normalizeInvoiceStatus(status: string): InvoiceStatus {
-  switch (status) {
+  switch (status.trim().toLowerCase()) {
     case "sent":
     case "overdue":
       return "due";
     case "partial":
       return "partially_paid";
     case "draft":
+      return "draft";
     case "due":
+      return "due";
     case "partially_paid":
+      return "partially_paid";
     case "paid":
+      return "paid";
     case "cancelled":
-      return status;
+    case "canceled":
+      return "cancelled";
     default:
       return "draft";
   }
+}
+
+export function effectiveInvoiceOutstanding(invoice: {
+  status: string;
+  outstanding: number;
+}): number {
+  const status = normalizeInvoiceStatus(invoice.status);
+  if (status === "cancelled" || status === "draft" || status === "paid") {
+    return 0;
+  }
+  return invoice.outstanding;
 }
 
 export function filterInvoices(

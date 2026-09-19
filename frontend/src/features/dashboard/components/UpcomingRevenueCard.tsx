@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/shared/ui/button";
+import { nextMonthPeriod } from "@/shared/utils/period-label";
 import { getUpcomingRevenue } from "@/features/dashboard/utils/dashboard-utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 
@@ -13,9 +14,7 @@ export function UpcomingRevenueCard() {
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-orange-500/10 to-amber-500/5 px-4 py-4 sm:px-5">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold tracking-tight">Upcoming Revenue</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Revenue expected next month
-          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{nextMonthPeriod()}</p>
         </div>
         <div className="rounded-xl bg-orange-500/10 px-3 py-2 text-right ring-1 ring-orange-500/15">
           <p className="text-xs text-muted-foreground">Total Expected Revenue</p>

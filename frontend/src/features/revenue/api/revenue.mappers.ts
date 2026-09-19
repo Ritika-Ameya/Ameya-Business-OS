@@ -18,7 +18,8 @@ export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
     dealTitle: dto.dealTitle,
     amount: dto.total,
     received: dto.received,
-    outstanding: dto.outstanding,
+    outstanding:
+      normalizeInvoiceStatus(dto.status) === "cancelled" ? 0 : dto.outstanding,
     invoiceDate: dto.issueDate,
     dueDate: dto.dueDate,
     status: normalizeInvoiceStatus(dto.status),

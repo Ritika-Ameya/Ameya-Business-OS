@@ -1,4 +1,4 @@
-import { Edit, Layers, MoreHorizontal } from "lucide-react";
+import { Edit, Layers, MoreHorizontal, Trash2 } from "lucide-react";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { Badge } from "@/shared/ui/badge";
@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -35,6 +36,7 @@ interface ExpenseMasterTableProps {
   masters: ExpenseMasterTemplate[];
   categories: ExpenseCategoryItem[];
   onEdit: (master: ExpenseMasterTemplate) => void;
+  onDelete?: (master: ExpenseMasterTemplate) => void;
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
@@ -45,6 +47,7 @@ export function ExpenseMasterTable({
   masters,
   categories,
   onEdit,
+  onDelete,
   isFiltered = false,
   isEmpty = false,
   onAdd,
@@ -140,6 +143,18 @@ export function ExpenseMasterTable({
                       <Edit />
                       Edit
                     </DropdownMenuItem>
+                    {onDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => onDelete(master)}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

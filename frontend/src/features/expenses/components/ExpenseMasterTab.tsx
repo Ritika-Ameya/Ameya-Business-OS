@@ -23,6 +23,7 @@ export function ExpenseMasterTab() {
     addCategory,
     addVendor,
     addEmployee,
+    removeMaster,
   } = useExpenses();
 
   const [query, setQuery] = useState("");
@@ -78,6 +79,19 @@ export function ExpenseMasterTab() {
     }
   };
 
+  const handleDelete = async (master: ExpenseMasterTemplate) => {
+    const confirmed = window.confirm(
+      `Delete template "${master.name}"?\n\nExisting register entries are not deleted.`
+    );
+    if (!confirmed) return;
+    setSaveError(null);
+    try {
+      await removeMaster(master.id);
+    } catch (err) {
+      setSaveError(getErrorMessage(err));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {(error || saveError) && (
@@ -112,6 +126,9 @@ export function ExpenseMasterTab() {
           onEdit={(master) => {
             setEditingMaster(master);
             setDialogOpen(true);
+          }}
+          onDelete={(master) => {
+            void handleDelete(master);
           }}
           isFiltered={hasActiveFilters}
           isEmpty={masters.length === 0}

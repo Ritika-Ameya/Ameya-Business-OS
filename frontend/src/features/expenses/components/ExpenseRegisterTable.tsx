@@ -1,4 +1,4 @@
-import { Edit, MoreHorizontal, Paperclip, ReceiptText, RefreshCw } from "lucide-react";
+import { Edit, MoreHorizontal, Paperclip, ReceiptText, RefreshCw, Trash2 } from "lucide-react";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import { ExpenseStatusBadge } from "@/features/expenses/components/ExpenseStatusBadge";
@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import {
@@ -31,6 +32,7 @@ interface ExpenseRegisterTableProps {
   transactions: ExpenseTransaction[];
   categories: ExpenseCategoryItem[];
   onEdit: (transaction: ExpenseTransaction) => void;
+  onDelete?: (transaction: ExpenseTransaction) => void;
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
@@ -41,6 +43,7 @@ export function ExpenseRegisterTable({
   transactions,
   categories,
   onEdit,
+  onDelete,
   isFiltered = false,
   isEmpty = false,
   onAdd,
@@ -148,6 +151,18 @@ export function ExpenseRegisterTable({
                       <Edit />
                       Edit
                     </DropdownMenuItem>
+                    {onDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => onDelete(transaction)}
+                        >
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
