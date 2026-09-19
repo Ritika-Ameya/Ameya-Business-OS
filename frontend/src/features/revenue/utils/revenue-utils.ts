@@ -224,8 +224,15 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     return Boolean(invoice.dueDate) && due < today && invoice.outstanding > 0;
   }).length;
 
+  const invoicesById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const collectedPayments = payments.filter((payment) => {
+    if (payment.status && payment.status !== "received") return false;
+    const invoice = invoicesById.get(payment.invoiceId);
+    return Boolean(invoice) && invoice.status !== "cancelled";
+  });
+
   const now = new Date();
-  const collectedThisMonth = payments
+  const collectedThisMonth = collectedPayments
     .filter((payment) => {
       const date = new Date(payment.paymentDate);
       return (
@@ -235,7 +242,10 @@ export function getCollectionStats(invoices: Invoice[], payments: Payment[]) {
     })
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  const totalCollected = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const totalCollected = collectedPayments.reduce(
+    (sum, payment) => sum + payment.amount,
+    0
+  );
 
   return {
     outstandingAmount: formatInvoiceCurrency(outstandingAmount),

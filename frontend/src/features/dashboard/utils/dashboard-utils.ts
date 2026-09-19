@@ -91,11 +91,12 @@ export function getDashboardKpis(
         href: "/revenue?tab=renewals",
       },
       {
-        id: "cash",
-        label: "Cash Position",
+        id: "renewed",
+        label: "Customers Renewed",
         value: "—",
         trend: "Loading…",
         trendDirection: "neutral",
+        href: "/revenue?tab=renewals",
       },
     ];
   }
@@ -136,18 +137,22 @@ export function getDashboardKpis(
       href: "/revenue?tab=renewals",
     },
     {
-      id: "cash",
-      label: "Cash Position",
-      value: formatInvoiceCurrency(summary.cashPosition),
-      trend: summary.cashPosition >= 0 ? "Healthy runway" : "Monitor closely",
-      trendDirection: summary.cashPosition >= 0 ? "up" : "down",
+      id: "renewed",
+      label: "Customers Renewed",
+      value: String(summary.renewedCustomersThisQuarter),
+      trend:
+        summary.renewedCustomersThisQuarter > 0
+          ? "This quarter"
+          : "None this quarter",
+      trendDirection: summary.renewedCustomersThisQuarter > 0 ? "up" : "neutral",
+      href: "/revenue?tab=renewals",
     },
   ];
 }
 
 export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
   if (!summary) return [];
-  return summary.pendingCollections.map((item) => ({
+  return summary.pendingCollections.slice(0, 5).map((item) => ({
     id: item.id,
     customer: item.customer,
     outstanding: formatInvoiceCurrency(item.outstanding),
@@ -157,7 +162,7 @@ export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
 
 export function getUpcomingRenewalsTop5(summary: DashboardSummaryDto | null) {
   if (!summary) return [];
-  return summary.upcomingRenewalsList.map((item) => ({
+  return summary.upcomingRenewalsList.slice(0, 5).map((item) => ({
     id: item.id,
     customer: item.customer,
     renewal: item.renewal,

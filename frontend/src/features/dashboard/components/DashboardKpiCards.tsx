@@ -1,13 +1,14 @@
+import { useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Banknote,
+  CheckCircle2,
   IndianRupee,
   Minus,
   RefreshCw,
   Wallet,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { DashboardKpiDetailDialog } from "@/features/dashboard/components/DashboardKpiDetailDialog";
 import { getDashboardKpis } from "@/features/dashboard/utils/dashboard-utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import { moduleAccents, type ModuleAccentKey } from "@/shared/constants/theme";
@@ -21,7 +22,7 @@ const kpiVisual: Record<
   revenue: { accent: "revenue", icon: IndianRupee },
   collections: { accent: "collections", icon: Wallet },
   renewals: { accent: "renewals", icon: RefreshCw },
-  cash: { accent: "cash", icon: Banknote },
+  renewed: { accent: "cash", icon: CheckCircle2 },
 };
 
 function TrendIndicator({ kpi }: { kpi: DashboardKpi }) {
@@ -57,10 +58,9 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
   return (
     <div
       className={cn(
-        "group relative flex h-full overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-4 shadow-card transition-all duration-300 sm:p-5 dark:border-white/10",
+        "group relative flex h-full overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-4 text-left shadow-card transition-all duration-300 sm:p-5 dark:border-white/10",
         "hover:-translate-y-1 hover:shadow-elevated",
-        accent.bar,
-        kpi.href && "cursor-pointer"
+        accent.bar
       )}
     >
       <div
@@ -95,24 +95,31 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
 export function DashboardKpiCards() {
   const { summary } = useDashboard();
   const kpis = getDashboardKpis(summary);
+  const [selectedKpi, setSelectedKpi] = useState<DashboardKpi | null>(null);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-      {kpis.map((kpi) =>
-        kpi.href ? (
-          <Link
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+        {kpis.map((kpi) => (
+          <button
             key={kpi.id}
-            to={kpi.href}
-            className="block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            type="button"
+            disabled={!summary}
+            aria-haspopup="dialog"
+            className="block h-full rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-default"
+            onClick={() => setSelectedKpi(kpi)}
           >
             <KpiCardContent kpi={kpi} />
-          </Link>
-        ) : (
-          <div key={kpi.id} className="h-full">
-            <KpiCardContent kpi={kpi} />
-          </div>
-        )
-      )}
-    </div>
+          </button>
+        ))}
+      </div>
+      <DashboardKpiDetailDialog
+        kpi={selectedKpi}
+        summary={summary}
+        onOpenChange={(open) => {
+          if (!open) setSelectedKpi(null);
+        }}
+      />
+    </>
   );
 }

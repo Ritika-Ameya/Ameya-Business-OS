@@ -77,9 +77,16 @@ export class HeaderManager extends BaseService {
       };
     }
 
-    const existingSet = new Set(existing.filter(Boolean));
-    const alreadyPresent = requiredColumns.filter((column) => existingSet.has(column));
-    const missing = requiredColumns.filter((column) => !existingSet.has(column));
+    const existingSet = new Set(
+      existing.filter(Boolean).map((header) => header.trim().toLowerCase()),
+    );
+    const uniqueRequired = [...new Set(requiredColumns)];
+    const alreadyPresent = uniqueRequired.filter((column) =>
+      existingSet.has(column.trim().toLowerCase()),
+    );
+    const missing = uniqueRequired.filter(
+      (column) => !existingSet.has(column.trim().toLowerCase()),
+    );
 
     if (missing.length === 0) {
       return {

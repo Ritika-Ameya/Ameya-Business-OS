@@ -26,7 +26,13 @@ import {
   getCollectionInvoices,
   getPendingCollectionsTopN,
 } from '../utils/collectionAggregation.util';
-import { addLocalDays, isInCalendarMonth, toLocalDateOnly } from '../utils/dateRange.util';
+import {
+  addLocalDays,
+  getCalendarQuarterIndex,
+  isInCalendarMonth,
+  isInCalendarQuarter,
+  toLocalDateOnly,
+} from '../utils/dateRange.util';
 import { getCompanyRenewals } from '../utils/renewalAggregation.util';
 import { buildUpcomingRevenue } from '../utils/upcomingRevenueAggregation.util';
 
@@ -209,7 +215,7 @@ const buildInsightMessage = (
   );
 
   if (outstanding > 0) {
-    return `You have ${formatCurrency(outstanding)} pending collections due in the next 7 days.`;
+    return `You have ${formatCurrency(outstanding)} pending collections due.`;
   }
 
   const now = new Date();
@@ -303,10 +309,48 @@ export class DashboardService extends BaseService {
 
     // Single renewals pass — previously insight rebuilt the same sheet-backed list.
     const renewals = getCompanyRenewals(deals, components, customers);
-    const upcomingRenewalRows = renewals.filter(
-      (renewal) => renewal.status === 'upcoming' || renewal.status === 'renewed',
-    );
+    const todayIso = toLocalDateOnly(now);
+    const thisQuarter = getCalendarQuarterIndex(now);
+    const upcomingRenewalRows = renewals.filter((renewal) => {
+      const dueIso = String(renewal.renewalDate ?? '').trim().slice(0, 10);
+      if (!dueIso || dueIso < todayIso) return false;
+      return isInCalendarQuarter(dueIso, thisYear, thisQuarter);
+    });
     const upcomingRenewals = upcomingRenewalRows.length;
+    const renewedCustomersById = new Map<
+      string,
+      { id: string; customer: string; lastRenewedDate: string }
+    >();
+    for (const renewal of renewals) {
+      const lastRenewedDate = String(renewal.lastRenewedDate ?? '').trim().slice(0, 10);
+      if (!isInCalendarQuarter(lastRenewedDate, thisYear, thisQuarter)) continue;
+      const customerId = renewal.customerId || renewal.customerName;
+      if (!customerId) continue;
+      const existing = renewedCustomersById.get(customerId);
+      if (!existing || lastRenewedDate > existing.lastRenewedDate) {
+        renewedCustomersById.set(customerId, {
+          id: customerId,
+          customer: renewal.customerName || '—',
+          lastRenewedDate,
+        });
+      }
+    }
+    const renewedCustomersList = [...renewedCustomersById.values()].sort((a, b) =>
+      b.lastRenewedDate.localeCompare(a.lastRenewedDate),
+    );
+    const renewedCustomersThisQuarter = renewedCustomersList.length;
+
+    const revenueThisMonthItems = invoices
+      .filter((invoice) => isInCalendarMonth(invoice.issueDate, thisYear, thisMonth))
+      .sort((a, b) => Number(b.received || 0) - Number(a.received || 0))
+      .slice(0, 20)
+      .map((invoice) => ({
+        id: invoice.id,
+        customer: invoice.customerName || '—',
+        invoiceNumber: invoice.invoiceNumber || '—',
+        received: roundMoney(Number(invoice.received || 0)),
+        issueDate: invoice.issueDate,
+      }));
 
     const totalReceived = roundMoney(
       invoices.reduce((sum, invoice) => sum + Number(invoice.received || 0), 0),
@@ -348,16 +392,19 @@ export class DashboardService extends BaseService {
       outstandingCollections,
       pendingInvoiceCount,
       upcomingRenewals,
+      renewedCustomersThisQuarter,
       cashPosition,
       insight,
-      pendingCollections: getPendingCollectionsTopN(invoices, 5),
-      upcomingRenewalsList: upcomingRenewalRows.slice(0, 5).map((renewal) => ({
+      pendingCollections: getPendingCollectionsTopN(invoices, 15),
+      upcomingRenewalsList: upcomingRenewalRows.slice(0, 20).map((renewal) => ({
           id: renewal.id,
           customer: renewal.customerName,
           renewal: renewal.componentName || renewal.renewalLabel,
           dueDate: renewal.renewalDate,
           amount: renewal.amount,
         })),
+      renewedCustomersList,
+      revenueThisMonthItems,
       upcomingRevenue: buildUpcomingRevenue(invoices, now),
       chart: {
         points: buildRevenueExpenseChart(invoices, expenses),

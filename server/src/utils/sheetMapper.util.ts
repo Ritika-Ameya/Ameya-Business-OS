@@ -45,9 +45,13 @@ export const rowToRecord = (headers: string[], row: unknown[]): Record<string, s
   const record: Record<string, string> = {};
 
   headers.forEach((header, index) => {
-    if (header) {
-      const cell = row[index];
-      record[header] = cell === undefined || cell === null ? '' : String(cell);
+    if (!header) return;
+    const cell = row[index];
+    const value = cell === undefined || cell === null ? '' : String(cell);
+    const existing = record[header];
+    // Duplicate headers: keep the first non-empty value so a second empty copy cannot wipe data.
+    if (existing === undefined || (existing === '' && value !== '')) {
+      record[header] = value;
     }
   });
 

@@ -102,4 +102,29 @@ export const isInCalendarMonth = (dateStr: string, year: number, month: number):
   return date.getMonth() === month && date.getFullYear() === year;
 };
 
+/** Parse YYYY-MM-DD as a local calendar date (avoids UTC off-by-one). */
+export const parseLocalDateOnlyValue = (dateStr: string): Date | null => {
+  if (!dateStr?.trim()) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr.trim());
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  const date = new Date(dateStr);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** Calendar quarter index 0–3 (Q1=Jan–Mar). */
+export const getCalendarQuarterIndex = (date: Date = new Date()): number =>
+  Math.floor(date.getMonth() / 3);
+
+export const isInCalendarQuarter = (
+  dateStr: string,
+  year: number,
+  quarterIndex: number,
+): boolean => {
+  const date = parseLocalDateOnlyValue(dateStr);
+  if (!date) return false;
+  return date.getFullYear() === year && Math.floor(date.getMonth() / 3) === quarterIndex;
+};
+
 export { startOfDay, endOfDay };

@@ -13,7 +13,7 @@ export function UpcomingRenewalsCard() {
       <div className="flex items-start justify-between gap-3 border-b border-border/50 bg-gradient-to-r from-teal-500/10 to-cyan-500/5 px-5 py-4">
         <div>
           <h3 className="text-sm font-semibold tracking-tight">Upcoming Renewals</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">Renewals coming up this period</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Due this quarter</p>
         </div>
         <div className="flex size-10 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">
           <RefreshCw className="size-5" />

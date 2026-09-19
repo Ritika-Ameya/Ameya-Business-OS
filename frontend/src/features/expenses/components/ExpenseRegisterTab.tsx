@@ -50,6 +50,7 @@ export function ExpenseRegisterTab({
     addVendor,
     addEmployee,
     addMaster,
+    removeTransaction,
     refreshExpenses,
   } = useExpenses();
 
@@ -125,6 +126,17 @@ export function ExpenseRegisterTab({
   const handleEdit = (transaction: ExpenseTransaction) => {
     setEditingTransaction(transaction);
     setDialogOpen(true);
+  };
+
+  const handleDelete = async (transaction: ExpenseTransaction) => {
+    const confirmed = window.confirm(`Delete expense "${transaction.name}"?`);
+    if (!confirmed) return;
+    setSaveError(null);
+    try {
+      await removeTransaction(transaction.id);
+    } catch (err) {
+      setSaveError(getErrorMessage(err));
+    }
   };
 
   const handleSave = (data: ExpenseTransactionFormData, attachment?: File | null) => {
@@ -256,6 +268,9 @@ export function ExpenseRegisterTab({
         transactions={filteredTransactions}
         categories={categories}
         onEdit={handleEdit}
+        onDelete={(transaction) => {
+          void handleDelete(transaction);
+        }}
         isFiltered={hasActiveFilters}
         isEmpty={transactions.length === 0}
         onAdd={handleAdd}
