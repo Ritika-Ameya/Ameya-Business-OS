@@ -14,6 +14,8 @@ export const SHEET_TABS = {
   SESSIONS: 'Sessions',
   ACTIVITY_LOGS: 'ActivityLogs',
   SETTINGS: 'Settings',
+  EXPECTED_RECEIPTS: 'ExpectedReceipts',
+  LEAD_TEMPERATURES: 'LeadTemperatures',
 } as const;
 
 export type SheetTabName = (typeof SHEET_TABS)[keyof typeof SHEET_TABS];

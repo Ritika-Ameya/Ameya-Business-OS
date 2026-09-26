@@ -97,6 +97,12 @@ export const moduleAccents = {
     glow: "from-slate-500/20 to-indigo-500/10",
     solid: "bg-slate-500",
   },
+  canvas: {
+    bar: "accent-bar-violet",
+    iconBg: "bg-violet-500/15 text-violet-600 dark:text-violet-300",
+    glow: "from-violet-500/25 to-fuchsia-500/10",
+    solid: "bg-violet-500",
+  },
 } as const;
 
 export type ModuleAccentKey = keyof typeof moduleAccents;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { dashboardRouter, reportsRouter } from '../modules/analytics';
+import { canvasRouter } from '../modules/canvas';
 import { authRouter, authenticate } from '../modules/auth';
 import { customersRouter } from '../modules/customers';
 import { dealsRouter } from '../modules/deals';
@@ -27,6 +28,7 @@ router.use('/expenses', authenticate, expensesRouter);
 router.use('/expense-masters', authenticate, expenseMastersRouter);
 router.use('/uploads', authenticate, uploadsRouter);
 router.use('/dashboard', authenticate, dashboardRouter);
+router.use('/canvas', authenticate, canvasRouter);
 router.use('/reports', authenticate, reportsRouter);
 
 export default router;

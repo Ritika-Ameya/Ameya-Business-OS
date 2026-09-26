@@ -13,6 +13,11 @@ const DashboardPage = lazy(() =>
     default: module.DashboardPage,
   }))
 );
+const BusinessCanvasPage = lazy(() =>
+  import("@/features/canvas/pages/BusinessCanvasPage").then((module) => ({
+    default: module.BusinessCanvasPage,
+  }))
+);
 const CustomersPage = lazy(() =>
   import("@/features/customers/pages/CustomersPage").then((module) => ({
     default: module.CustomersPage,
@@ -108,6 +113,7 @@ export function AppRoutes() {
         >
           <Route index element={<Navigate replace to={APP_ROUTES.default} />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/canvas" element={<BusinessCanvasPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:customerId" element={<CustomerWorkspacePage />} />
           <Route path="/customers/:customerId/deals/new" element={<CreateDealPage />} />
