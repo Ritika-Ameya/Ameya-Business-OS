@@ -28,6 +28,10 @@ import {
   SETTINGS_CONTRACT,
   USERS_CONTRACT,
 } from '../../types/persistence.contracts';
+import {
+  EXPECTED_RECEIPTS_CONTRACT,
+  LEAD_TEMPERATURES_CONTRACT,
+} from '../../modules/canvas/contracts/canvas.contracts';
 
 /**
  * Canonical master worksheet contracts used by Bootstrap + HeaderManager.
@@ -63,6 +67,8 @@ export const BOOTSTRAP_BUSINESS_CONTRACTS: readonly PersistenceContract[] = [
   SESSIONS_CONTRACT,
   ACTIVITY_LOGS_CONTRACT,
   SETTINGS_CONTRACT,
+  EXPECTED_RECEIPTS_CONTRACT,
+  LEAD_TEMPERATURES_CONTRACT,
 ] as const;
 
 export const BOOTSTRAP_CONTRACTS: readonly PersistenceContract[] = [

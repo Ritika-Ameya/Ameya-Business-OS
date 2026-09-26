@@ -3,6 +3,7 @@ import {
   DollarSign,
   Gauge,
   Handshake,
+  LayoutGrid,
   ReceiptText,
   Settings,
   Users,
@@ -26,6 +27,13 @@ export const navSections = [
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: Gauge, accent: "dashboard", section: "main" },
+  {
+    label: "Business Canvas",
+    href: "/canvas",
+    icon: LayoutGrid,
+    accent: "canvas",
+    section: "main",
+  },
   {
     label: "Opportunities / Customers",
     href: "/customers",
