@@ -57,12 +57,31 @@ export function EditInvoiceDialog({
     setSaving(true);
     setError(null);
     try {
-      await updateInvoice(invoice.id, {
-        invoiceNumber: invoiceNo.trim(),
-        dueDate,
-        taxPercent: Number.parseFloat(gstPercent) || 0,
-        notes: notes.trim(),
-      });
+      const changes: {
+        invoiceNumber?: string;
+        dueDate?: string;
+        taxPercent?: number;
+        notes?: string;
+      } = {};
+      const nextInvoiceNo = invoiceNo.trim();
+      if (nextInvoiceNo !== (invoice.invoiceNo || "")) {
+        changes.invoiceNumber = nextInvoiceNo;
+      }
+      if (dueDate !== (invoice.dueDate || "")) {
+        changes.dueDate = dueDate;
+      }
+      const nextGst = gstPercent.trim() === "" ? 0 : Number.parseFloat(gstPercent);
+      const currentGst = invoice.gstPercent ?? 0;
+      if (Number.isFinite(nextGst) && Math.round(nextGst * 100) !== Math.round(currentGst * 100)) {
+        changes.taxPercent = nextGst;
+      }
+      const nextNotes = notes.trim();
+      if (nextNotes !== (invoice.notes || "").trim()) {
+        changes.notes = nextNotes;
+      }
+      if (Object.keys(changes).length > 0) {
+        await updateInvoice(invoice.id, changes);
+      }
       onOpenChange(false);
     } catch (err) {
       setError(getErrorMessage(err));

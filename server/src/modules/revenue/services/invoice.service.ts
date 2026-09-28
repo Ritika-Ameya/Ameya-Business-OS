@@ -169,36 +169,39 @@ export class InvoiceService extends BaseService {
       total: input.total,
     });
 
-    const payments = await this.listPaymentsForInvoice(id);
-    const balance = applyBalance({ ...existing, total }, payments);
+    const totalChanged = roundMoney(total) !== roundMoney(existing.total);
+    const payments = totalChanged ? await this.listPaymentsForInvoice(id) : [];
+    const balance = totalChanged ? applyBalance({ ...existing, total }, payments) : null;
 
     const timeline = prependInvoiceTimeline(
       existing.timeline,
       createInvoiceTimelineEntry({ action: 'updated' }),
     );
 
-    const updated = await invoiceRepository.updateOrThrow(
-      id,
-      {
-        ...input,
-        ...(input.invoiceNumber !== undefined
-          ? { invoiceNumber: input.invoiceNumber.trim() }
-          : {}),
-        customerName: input.customerName?.trim(),
-        dealTitle: input.dealTitle?.trim(),
-        notes: input.notes?.trim(),
-        currency: input.currency?.trim(),
-        subtotal,
-        taxPercent,
-        tax,
-        total,
-        received: balance.received,
-        outstanding: balance.outstanding,
-        status: input.status ?? balance.status,
-        timeline,
-      } as Partial<InvoiceEntity>,
-      'Invoice',
-    );
+    const patch: Partial<InvoiceEntity> = { timeline };
+    if (input.invoiceNumber !== undefined) patch.invoiceNumber = input.invoiceNumber.trim();
+    if (input.customerId !== undefined) patch.customerId = input.customerId;
+    if (input.customerName !== undefined) patch.customerName = input.customerName.trim();
+    if (input.dealId !== undefined) patch.dealId = input.dealId;
+    if (input.dealTitle !== undefined) patch.dealTitle = input.dealTitle.trim();
+    if (input.issueDate !== undefined) patch.issueDate = input.issueDate;
+    if (input.dueDate !== undefined) patch.dueDate = input.dueDate;
+    if (input.currency !== undefined) patch.currency = input.currency.trim();
+    if (input.componentIds !== undefined) patch.componentIds = input.componentIds;
+    if (input.notes !== undefined) patch.notes = input.notes.trim();
+    if (input.nextActionDate !== undefined) patch.nextActionDate = input.nextActionDate;
+    if (roundMoney(subtotal) !== roundMoney(existing.subtotal)) patch.subtotal = subtotal;
+    if (roundMoney(taxPercent) !== roundMoney(existing.taxPercent)) patch.taxPercent = taxPercent;
+    if (roundMoney(tax) !== roundMoney(existing.tax)) patch.tax = tax;
+    if (totalChanged && balance) {
+      patch.total = total;
+      patch.received = balance.received;
+      patch.outstanding = balance.outstanding;
+      if (input.status === undefined) patch.status = balance.status;
+    }
+    if (input.status !== undefined) patch.status = input.status;
+
+    const updated = await invoiceRepository.updateOrThrow(id, patch, 'Invoice');
 
     await this.syncCustomerOutstanding(updated.customerId);
     if (input.customerId && input.customerId !== existing.customerId) {

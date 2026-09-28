@@ -28,11 +28,29 @@ export const invoiceCreateSchema = z.object({
   nextActionDate: z.string().default(''),
 });
 
-export const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({
+/**
+ * Update accepts only the fields that were sent.
+ * Do not derive this from the create schema: create defaults (subtotal 0,
+ * tax 18%, status draft, empty customer name) would be applied to omitted
+ * fields and wipe the stored invoice on a due-date-only save.
+ */
+export const invoiceUpdateSchema = z.object({
   customerId: z.string().min(1).optional(),
+  customerName: z.string().optional(),
   dealId: z.string().min(1).optional(),
+  dealTitle: z.string().optional(),
+  status: invoiceStatusSchema.optional(),
   issueDate: z.string().min(1).optional(),
   dueDate: z.string().min(1).optional(),
+  subtotal: z.coerce.number().min(0).optional(),
+  taxPercent: z.coerce.number().min(0).max(100).optional(),
+  tax: z.coerce.number().min(0).optional(),
+  total: z.coerce.number().min(0).optional(),
+  currency: z.string().optional(),
+  componentIds: z.array(z.string()).optional(),
+  notes: z.string().max(5000).optional(),
+  invoiceNumber: z.string().trim().min(1, 'Invoice number is required').optional(),
+  nextActionDate: z.string().optional(),
 });
 
 export const invoiceStatusChangeSchema = z.object({

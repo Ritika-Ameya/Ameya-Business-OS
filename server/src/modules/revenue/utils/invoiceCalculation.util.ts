@@ -37,10 +37,14 @@ export const resolveCreateAmounts = (input: {
   return { subtotal, taxPercent, tax, total };
 };
 
+const moneyEquals = (left: number, right: number): boolean => roundMoney(left) === roundMoney(right);
+
 /**
  * Resolve subtotal / tax / total for invoice update.
- * Recalculates tax when subtotal or taxPercent changes (unless tax overridden);
- * recalculates total when any amount inputs change (unless total overridden).
+ * A field that is omitted, or resent with the same value, leaves the stored
+ * amounts untouched. Tax and total are rebuilt only when subtotal, GST, tax,
+ * or total actually changes. An empty stored subtotal is not treated as a new
+ * zero amount, so a GST-only edit cannot wipe a total that lives only in total.
  */
 export const resolveUpdateAmounts = (
   existing: Pick<InvoiceEntity, 'subtotal' | 'taxPercent' | 'tax' | 'total'>,
@@ -51,20 +55,50 @@ export const resolveUpdateAmounts = (
     total?: number;
   },
 ): { subtotal: number; taxPercent: number; tax: number; total: number } => {
+  const subtotalChanged =
+    input.subtotal !== undefined && !moneyEquals(input.subtotal, existing.subtotal);
+  const percentChanged =
+    input.taxPercent !== undefined && !moneyEquals(input.taxPercent, existing.taxPercent);
+  const taxChanged = input.tax !== undefined && !moneyEquals(input.tax, existing.tax);
+  const totalChanged = input.total !== undefined && !moneyEquals(input.total, existing.total);
+
+  if (!subtotalChanged && !percentChanged && !taxChanged && !totalChanged) {
+    return {
+      subtotal: existing.subtotal,
+      taxPercent: existing.taxPercent,
+      tax: existing.tax,
+      total: existing.total,
+    };
+  }
+
   const subtotal = input.subtotal !== undefined ? roundMoney(input.subtotal) : existing.subtotal;
   const taxPercent = input.taxPercent !== undefined ? input.taxPercent : existing.taxPercent;
-  const tax =
-    input.tax !== undefined
-      ? roundMoney(input.tax)
-      : input.subtotal !== undefined || input.taxPercent !== undefined
-        ? computeTaxAmount(subtotal, taxPercent)
-        : existing.tax;
-  const total =
-    input.total !== undefined
-      ? roundMoney(input.total)
-      : input.subtotal !== undefined || input.taxPercent !== undefined || input.tax !== undefined
-        ? roundMoney(subtotal + tax)
-        : existing.total;
+
+  if (totalChanged && !subtotalChanged && !percentChanged && !taxChanged) {
+    return {
+      subtotal,
+      taxPercent,
+      tax: existing.tax,
+      total: roundMoney(input.total ?? existing.total),
+    };
+  }
+
+  const hasTaxableBase = subtotal > 0 || subtotalChanged;
+  if (!hasTaxableBase && !taxChanged && !totalChanged) {
+    return {
+      subtotal: existing.subtotal,
+      taxPercent,
+      tax: existing.tax,
+      total: existing.total,
+    };
+  }
+
+  const tax = taxChanged
+    ? roundMoney(input.tax ?? existing.tax)
+    : subtotalChanged || percentChanged
+      ? computeTaxAmount(subtotal, taxPercent)
+      : existing.tax;
+  const total = totalChanged ? roundMoney(input.total ?? existing.total) : roundMoney(subtotal + tax);
 
   return { subtotal, taxPercent, tax, total };
 };
