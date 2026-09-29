@@ -101,13 +101,22 @@ export function DateInput({
             min={typeof min === "string" ? min : undefined}
             max={typeof max === "string" ? max : undefined}
             disabled={disabled}
+            onClick={(event) => {
+              // Desktop Chrome opens the picker only from its own icon, which is clipped
+              // in this narrow overlay, so a plain click would otherwise do nothing.
+              try {
+                event.currentTarget.showPicker?.();
+              } catch {
+                // Browsers without showPicker fall back to their default behaviour.
+              }
+            }}
             onChange={(event) => {
               const iso = event.target.value;
               setText(isoToDisplayDate(iso));
               setInvalid(false);
               emitChange(onChange, iso, name, fieldId);
             }}
-            className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 cursor-pointer opacity-0"
+            className="absolute right-0.5 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer opacity-0"
           />
         </>
       )}

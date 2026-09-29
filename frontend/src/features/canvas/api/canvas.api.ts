@@ -1,5 +1,9 @@
 import { apiRequest } from "@/shared/api/client";
-import type { CanvasBoard, ReceiptSourceType } from "@/features/canvas/types/canvas";
+import type {
+  CanvasBoard,
+  LeadTemperature,
+  ReceiptSourceType,
+} from "@/features/canvas/types/canvas";
 
 const BASE = "/canvas";
 
@@ -46,4 +50,25 @@ export const canvasApi = {
     invoiceId: string;
     parts: Array<{ expectedAmount: number; expectedDate: string; reason?: string }>;
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts/split`, { method: "POST", body }),
+
+  markPaid: (body: {
+    cardId: string;
+    invoiceId: string;
+    amount: number;
+    paymentDate: string;
+    mode: string;
+    referenceNumber?: string;
+    notes?: string;
+  }) => apiRequest<CanvasBoard>(`${BASE}/receipts/mark-paid`, { method: "POST", body }),
+
+  getLeadTemperature: (customerId: string) =>
+    apiRequest<{ customerId: string; temperature: LeadTemperature }>(
+      `${BASE}/lead-temperatures/${customerId}`
+    ),
+
+  setLeadTemperature: (customerId: string, temperature: LeadTemperature) =>
+    apiRequest<{ customerId: string; temperature: LeadTemperature }>(
+      `${BASE}/lead-temperatures/${customerId}`,
+      { method: "PUT", body: { temperature } }
+    ),
 };

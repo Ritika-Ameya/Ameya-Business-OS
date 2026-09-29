@@ -93,10 +93,42 @@ export interface CanvasDealOption {
   expectedCloseDate: string;
 }
 
+export type CanvasRenewalStatus = 'overdue' | 'this_month' | 'next_month' | 'later';
+
+export interface CanvasRenewalReminder {
+  id: string;
+  componentId: string;
+  componentName: string;
+  customerId: string;
+  companyName: string;
+  dealId: string;
+  dealTitle: string;
+  renewalDate: string;
+  renewalFrequency: string;
+  lastRenewedDate: string;
+  amount: number;
+  status: CanvasRenewalStatus;
+  /** Open invoice already raised for this renewal cycle, if any. */
+  invoiceId: string;
+  invoiceNumber: string;
+}
+
+export interface CanvasPaidEntry {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  companyName: string;
+  amount: number;
+  paidAt: string;
+}
+
 export interface CanvasBoardPayload {
   today: string;
   dragHint: string;
   cards: CanvasCard[];
   accounts: CanvasAccountOption[];
   deals: CanvasDealOption[];
+  renewals: CanvasRenewalReminder[];
+  paid: CanvasPaidEntry[];
 }

@@ -25,11 +25,18 @@ export const getDefaultStageForRecordType = (
   recordType: CustomerRecordType,
 ): StageMasterEntity | undefined => getStagesForRecordType(stages, recordType)[0];
 
+/**
+ * Stage Builder saves canConvertToCustomer=true for every "both" stage, so on a
+ * shared stage the flag only means "usable by customers" and must not convert.
+ */
 export const resolveRecordTypeFromStage = (
   currentRecordType: CustomerRecordType,
   stage: StageMasterEntity,
 ): CustomerRecordType => {
-  if (stage.applicableFor === 'customer' || stage.canConvertToCustomer) {
+  if (stage.applicableFor === 'customer') {
+    return 'customer';
+  }
+  if (stage.applicableFor === 'opportunity' && stage.canConvertToCustomer) {
     return 'customer';
   }
   return currentRecordType;

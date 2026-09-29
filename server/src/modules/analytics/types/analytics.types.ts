@@ -167,8 +167,43 @@ export interface RevenueMonthItem {
 export interface ChartMonthPoint {
   month: string;
   yearMonth: string;
+  /** Legacy: amount collected on invoices issued in the month. */
   revenue: number;
+  /** Payments received in the month, by payment date. */
+  received: number;
+  /** Invoices raised in the month (total with GST), by issue date. */
+  invoiced: number;
   expense: number;
+}
+
+export interface MoneyMonthItem {
+  id: string;
+  customerId: string;
+  company: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  date: string;
+}
+
+export interface DashboardMoneyFlow {
+  thisMonth: number;
+  lastMonth: number;
+  trendPct: number;
+  items: MoneyMonthItem[];
+}
+
+export interface DashboardRenewalItem {
+  id: string;
+  customerId: string;
+  company: string;
+  contactPerson: string;
+  dealId: string;
+  deal: string;
+  renewal: string;
+  frequency: string;
+  dueDate: string;
+  amount: number;
 }
 
 export interface DashboardExpenseStats {
@@ -233,6 +268,10 @@ export interface DashboardSummary {
   upcomingRenewalsList: UpcomingRenewalRow[];
   renewedCustomersList: RenewedCustomerRow[];
   revenueThisMonthItems: RevenueMonthItem[];
+  received: DashboardMoneyFlow;
+  invoiced: DashboardMoneyFlow;
+  /** Current unpaid cycle of every renewing plan, overdue ones included. */
+  renewalsAll: DashboardRenewalItem[];
   upcomingRevenue: {
     items: UpcomingRevenueRow[];
     totalExpectedRevenue: number;

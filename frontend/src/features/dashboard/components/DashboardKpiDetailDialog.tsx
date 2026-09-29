@@ -1,4 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { RenewalFilterChips, RenewalRows } from "@/features/dashboard/components/RenewalFilterList";
+import {
+  DEFAULT_RENEWAL_FILTER,
+  filterRenewals,
+  renewalFilterLabel,
+  type RenewalFilter,
+} from "@/features/dashboard/utils/renewal-filter";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
@@ -12,7 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
-import type { DashboardSummaryDto } from "@/features/dashboard/api/dashboard.dto";
+import type {
+  DashboardMoneyFlowDto,
+  DashboardSummaryDto,
+} from "@/features/dashboard/api/dashboard.dto";
 import type { DashboardKpi } from "@/features/dashboard/types/dashboard";
 import { calendarMonthPeriod, quarterPeriod } from "@/shared/utils/period-label";
 
@@ -144,35 +154,62 @@ function CollectionsBody({ summary }: { summary: DashboardSummaryDto }) {
   );
 }
 
-function RenewalsBody({ summary }: { summary: DashboardSummaryDto }) {
-  const items = summary.upcomingRenewalsList ?? [];
-  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+function MoneyFlowBody({
+  flow,
+  thisLabel,
+  listTitle,
+  empty,
+}: {
+  flow: DashboardMoneyFlowDto | undefined;
+  thisLabel: string;
+  listTitle: string;
+  empty: string;
+}) {
+  const items = flow?.items ?? [];
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
-        <StatChip label="Due this quarter" value={String(summary.upcomingRenewals)} />
-        <StatChip label="Listed value" value={formatInvoiceCurrency(totalAmount)} />
+        <StatChip label={thisLabel} value={formatInvoiceCurrency(flow?.thisMonth ?? 0)} />
+        <StatChip label="Last month" value={formatInvoiceCurrency(flow?.lastMonth ?? 0)} />
       </div>
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Next due dates in {quarterPeriod()}
+          {listTitle} · {items.length}
         </p>
-        <DetailList empty="No renewals are due later this quarter.">
+        <DetailList empty={empty}>
           {items.map((item) => (
-            <ListRow
+            <Link
               key={item.id}
-              title={item.customer}
-              subtitle={item.deal || "—"}
-              detail={`${item.renewal} · Due ${formatDate(item.dueDate)}`}
-              value={formatInvoiceCurrency(item.amount)}
-            />
+              to={`/invoices/${item.invoiceId}`}
+              className="block transition-colors hover:bg-muted/50"
+            >
+              <ListRow
+                title={item.company}
+                subtitle={`${item.invoiceNumber} · ${formatInvoiceDate(item.date)}`}
+                value={formatInvoiceCurrency(item.amount)}
+              />
+            </Link>
           ))}
         </DetailList>
-        {summary.upcomingRenewals > items.length ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Showing {items.length} of {summary.upcomingRenewals}. Open Renewals for the full list.
-          </p>
-        ) : null}
+      </div>
+    </>
+  );
+}
+
+function RenewalsBody({ summary }: { summary: DashboardSummaryDto }) {
+  const [filter, setFilter] = useState<RenewalFilter>(DEFAULT_RENEWAL_FILTER);
+  const all = summary.renewalsAll ?? [];
+  const items = filterRenewals(all, filter);
+  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  return (
+    <>
+      <RenewalFilterChips items={all} value={filter} onChange={setFilter} />
+      <div className="grid grid-cols-2 gap-2">
+        <StatChip label={renewalFilterLabel(filter)} value={`${items.length} ${items.length === 1 ? "plan" : "plans"}`} />
+        <StatChip label="Value with GST" value={formatInvoiceCurrency(totalAmount)} />
+      </div>
+      <div className="overflow-hidden rounded-xl border border-border/60">
+        <RenewalRows items={items} empty={`No renewals for ${renewalFilterLabel(filter).toLowerCase()}.`} />
       </div>
     </>
   );
@@ -213,6 +250,16 @@ function getKpiCopy(id: string): { description: string; cta: string } {
         description: `Collected amount on invoices issued in ${calendarMonthPeriod()}, excluding cancelled invoices. This is not the billed total, and it does not include payments this month against older invoices.`,
         cta: "Open invoices",
       };
+    case "received":
+      return {
+        description: `Payments recorded as received with a payment date in ${calendarMonthPeriod()}, whichever month the invoice was raised in. Amounts include GST.`,
+        cta: "Open collections",
+      };
+    case "invoiced":
+      return {
+        description: `Total (with GST) of invoices raised in ${calendarMonthPeriod()}, by invoice date. Drafts and cancelled invoices are left out. Whether they are paid yet does not matter here.`,
+        cta: "Open invoices",
+      };
     case "collections":
       return {
         description:
@@ -221,7 +268,8 @@ function getKpiCopy(id: string): { description: string; cta: string } {
       };
     case "renewals":
       return {
-        description: `Components whose next due date falls in ${quarterPeriod()} and is not already overdue. Overdue renewals are excluded from this count.`,
+        description:
+          "Every plan with a renewal cycle, at its next unpaid renewal date. The card counts next month; use the filters to see overdue, this month, the next 3 months or all. A renewal leaves the list once its invoice is fully paid. Amounts include GST.",
         cta: "Open renewals",
       };
     case "renewed":
@@ -259,6 +307,22 @@ export function DashboardKpiDetailDialog({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3 sm:px-5">
           {summary && kpi?.id === "revenue" ? <RevenueBody summary={summary} /> : null}
+          {summary && kpi?.id === "received" ? (
+            <MoneyFlowBody
+              flow={summary.received}
+              thisLabel="This month"
+              listTitle="Payments received this month"
+              empty="No payment has been received this month."
+            />
+          ) : null}
+          {summary && kpi?.id === "invoiced" ? (
+            <MoneyFlowBody
+              flow={summary.invoiced}
+              thisLabel="This month"
+              listTitle="Invoices raised this month"
+              empty="No invoice has been raised this month."
+            />
+          ) : null}
           {summary && kpi?.id === "collections" ? <CollectionsBody summary={summary} /> : null}
           {summary && kpi?.id === "renewals" ? <RenewalsBody summary={summary} /> : null}
           {summary && kpi?.id === "renewed" ? <RenewedBody summary={summary} /> : null}

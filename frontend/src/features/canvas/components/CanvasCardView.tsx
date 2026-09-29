@@ -1,8 +1,7 @@
 import { type DragEvent } from "react";
-import { GstPair } from "@/features/canvas/components/GstAmount";
 import { SOURCE_LABELS, type CanvasCard, type CanvasRowKey } from "@/features/canvas/types/canvas";
-import { formatDate } from "@/shared/utils";
-import { cn } from "@/shared/utils";
+import { formatMonthLabel } from "@/features/canvas/utils/canvas-utils";
+import { cn, formatCurrency, formatDate } from "@/shared/utils";
 
 const accent: Record<CanvasRowKey, string> = {
   unclassified: "border-l-slate-400",
@@ -26,8 +25,12 @@ export function CanvasCardView({
   onDragEnd: () => void;
 }) {
   const source = card.sourceType ? SOURCE_LABELS[card.sourceType] : "Account";
-  const reference = card.dealTitle || card.invoiceNumber;
+  const detail = card.reason || card.invoiceNumber || card.dealTitle;
   const overdue = card.status === "overdue";
+  const paid = card.status === "received";
+  const statusLabel = paid ? "Paid" : card.status;
+  const exGst = card.amountExGst ?? card.expectedAmount;
+  const showExGst = card.expectedAmount != null && exGst != null && Math.abs(card.expectedAmount - exGst) > 0.009;
 
   return (
     <button
@@ -41,7 +44,8 @@ export function CanvasCardView({
         "hover:-translate-y-0.5 hover:shadow-md",
         accent[card.rowKey],
         card.kind === "account" && "border-dashed bg-muted/30",
-        overdue && "border-rose-400/60 bg-rose-500/[0.06]"
+        overdue && "bg-rose-500/[0.05]",
+        paid && "opacity-75"
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -52,21 +56,44 @@ export function CanvasCardView({
               "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
               overdue
                 ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                : "bg-muted text-muted-foreground"
+                : paid
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  : "bg-muted text-muted-foreground"
             )}
           >
-            {card.status}
+            {statusLabel}
           </span>
         ) : null}
       </div>
-      <GstPair inclusive={card.expectedAmount} exclusive={card.amountExGst} percent={card.gstPercent} />
-      <p className="mt-1 text-xs text-muted-foreground">
-        {card.expectedDate ? formatDate(card.expectedDate) : "No expected date"}
-        <span className="px-1 text-border">·</span>
-        {source}
-      </p>
-      {card.reason ? <p className="mt-1 truncate text-xs text-muted-foreground">{card.reason}</p> : null}
-      {reference ? <p className="truncate text-xs font-medium text-foreground/80">{reference}</p> : null}
+
+      {card.expectedAmount != null ? (
+        <p className="mt-1.5 text-base font-bold tabular-nums leading-tight">
+          {formatCurrency(card.expectedAmount)}
+          {showExGst ? (
+            <span className="ml-1.5 text-[11px] font-medium text-muted-foreground">
+              {formatCurrency(exGst)} ex-GST
+            </span>
+          ) : null}
+        </p>
+      ) : (
+        <p className="mt-1.5 text-xs text-muted-foreground">No expected receipt yet</p>
+      )}
+
+      {card.kind === "receipt" ? (
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+          <span>{card.expectedDate ? formatDate(card.expectedDate) : "No date"}</span>
+          <span className="text-border">•</span>
+          <span>{source}</span>
+          {card.carriedFrom ? (
+            <span className="rounded-md bg-rose-500/10 px-1.5 py-px font-semibold text-rose-700 dark:text-rose-300">
+              Carried from {formatMonthLabel(card.carriedFrom)}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      {detail && card.kind === "receipt" ? (
+        <p className="mt-0.5 truncate text-[11px] text-foreground/70">{detail}</p>
+      ) : null}
     </button>
   );
 }

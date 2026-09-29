@@ -8,7 +8,7 @@ import {
   getComponentCurrentDueDate,
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
-import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
+import type { InvoiceEntity, PaymentEntity } from '../../revenue/types/revenue.entities';
 import {
   effectiveInvoiceOutstanding,
   isCollectionInvoice,
@@ -16,6 +16,8 @@ import {
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import type {
   CanvasCard,
+  CanvasPaidEntry,
+  CanvasRenewalReminder,
   ExpectedReceiptEntity,
   LeadTemperatureEntity,
   LeadTemperatureValue,
@@ -142,11 +144,26 @@ export const buildCanvasCards = (input: {
   }
 
   const activeReceipts = input.receipts.filter((receipt) => receipt.status !== 'superseded');
+  // A receipt marked paid must not hide what is still owed: the invoice's remaining
+  // balance, or the component's next renewal cycle once its due date has moved on.
+  const paidReceipt = (receipt: ExpectedReceiptEntity): boolean =>
+    receipt.status === 'received' && receipt.origin !== 'dismissed';
   const coveredInvoices = new Set(
-    activeReceipts.map((receipt) => receipt.invoiceId).filter(Boolean),
+    activeReceipts
+      .filter((receipt) => !paidReceipt(receipt))
+      .map((receipt) => receipt.invoiceId)
+      .filter(Boolean),
   );
   const coveredComponents = new Set(
-    activeReceipts.map((receipt) => receipt.componentId).filter(Boolean),
+    activeReceipts
+      .filter((receipt) => {
+        if (!receipt.componentId) return false;
+        if (!paidReceipt(receipt)) return true;
+        const component = componentById.get(receipt.componentId);
+        const currentDue = component ? getComponentCurrentDueDate(component).slice(0, 10) : '';
+        return receipt.expectedDate.slice(0, 10) === currentDue;
+      })
+      .map((receipt) => receipt.componentId),
   );
   const openInvoiceComponents = new Set<string>();
   for (const invoice of input.invoices) {
@@ -331,4 +348,109 @@ export const buildCanvasCards = (input: {
   }
 
   return cards;
+};
+
+const nextMonthKey = (today: string): string => {
+  const match = /^(\d{4})-(\d{2})/.exec(today);
+  if (!match) return '';
+  return monthKeyFromDate(toLocalDateOnly(new Date(Number(match[1]), Number(match[2]), 1)));
+};
+
+/**
+ * The current unpaid cycle of every renewing component: the same components the
+ * board shows as renewal cards, so the page can list the renewals of whichever
+ * months are on screen. Computed on every read, so nothing is stored and a paid
+ * cycle (which rolls the component's due date forward) drops out on its own.
+ */
+export const buildRenewalReminders = (input: {
+  customers: CustomerEntity[];
+  deals: DealEntity[];
+  components: DealComponentEntity[];
+  invoices: InvoiceEntity[];
+  today: string;
+}): CanvasRenewalReminder[] => {
+  const customerById = new Map(input.customers.map((customer) => [customer.id, customer]));
+  const dealById = new Map(input.deals.map((deal) => [deal.id, deal]));
+  const openInvoiceByComponent = new Map<string, InvoiceEntity>();
+  for (const invoice of input.invoices) {
+    if (!isCollectionInvoice(invoice)) continue;
+    for (const componentId of invoice.componentIds ?? []) {
+      if (componentId && !openInvoiceByComponent.has(componentId)) {
+        openInvoiceByComponent.set(componentId, invoice);
+      }
+    }
+  }
+
+  const thisMonth = monthKeyFromDate(input.today);
+  const nextMonth = nextMonthKey(input.today);
+  const reminders: CanvasRenewalReminder[] = [];
+
+  for (const component of input.components) {
+    if (!hasRenewalFrequency(component.renewalFrequency)) continue;
+    const deal = dealById.get(component.dealId);
+    if (!deal?.customerId) continue;
+    const customer = customerById.get(deal.customerId);
+    if (!customer) continue;
+    const dueDate = getComponentCurrentDueDate(component).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) continue;
+    if ((component.lastRenewedDate || '').slice(0, 10) === dueDate) continue;
+
+    const invoice = openInvoiceByComponent.get(component.id);
+    reminders.push({
+      id: `renewal-${component.id}`,
+      componentId: component.id,
+      componentName: component.name?.trim() || 'Renewal',
+      customerId: customer.id,
+      companyName: companyNameOf(customer, deal.customerName),
+      dealId: deal.id,
+      dealTitle: deal.title,
+      renewalDate: dueDate,
+      renewalFrequency: component.renewalFrequency,
+      lastRenewedDate: (component.lastRenewedDate || '').slice(0, 10),
+      amount: computeComponentLineTotal(component),
+      status:
+        dueDate < input.today
+          ? 'overdue'
+          : monthKeyFromDate(dueDate) === thisMonth
+            ? 'this_month'
+            : monthKeyFromDate(dueDate) === nextMonth
+              ? 'next_month'
+              : 'later',
+      invoiceId: invoice?.id ?? '',
+      invoiceNumber: invoice?.invoiceNumber ?? '',
+    });
+  }
+
+  return reminders.sort(
+    (a, b) => a.renewalDate.localeCompare(b.renewalDate) || a.companyName.localeCompare(b.companyName),
+  );
+};
+
+/** Received payments, for the Paid total of whichever months are on screen. */
+export const buildPaidEntries = (input: {
+  customers: CustomerEntity[];
+  invoices: InvoiceEntity[];
+  payments: PaymentEntity[];
+}): CanvasPaidEntry[] => {
+  const customerById = new Map(input.customers.map((customer) => [customer.id, customer]));
+  const invoiceById = new Map(input.invoices.map((invoice) => [invoice.id, invoice]));
+  const entries: CanvasPaidEntry[] = [];
+  for (const payment of input.payments) {
+    if (payment.status !== 'received') continue;
+    const invoice = invoiceById.get(payment.invoiceId);
+    if (!invoice) continue;
+    const paidAt = (payment.paidAt || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) continue;
+    const customerId = payment.customerId || invoice.customerId;
+    entries.push({
+      id: payment.id,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      customerId,
+      companyName: companyNameOf(customerById.get(customerId), invoice.customerName),
+      amount: roundMoney(Number(payment.amount) || 0),
+      paidAt,
+    });
+  }
+  return entries;
 };

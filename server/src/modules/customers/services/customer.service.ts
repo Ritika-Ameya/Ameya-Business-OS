@@ -260,29 +260,31 @@ export class CustomerService extends BaseService {
       }),
     );
 
-    return customerRepository.updateOrThrow(
-      id,
-      {
-        ...input,
-        allowDuplicateCompanyName: undefined,
-        companyName: input.companyName?.trim(),
-        gstin: input.gstin?.trim().toUpperCase(),
-        vatId: input.vatId?.trim(),
-        licenseNo: input.licenseNo?.trim(),
-        contactPerson: input.contactPerson?.trim(),
-        phone: input.phone?.trim(),
-        alternatePhone: input.alternatePhone?.trim(),
-        email: input.email?.trim(),
-        website: input.website?.trim(),
-        billingAddress: input.billingAddress?.trim(),
-        serviceAddress: input.serviceAddress?.trim(),
-        city: input.city?.trim(),
-        pincode: input.pincode?.trim(),
-        notes: input.notes?.trim(),
-        timeline,
-      } as Partial<CustomerEntity>,
-      'Customer',
-    );
+    const patch: Record<string, unknown> = {
+      ...input,
+      allowDuplicateCompanyName: undefined,
+      companyName: input.companyName?.trim(),
+      gstin: input.gstin?.trim().toUpperCase(),
+      vatId: input.vatId?.trim(),
+      licenseNo: input.licenseNo?.trim(),
+      contactPerson: input.contactPerson?.trim(),
+      phone: input.phone?.trim(),
+      alternatePhone: input.alternatePhone?.trim(),
+      email: input.email?.trim(),
+      website: input.website?.trim(),
+      billingAddress: input.billingAddress?.trim(),
+      serviceAddress: input.serviceAddress?.trim(),
+      city: input.city?.trim(),
+      pincode: input.pincode?.trim(),
+      notes: input.notes?.trim(),
+      timeline,
+    };
+    // An omitted field must keep its stored value, not be blanked by `undefined`.
+    for (const key of Object.keys(patch)) {
+      if (patch[key] === undefined) delete patch[key];
+    }
+
+    return customerRepository.updateOrThrow(id, patch as Partial<CustomerEntity>, 'Customer');
   }
 
   async remove(id: string): Promise<void> {

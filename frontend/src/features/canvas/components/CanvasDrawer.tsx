@@ -9,6 +9,7 @@ import {
   type CanvasCard,
   type ReceiptSourceType,
 } from "@/features/canvas/types/canvas";
+import { formatMonthLabel } from "@/features/canvas/utils/canvas-utils";
 import { ApiError } from "@/shared/api/errors";
 import { Button } from "@/shared/ui/button";
 import {
@@ -43,12 +44,14 @@ export function CanvasDrawer({
   draft,
   onClose,
   onBoard,
+  onMarkPaid,
 }: {
   board: CanvasBoard;
   card: CanvasCard | null;
   draft: CreateDraft | null;
   onClose: () => void;
   onBoard: (board: CanvasBoard) => void;
+  onMarkPaid: (card: CanvasCard) => void;
 }) {
   const open = Boolean(card || draft);
   const creating = Boolean(draft) && card?.kind !== "receipt";
@@ -190,6 +193,13 @@ export function CanvasDrawer({
           {error ? (
             <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm">
               {error}
+            </p>
+          ) : null}
+
+          {card?.carriedFrom ? (
+            <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm">
+              Unpaid from {formatMonthLabel(card.carriedFrom)}. It stays here as carried forward until it
+              is paid or moved to another month.
             </p>
           ) : null}
 
@@ -366,6 +376,16 @@ export function CanvasDrawer({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t px-4 py-4">
+          {card?.kind === "receipt" && (card.status === "expected" || card.status === "overdue") ? (
+            <Button
+              type="button"
+              disabled={pending}
+              className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+              onClick={() => onMarkPaid(card)}
+            >
+              Mark as paid
+            </Button>
+          ) : null}
           <Button type="button" disabled={pending} onClick={save}>
             Save forecast
           </Button>

@@ -60,8 +60,43 @@ export interface UpcomingRevenueItemDto {
 export interface ChartMonthPointDto {
   month: string;
   yearMonth: string;
+  /** Legacy: collected on invoices issued in the month. */
   revenue: number;
+  /** Payments received in the month, by payment date. */
+  received?: number;
+  /** Invoice totals raised in the month, by issue date. */
+  invoiced?: number;
   expense: number;
+}
+
+export interface MoneyMonthItemDto {
+  id: string;
+  customerId: string;
+  company: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  date: string;
+}
+
+export interface DashboardMoneyFlowDto {
+  thisMonth: number;
+  lastMonth: number;
+  trendPct: number;
+  items: MoneyMonthItemDto[];
+}
+
+export interface DashboardRenewalItemDto {
+  id: string;
+  customerId: string;
+  company: string;
+  contactPerson: string;
+  dealId: string;
+  deal: string;
+  renewal: string;
+  frequency: string;
+  dueDate: string;
+  amount: number;
 }
 
 export interface DashboardExpenseStatsDto {
@@ -99,6 +134,9 @@ export interface DashboardSummaryDto {
   upcomingRenewalsList: UpcomingRenewalDto[];
   renewedCustomersList: RenewedCustomerDto[];
   revenueThisMonthItems: RevenueMonthItemDto[];
+  received?: DashboardMoneyFlowDto;
+  invoiced?: DashboardMoneyFlowDto;
+  renewalsAll?: DashboardRenewalItemDto[];
   upcomingRevenue: {
     items: UpcomingRevenueItemDto[];
     totalExpectedRevenue: number;
