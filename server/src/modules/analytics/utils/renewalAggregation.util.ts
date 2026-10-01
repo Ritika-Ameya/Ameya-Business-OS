@@ -6,7 +6,11 @@ import {
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
 import { migrateDealRenewalsToComponents } from '../../deals/utils/renewalMigration.util';
-import { computeComponentLineTotal } from '../../deals/utils/componentAmount.util';
+import {
+  computeComponentLineTotal,
+  computeComponentTaxable,
+} from '../../deals/utils/componentAmount.util';
+import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import { dealComponentRepository } from '../../deals/services/deal.repository';
 import type { RenewalRow, RenewalStatus, RenewalType } from '../types/analytics.types';
 
@@ -82,7 +86,8 @@ export const getCompanyRenewals = (
         : dueIso,
       renewalDate: dueIso,
       lastRenewedDate,
-      amount: computeComponentLineTotal(component),
+      amount: computeComponentTaxable(component),
+      gstAmount: roundMoney(computeComponentLineTotal(component) - computeComponentTaxable(component)),
       status,
       renewalType: mapComponentRenewalType(component.renewalFrequency),
       renewalFrequency: component.renewalFrequency,

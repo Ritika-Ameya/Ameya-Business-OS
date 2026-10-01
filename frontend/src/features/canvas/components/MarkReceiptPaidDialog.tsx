@@ -5,6 +5,13 @@ import type { CanvasBoard, CanvasCard } from "@/features/canvas/types/canvas";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
+import {
+  DEFAULT_REMOVE_GST_REASON,
+  PaidWithoutGstPrompt,
+} from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
+import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
+import type { PaymentAccount } from "@/features/revenue/types/payment";
+import { isBaseOnlyPayment } from "@/features/revenue/utils/invoice-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { Button } from "@/shared/ui/button";
 import {
@@ -102,10 +109,23 @@ function MarkPaidForm({
   const [referenceNumber, setReferenceNumber] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [removeGst, setRemoveGst] = useState(false);
+  const [removeGstReason, setRemoveGstReason] = useState(DEFAULT_REMOVE_GST_REASON);
+  const [accountChoice, setAccountChoice] = useState<PaymentAccount | null>(null);
 
   const invoice = openInvoices.find((item) => item.id === invoiceId);
   const parsedAmount = Number(amount.replace(/,/g, ""));
-  const remaining = round(expected - (Number.isFinite(parsedAmount) ? parsedAmount : 0));
+  const showGstPrompt = invoice !== undefined && isBaseOnlyPayment(invoice, parsedAmount);
+  const convertToNonGst = showGstPrompt && removeGst;
+  const receivedAccount: PaymentAccount =
+    accountChoice ?? (convertToNonGst || invoice?.billingType === "non_gst" ? "other" : "gst");
+  const expectedAfterGst =
+    convertToNonGst && invoice && invoice.amount > 0
+      ? round((expected * invoice.subtotal) / invoice.amount)
+      : expected;
+  const remaining = round(
+    expectedAfterGst - (Number.isFinite(parsedAmount) ? parsedAmount : 0)
+  );
 
   const submit = async () => {
     if (pending) return;
@@ -129,6 +149,10 @@ function MarkPaidForm({
       setError("Choose the payment mode.");
       return;
     }
+    if (convertToNonGst && !removeGstReason.trim()) {
+      setError("Give a reason for removing GST.");
+      return;
+    }
     setPending(true);
     setError("");
     try {
@@ -139,6 +163,8 @@ function MarkPaidForm({
         paymentDate,
         mode,
         referenceNumber: referenceNumber.trim(),
+        removeGstReason: convertToNonGst ? removeGstReason.trim() : undefined,
+        receivedAccount,
       });
       onDone(board);
       void refreshInvoices();
@@ -207,7 +233,7 @@ function MarkPaidForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="mark-paid-amount">Amount received (with GST)</Label>
+              <Label htmlFor="mark-paid-amount">Amount received</Label>
               <Input
                 id="mark-paid-amount"
                 inputMode="decimal"
@@ -250,7 +276,29 @@ function MarkPaidForm({
                 onChange={(event) => setReferenceNumber(event.target.value)}
               />
             </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Received in account</Label>
+              <ReceivedAccountToggle
+                value={receivedAccount}
+                onChange={setAccountChoice}
+                disabled={pending}
+              />
+            </div>
           </div>
+
+          {showGstPrompt && invoice ? (
+            <PaidWithoutGstPrompt
+              invoice={invoice}
+              checked={removeGst}
+              onCheckedChange={(checked) => {
+                setRemoveGst(checked);
+                setAccountChoice(null);
+              }}
+              reason={removeGstReason}
+              onReasonChange={setRemoveGstReason}
+              disabled={pending}
+            />
+          ) : null}
 
           {expected > 0 && remaining > 0.009 && Number.isFinite(parsedAmount) && parsedAmount > 0 ? (
             <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">

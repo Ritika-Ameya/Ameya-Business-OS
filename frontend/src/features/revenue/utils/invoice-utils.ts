@@ -4,14 +4,36 @@ import type {
   InvoiceNumberSort,
   InvoiceStatus,
 } from "@/features/revenue/types/invoice";
+import { formatCurrency } from "@/shared/utils/format-currency";
 
 export { formatCurrency as formatInvoiceCurrency } from "@/shared/utils/format-currency";
 export { formatDate as formatInvoiceDate } from "@/shared/utils/format-date";
+
+/** Expected amount before an invoice exists: GST applies only if billed with GST. */
+export function formatBaseWithGst(base: number, gstAmount: number): string {
+  return gstAmount > 0.009
+    ? `${formatCurrency(base)} + GST ${formatCurrency(gstAmount)}`
+    : formatCurrency(base);
+}
+
+/** Paid amount equals the invoice's base (pre-GST) balance, i.e. the client skipped GST. */
+export function isBaseOnlyPayment(invoice: Invoice, amount: number): boolean {
+  if (invoice.billingType !== "gst" || invoice.tax <= 0.009) return false;
+  if (!Number.isFinite(amount) || amount <= 0) return false;
+  return Math.abs(invoice.received + amount - invoice.subtotal) <= 1;
+}
 
 export const defaultInvoiceFilters: InvoiceFilters = {
   status: "all",
   customer: "all",
   date: "all",
+  billingType: "all",
+};
+
+export const invoiceBillingTypeLabels: Record<InvoiceFilters["billingType"], string> = {
+  all: "GST & Non-GST",
+  gst: "With GST",
+  non_gst: "Without GST",
 };
 
 export const invoiceStatusLabels: Record<InvoiceFilters["status"], string> = {
@@ -116,7 +138,12 @@ export function filterInvoices(
           (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear())) ||
       (filters.date === "overdue" && isPastDue);
 
-    return matchesSearch && matchesStatus && matchesCustomer && matchesDate;
+    const matchesBillingType =
+      filters.billingType === "all" || invoice.billingType === filters.billingType;
+
+    return (
+      matchesSearch && matchesStatus && matchesCustomer && matchesDate && matchesBillingType
+    );
   });
 }
 

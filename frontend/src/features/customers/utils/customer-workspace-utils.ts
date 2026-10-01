@@ -1,11 +1,14 @@
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import {
   computeComponentLineTotal,
-  formatComponentCurrency,
+  computeComponentTaxable,
   getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
-import { getInvoicesByCustomerId } from "@/features/revenue/utils/invoice-utils";
+import {
+  formatBaseWithGst,
+  getInvoicesByCustomerId,
+} from "@/features/revenue/utils/invoice-utils";
 import type { Deal } from "@/features/deals/types/deal";
 import type {
   ComponentRenewalFrequency,
@@ -104,7 +107,10 @@ export function getCustomerRenewals(
         dealTitle: deal.title,
         dueDate: dueIso,
         lastPaidDate: component.lastRenewedDate?.trim() || "",
-        amount: formatComponentCurrency(computeComponentLineTotal(component)),
+        amount: formatBaseWithGst(
+          computeComponentTaxable(component),
+          computeComponentLineTotal(component) - computeComponentTaxable(component)
+        ),
         status,
         renewalFrequency: component.renewalFrequency,
         renewalStartDate: component.renewalStartDate || dueIso,

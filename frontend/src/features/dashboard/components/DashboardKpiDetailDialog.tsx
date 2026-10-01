@@ -206,7 +206,7 @@ function RenewalsBody({ summary }: { summary: DashboardSummaryDto }) {
       <RenewalFilterChips items={all} value={filter} onChange={setFilter} />
       <div className="grid grid-cols-2 gap-2">
         <StatChip label={renewalFilterLabel(filter)} value={`${items.length} ${items.length === 1 ? "plan" : "plans"}`} />
-        <StatChip label="Value with GST" value={formatInvoiceCurrency(totalAmount)} />
+        <StatChip label="Value before GST" value={formatInvoiceCurrency(totalAmount)} />
       </div>
       <div className="overflow-hidden rounded-xl border border-border/60">
         <RenewalRows items={items} empty={`No renewals for ${renewalFilterLabel(filter).toLowerCase()}.`} />

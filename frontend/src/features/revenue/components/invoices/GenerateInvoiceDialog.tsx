@@ -33,7 +33,12 @@ import {
 import { computeComponentLineTotal, computeComponentTaxable, formatComponentCurrency, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
 import { composeInvoiceNumber, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
-import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
+import { BillingTypeToggle } from "@/features/revenue/components/invoices/BillingTypeToggle";
+import type {
+  GenerateInvoiceContext,
+  Invoice,
+  InvoiceBillingType,
+} from "@/features/revenue/types/invoice";
 
 interface GenerateInvoiceDialogProps {
   open: boolean;
@@ -59,7 +64,7 @@ export function GenerateInvoiceDialog({
   const { finance } = useAppConfig();
   const { customers } = useCustomers();
   const { deals, getComponentsByDeal } = useDeals();
-  const { createInvoice } = useRevenue();
+  const { createInvoice, invoices } = useRevenue();
   const { refreshDashboard } = useDashboard();
   const defaultTax = getDefaultTaxPercentage(finance);
   const isLocked = Boolean(context);
@@ -76,6 +81,7 @@ export function GenerateInvoiceDialog({
   const [dueDate, setDueDate] = useState(() => addDaysIso(30));
   const [nextActionDate, setNextActionDate] = useState(() => addDaysIso(7));
   const [gstPercent, setGstPercent] = useState(String(defaultTax));
+  const [billingType, setBillingType] = useState<InvoiceBillingType>("gst");
   const [invoiceNumberRest, setInvoiceNumberRest] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -103,6 +109,22 @@ export function GenerateInvoiceDialog({
     ? resolveCustomerAddress(selectedCustomer, addressType)
     : "";
 
+  const lastBillingType = useMemo(() => {
+    const latest = invoices
+      .filter((invoice) => invoice.customerId === customerId && invoice.status !== "cancelled")
+      .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate))[0];
+    return latest?.billingType ?? null;
+  }, [invoices, customerId]);
+
+  const billingDefaultKey = open ? `${customerId}:${lastBillingType ?? "gst"}` : "";
+  const [appliedBillingDefaultKey, setAppliedBillingDefaultKey] = useState("");
+  if (billingDefaultKey !== appliedBillingDefaultKey) {
+    setAppliedBillingDefaultKey(billingDefaultKey);
+    if (open) setBillingType(lastBillingType ?? "gst");
+  }
+
+  const isNonGst = billingType === "non_gst";
+
   const summary = useMemo(() => {
     const selected = dealComponents.filter((component) =>
       selectedComponents.includes(component.id)
@@ -111,6 +133,10 @@ export function GenerateInvoiceDialog({
       (sum, component) => sum + computeComponentTaxable(component),
       0
     );
+    if (isNonGst) {
+      const base = Math.round(subtotal * 100) / 100;
+      return { subtotal: base, tax: 0, total: base, taxRate: 0 };
+    }
     const taxRate = Number.parseFloat(gstPercent) || 0;
     const uniqueRates = [
       ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
@@ -133,7 +159,7 @@ export function GenerateInvoiceDialog({
         ? Math.round((tax / subtotal) * 10000) / 100
         : taxRate,
     };
-  }, [dealComponents, selectedComponents, gstPercent]);
+  }, [dealComponents, selectedComponents, gstPercent, isNonGst]);
 
   const selectedGstKey = useMemo(() => {
     const selected = dealComponents.filter((component) =>
@@ -226,6 +252,7 @@ export function GenerateInvoiceDialog({
         notes: notes.trim(),
         nextActionDate,
         invoiceNumber,
+        billingType,
       });
       onOpenChange(false);
       setSelectedComponents([]);
@@ -390,12 +417,23 @@ export function GenerateInvoiceDialog({
                             ) : null}
                           </div>
                           <span className="shrink-0 text-right text-sm font-medium">
-                            {formatComponentCurrency(computeComponentLineTotal(component))}
-                            {component.gstPercent > 0 ? (
-                              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                                Incl. {component.gstPercent}% GST
-                              </span>
-                            ) : null}
+                            {isNonGst ? (
+                              <>
+                                {formatComponentCurrency(computeComponentTaxable(component))}
+                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                  Without GST
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                {formatComponentCurrency(computeComponentLineTotal(component))}
+                                {component.gstPercent > 0 ? (
+                                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                    Incl. {component.gstPercent}% GST
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
                           </span>
                         </button>
                       );
@@ -467,15 +505,29 @@ export function GenerateInvoiceDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gst">GST %</Label>
-                <Input
-                  id="gst"
-                  type="number"
-                  value={gstPercent}
-                  onChange={(e) => setGstPercent(e.target.value)}
-                  className="rounded-xl"
-                />
+                <Label>GST on this invoice</Label>
+                <BillingTypeToggle value={billingType} onChange={setBillingType} />
+                <p className="text-xs text-muted-foreground">
+                  {lastBillingType
+                    ? `Suggested from this customer's last invoice (${
+                        lastBillingType === "gst" ? "with GST" : "without GST"
+                      }). Change it if this bill is different.`
+                    : "Choose per invoice. The same customer can be billed with or without GST."}
+                </p>
               </div>
+
+              {!isNonGst && (
+                <div className="space-y-2">
+                  <Label htmlFor="gst">GST %</Label>
+                  <Input
+                    id="gst"
+                    type="number"
+                    value={gstPercent}
+                    onChange={(e) => setGstPercent(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
@@ -505,7 +557,7 @@ export function GenerateInvoiceDialog({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      GST ({summary.taxRate}%)
+                      {isNonGst ? "GST (not charged)" : `GST (${summary.taxRate}%)`}
                     </span>
                     <span className="font-medium">
                       {formatInvoiceCurrency(summary.tax)}
@@ -513,7 +565,9 @@ export function GenerateInvoiceDialog({
                   </div>
                   <div className="border-t border-border/70 pt-3">
                     <div className="flex justify-between">
-                      <span className="font-medium">Grand Total (incl. GST)</span>
+                      <span className="font-medium">
+                        {isNonGst ? "Grand Total (without GST)" : "Grand Total (incl. GST)"}
+                      </span>
                       <span className="text-lg font-semibold">
                         {formatInvoiceCurrency(summary.total)}
                       </span>

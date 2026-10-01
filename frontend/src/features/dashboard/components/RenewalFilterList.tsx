@@ -103,7 +103,16 @@ export function RenewalRows({
                 </span>
               </p>
             </div>
-            <span className="shrink-0 font-semibold tabular-nums">{formatInvoiceCurrency(item.amount)}</span>
+            <span className="shrink-0 text-right">
+              <span className="block font-semibold tabular-nums">
+                {formatInvoiceCurrency(item.amount)}
+              </span>
+              {(item.gstAmount ?? 0) > 0.009 ? (
+                <span className="block text-[11px] tabular-nums text-muted-foreground">
+                  + GST {formatInvoiceCurrency(item.gstAmount ?? 0)}
+                </span>
+              ) : null}
+            </span>
           </li>
         );
       })}

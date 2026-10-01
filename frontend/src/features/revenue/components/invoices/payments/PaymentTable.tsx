@@ -24,7 +24,7 @@ import {
   formatPaymentCurrency,
   formatPaymentDate,
 } from "@/features/revenue/utils/payment-utils";
-import type { Payment } from "@/features/revenue/types/payment";
+import { PAYMENT_ACCOUNT_LABELS, type Payment } from "@/features/revenue/types/payment";
 
 interface PaymentTableProps {
   payments: Payment[];
@@ -57,6 +57,7 @@ export function PaymentTable({
               <TableHead className="pl-4">Payment Date</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Payment Mode</TableHead>
+              <TableHead className="hidden sm:table-cell">Received In</TableHead>
               <TableHead className="hidden md:table-cell">Reference Number</TableHead>
               <TableHead className="hidden lg:table-cell">Received By</TableHead>
               <TableHead>Status</TableHead>
@@ -74,6 +75,11 @@ export function PaymentTable({
                 </TableCell>
                 <TableCell>
                   <PaymentModeBadge mode={payment.mode} />
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground sm:table-cell">
+                  {payment.receivedAccount
+                    ? PAYMENT_ACCOUNT_LABELS[payment.receivedAccount]
+                    : "—"}
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {payment.referenceNumber ?? "—"}

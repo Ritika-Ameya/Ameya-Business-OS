@@ -1,4 +1,8 @@
-import { formatInvoiceCurrency, getUniqueCustomers } from "@/features/revenue/utils/invoice-utils";
+import {
+  formatBaseWithGst,
+  formatInvoiceCurrency,
+  getUniqueCustomers,
+} from "@/features/revenue/utils/invoice-utils";
 import type { Deal } from "@/features/deals/types/deal";
 import type {
   ComponentRenewalFrequency,
@@ -6,6 +10,7 @@ import type {
 } from "@/features/deals/types/deal-component";
 import {
   computeComponentLineTotal,
+  computeComponentTaxable,
   getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
@@ -337,7 +342,8 @@ export function getCompanyRenewals(
     const lastRenewedDate = component.lastRenewedDate?.trim() || "";
     const status = resolveCompanyRenewalStatus(dueIso, now);
     const wasRenewed = status === "upcoming" && Boolean(lastRenewedDate);
-    const amountValue = computeComponentLineTotal(component);
+    const amountValue = computeComponentTaxable(component);
+    const gstValue = computeComponentLineTotal(component) - amountValue;
 
     rows.push({
       id: `renewal-${component.id}`,
@@ -353,7 +359,7 @@ export function getCompanyRenewals(
         : dueIso,
       renewalDate: dueIso,
       lastRenewedDate,
-      amount: amountValue ? formatInvoiceCurrency(amountValue) : "—",
+      amount: amountValue ? formatBaseWithGst(amountValue, gstValue) : "—",
       amountValue,
       status,
       renewalType: mapRenewalType(component.renewalFrequency),

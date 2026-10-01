@@ -1,4 +1,10 @@
-import type { InvoiceEntity, InvoiceStatus, PaymentEntity } from '../types/revenue.entities';
+import type {
+  InvoiceBillingType,
+  InvoiceEntity,
+  InvoiceLineItem,
+  InvoiceStatus,
+  PaymentEntity,
+} from '../types/revenue.entities';
 
 /** Round to 2 decimal places (currency). */
 export const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -6,6 +12,62 @@ export const roundMoney = (value: number): number => Math.round(value * 100) / 1
 /** Tax amount from subtotal and percent (before optional override). */
 export const computeTaxAmount = (subtotal: number, taxPercent: number): number =>
   roundMoney((subtotal * taxPercent) / 100);
+
+export const buildLineItem = (input: {
+  componentId: string;
+  name: string;
+  taxable: number;
+  gstPercent: number;
+}): InvoiceLineItem => {
+  const taxable = roundMoney(input.taxable);
+  const gstPercent = Number(input.gstPercent) || 0;
+  const gstAmount = computeTaxAmount(taxable, gstPercent);
+  return {
+    componentId: input.componentId,
+    name: input.name,
+    taxable,
+    gstPercent,
+    gstAmount,
+    total: roundMoney(taxable + gstAmount),
+  };
+};
+
+/** Same billed base amounts, re-taxed at one rate (0 for a non-GST invoice). */
+export const repriceLineItems = (
+  lineItems: InvoiceLineItem[],
+  gstPercent: number,
+): InvoiceLineItem[] =>
+  lineItems.map((line) =>
+    buildLineItem({
+      componentId: line.componentId,
+      name: line.name,
+      taxable: line.taxable,
+      gstPercent,
+    }),
+  );
+
+export const totalsFromLineItems = (
+  lineItems: InvoiceLineItem[],
+): { subtotal: number; taxPercent: number; tax: number; total: number } => {
+  const subtotal = roundMoney(lineItems.reduce((sum, line) => sum + line.taxable, 0));
+  const tax = roundMoney(lineItems.reduce((sum, line) => sum + line.gstAmount, 0));
+  const rates = [...new Set(lineItems.map((line) => line.gstPercent))];
+  const taxPercent =
+    rates.length === 1 ? rates[0] : subtotal > 0 ? roundMoney((tax / subtotal) * 100) : 0;
+  return { subtotal, taxPercent, tax, total: roundMoney(subtotal + tax) };
+};
+
+export const lineItemsMatchSubtotal = (
+  lineItems: InvoiceLineItem[],
+  subtotal: number,
+): boolean =>
+  lineItems.length > 0 &&
+  Math.abs(lineItems.reduce((sum, line) => sum + line.taxable, 0) - subtotal) < 0.01;
+
+export const resolveBillingType = (
+  billingType: InvoiceBillingType | undefined,
+  taxPercent: number | undefined,
+): InvoiceBillingType => billingType ?? ((taxPercent ?? 0) > 0 ? 'gst' : 'non_gst');
 
 /** Outstanding balance: invoice total minus paid amount, floored at zero. */
 export const computeOutstanding = (total: number, received: number): number =>

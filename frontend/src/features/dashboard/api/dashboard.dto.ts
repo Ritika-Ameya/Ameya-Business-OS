@@ -28,7 +28,9 @@ export interface UpcomingRenewalDto {
   deal: string;
   renewal: string;
   dueDate: string;
+  /** Base amount before GST. */
   amount: number;
+  gstAmount?: number;
 }
 
 export interface RenewedCustomerDto {
@@ -96,7 +98,9 @@ export interface DashboardRenewalItemDto {
   renewal: string;
   frequency: string;
   dueDate: string;
+  /** Base amount before GST. */
   amount: number;
+  gstAmount?: number;
 }
 
 export interface DashboardExpenseStatsDto {

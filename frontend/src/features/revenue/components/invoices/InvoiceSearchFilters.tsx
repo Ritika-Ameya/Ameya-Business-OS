@@ -15,6 +15,7 @@ import {
 import {
   defaultInvoiceFilters,
   getUniqueCustomers,
+  invoiceBillingTypeLabels,
   invoiceDateLabels,
   invoiceStatusLabels,
 } from "@/features/revenue/utils/invoice-utils";
@@ -39,7 +40,8 @@ export function InvoiceSearchFilters({
   const hasActiveFilters =
     filters.status !== defaultInvoiceFilters.status ||
     filters.customer !== defaultInvoiceFilters.customer ||
-    filters.date !== defaultInvoiceFilters.date;
+    filters.date !== defaultInvoiceFilters.date ||
+    filters.billingType !== defaultInvoiceFilters.billingType;
 
   const resetAll = () => {
     onQueryChange("");
@@ -121,6 +123,33 @@ export function InvoiceSearchFilters({
             </SelectTrigger>
             <SelectContent>
               {Object.entries(invoiceDateLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+
+        <FilterField label="GST">
+          <Select
+            value={filters.billingType}
+            onValueChange={(value) =>
+              onFiltersChange({
+                ...filters,
+                billingType: value as InvoiceFilters["billingType"],
+              })
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className={filterControlClassName}
+              aria-label="Filter by GST"
+            >
+              <SelectValue placeholder="Select GST type" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(invoiceBillingTypeLabels).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
                 </SelectItem>

@@ -59,6 +59,8 @@ export const canvasApi = {
     mode: string;
     referenceNumber?: string;
     notes?: string;
+    removeGstReason?: string;
+    receivedAccount?: "gst" | "other";
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts/mark-paid`, { method: "POST", body }),
 
   getLeadTemperature: (customerId: string) =>

@@ -12,6 +12,9 @@ export interface ReportInvoiceItemDto {
   dueDate: string;
   status: string;
   gstPercent: number;
+  billingType?: "gst" | "non_gst";
+  subtotal?: number;
+  tax?: number;
   componentIds: string[];
   notes: string;
 }
@@ -52,7 +55,9 @@ export interface RenewalReportItemDto {
   renewalStartDate?: string;
   renewalDate: string;
   lastRenewedDate?: string;
+  /** Base amount before GST. */
   amount: number;
+  gstAmount?: number;
   status: "upcoming" | "overdue" | "renewed";
   renewalType:
     | "monthly"
@@ -70,6 +75,9 @@ export interface RevenueReportStatsDto {
   collected: number;
   outstanding: number;
   averageInvoiceValue: number;
+  receivedGstAccount?: number;
+  receivedOtherAccount?: number;
+  gstBilled?: number;
 }
 
 export interface ExpenseReportStatsDto {

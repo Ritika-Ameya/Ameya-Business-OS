@@ -79,6 +79,8 @@ export const markReceiptPaidSchema = z.object({
   mode: z.string().trim().min(1, 'Payment mode is required'),
   referenceNumber: z.string().trim().max(240).optional().default(''),
   notes: z.string().trim().max(2000).optional().default(''),
+  removeGstReason: z.string().trim().max(2000).optional(),
+  receivedAccount: z.enum(['gst', 'other']).optional(),
 });
 
 export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;

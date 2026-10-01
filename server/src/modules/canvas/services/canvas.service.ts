@@ -156,6 +156,9 @@ export class CanvasService extends BaseService {
     const paidAmount = alreadyRecorded
       ? roundMoney(Number(alreadyRecorded.amount) || 0)
       : roundMoney(input.amount);
+    const removeGstReason = (input.removeGstReason ?? '').trim();
+    const gstRemoved =
+      !alreadyRecorded && Boolean(removeGstReason) && invoice.billingType === 'gst';
     if (!alreadyRecorded) {
       await invoiceService.addPayment(invoice.id, {
         paymentDate: input.paymentDate,
@@ -167,10 +170,17 @@ export class CanvasService extends BaseService {
         notes: [input.notes, marker].filter(Boolean).join(' · '),
         status: 'received',
         currency: invoice.currency || 'INR',
+        removeGstReason: gstRemoved ? removeGstReason : undefined,
+        receivedAccount: input.receivedAccount,
       });
     }
 
-    const expected = roundMoney(Number(card.expectedAmount) || 0);
+    const statedExpected = roundMoney(Number(card.expectedAmount) || 0);
+    const invoiceTotal = Number(invoice.total) || 0;
+    const expected =
+      gstRemoved && invoiceTotal > 0
+        ? roundMoney((statedExpected * Number(invoice.subtotal || 0)) / invoiceTotal)
+        : statedExpected;
     const remaining = roundMoney(expected - paidAmount);
     const settled = remaining <= PAYMENT_TOLERANCE;
     const link = {

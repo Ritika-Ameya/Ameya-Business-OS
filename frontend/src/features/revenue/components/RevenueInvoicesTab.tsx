@@ -31,7 +31,8 @@ export function RevenueInvoicesTab() {
     deferredQuery.trim().length > 0 ||
     filters.status !== defaultInvoiceFilters.status ||
     filters.customer !== defaultInvoiceFilters.customer ||
-    filters.date !== defaultInvoiceFilters.date;
+    filters.date !== defaultInvoiceFilters.date ||
+    filters.billingType !== defaultInvoiceFilters.billingType;
 
   const resetFilters = () => {
     setQuery("");

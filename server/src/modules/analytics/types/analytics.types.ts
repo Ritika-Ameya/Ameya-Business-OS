@@ -50,7 +50,9 @@ export interface RenewalRow {
   renewalStartDate: string;
   renewalDate: string;
   lastRenewedDate?: string;
+  /** Base amount before GST; GST is only charged if the invoice is raised with GST. */
   amount: number;
+  gstAmount: number;
   status: RenewalStatus;
   renewalType: RenewalType;
   renewalFrequency: string;
@@ -70,6 +72,9 @@ export interface ReportInvoiceItem {
   dueDate: string;
   status: string;
   gstPercent: number;
+  billingType: 'gst' | 'non_gst';
+  subtotal: number;
+  tax: number;
   componentIds: string[];
   notes: string;
 }
@@ -103,6 +108,11 @@ export interface RevenueReportStats {
   collected: number;
   outstanding: number;
   averageInvoiceValue: number;
+  /** Received payments by the account the money landed in. */
+  receivedGstAccount: number;
+  receivedOtherAccount: number;
+  /** GST charged on GST invoices; not income, it is owed to the government. */
+  gstBilled: number;
 }
 
 export interface ExpenseReportStats {
@@ -145,6 +155,7 @@ export interface UpcomingRenewalRow {
   renewal: string;
   dueDate: string;
   amount: number;
+  gstAmount: number;
 }
 
 export interface RenewedCustomerRow {
@@ -204,6 +215,7 @@ export interface DashboardRenewalItem {
   frequency: string;
   dueDate: string;
   amount: number;
+  gstAmount: number;
 }
 
 export interface DashboardExpenseStats {

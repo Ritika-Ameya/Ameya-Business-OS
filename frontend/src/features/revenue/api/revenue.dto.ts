@@ -1,6 +1,10 @@
 import type { BaseEntityDto } from "@/shared/api/types";
-import type { InvoiceStatus } from "@/features/revenue/types/invoice";
-import type { PaymentStatus } from "@/features/revenue/types/payment";
+import type {
+  InvoiceBillingType,
+  InvoiceLineItem,
+  InvoiceStatus,
+} from "@/features/revenue/types/invoice";
+import type { PaymentAccount, PaymentStatus } from "@/features/revenue/types/payment";
 
 export interface InvoiceTimelineEntryDto {
   id: string;
@@ -33,6 +37,8 @@ export interface InvoiceDto extends BaseEntityDto {
   cancelledAt?: string;
   cancelledBy?: string;
   nextActionDate?: string;
+  billingType?: InvoiceBillingType;
+  lineItems?: InvoiceLineItem[];
 }
 
 export interface PaymentDto extends BaseEntityDto {
@@ -47,6 +53,7 @@ export interface PaymentDto extends BaseEntityDto {
   receivedBy: string;
   transactionId: string;
   notes: string;
+  receivedAccount?: PaymentAccount | "";
 }
 
 export interface InvoiceDocumentDto extends BaseEntityDto {
@@ -77,6 +84,12 @@ export interface InvoiceCreateBody {
   notes?: string;
   nextActionDate?: string;
   invoiceNumber: string;
+  billingType?: InvoiceBillingType;
+}
+
+export interface InvoiceUpdateBody extends Partial<InvoiceCreateBody> {
+  /** Required by the server whenever `billingType` changes. */
+  billingChangeReason?: string;
 }
 
 export interface PaymentCreateBody {
@@ -89,4 +102,7 @@ export interface PaymentCreateBody {
   notes?: string;
   status?: PaymentStatus;
   currency?: string;
+  receivedAccount?: PaymentAccount;
+  /** Client paid only the base amount: the server turns the invoice into non-GST first. */
+  removeGstReason?: string;
 }

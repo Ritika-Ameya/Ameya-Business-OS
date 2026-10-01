@@ -112,6 +112,11 @@ export function RevenueInvoicesTable({
                   >
                     {invoice.invoiceNo}
                   </Link>
+                  {invoice.billingType === "non_gst" && (
+                    <span className="ml-2 rounded-full bg-sky-500/10 px-1.5 py-px text-[10px] font-semibold text-sky-700 dark:text-sky-300">
+                      Non-GST
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {invoice.customerName}

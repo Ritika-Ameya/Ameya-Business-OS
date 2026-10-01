@@ -27,7 +27,7 @@ export function UpcomingRenewalsCard() {
             <h3 className="text-sm font-semibold tracking-tight">Renewals</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {renewalFilterLabel(filter)} · {items.length} {items.length === 1 ? "plan" : "plans"} ·{" "}
-              {formatInvoiceCurrency(total)}
+              {formatInvoiceCurrency(total)} before GST
             </p>
           </div>
           <div className="flex size-10 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">

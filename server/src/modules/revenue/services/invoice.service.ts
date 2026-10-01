@@ -16,8 +16,13 @@ import { invoiceRepository, paymentRepository } from './revenue.repository';
 import { customerRepository, documentRepository } from '../../customers';
 import type { DocumentEntity } from '../../customers';
 import { dealRepository, dealComponentRepository } from '../../deals';
-import { computeComponentLineTotal, computeComponentTaxable } from '../../deals/utils/componentAmount.util';
-import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
+import { computeComponentTaxable } from '../../deals/utils/componentAmount.util';
+import type {
+  InvoiceBillingType,
+  InvoiceEntity,
+  InvoiceLineItem,
+  PaymentEntity,
+} from '../types/revenue.entities';
 import type {
   InvoiceCancelInput,
   InvoiceCreateInput,
@@ -33,17 +38,24 @@ import {
 } from '../utils/invoiceSearch.util';
 import {
   applyBalance,
+  buildLineItem,
+  computeTaxAmount,
+  lineItemsMatchSubtotal,
   normalizeInvoiceStatus,
+  repriceLineItems,
+  resolveBillingType,
   resolveCreateAmounts,
   resolveUpdateAmounts,
   roundMoney,
   sumCollectionOutstandingForCustomer,
+  totalsFromLineItems,
 } from '../utils/invoiceCalculation.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
 import { toISOString } from '../../../utils/date.util';
 import { tryAdvanceComponentRenewal } from '../../deals/utils/renewalHelpers.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
+const DEFAULT_GST_PERCENT = 18;
 
 export class InvoiceService extends BaseService {
   constructor() {
@@ -93,18 +105,22 @@ export class InvoiceService extends BaseService {
       throw new ValidationError('Deal does not belong to the selected customer');
     }
 
+    const billingType = resolveBillingType(input.billingType, input.taxPercent);
+    const isNonGst = billingType === 'non_gst';
     const fromComponents = await this.amountsFromSelectedComponents(
       input.componentIds,
       input.taxPercent,
+      billingType,
     );
-    const { subtotal, taxPercent, tax, total } =
-      fromComponents ??
-      resolveCreateAmounts({
+    const { subtotal, taxPercent, tax, total, lineItems } = fromComponents ?? {
+      ...resolveCreateAmounts({
         subtotal: input.subtotal,
-        taxPercent: input.taxPercent,
-        tax: input.tax,
-        total: input.total,
-      });
+        taxPercent: isNonGst ? 0 : input.taxPercent,
+        tax: isNonGst ? 0 : input.tax,
+        total: isNonGst ? undefined : input.total,
+      }),
+      lineItems: [],
+    };
 
     const invoiceNumber = input.invoiceNumber.trim();
     if (!invoiceNumber) {
@@ -143,6 +159,8 @@ export class InvoiceService extends BaseService {
       cancelledAt: '',
       cancelledBy: '',
       nextActionDate: (input.nextActionDate ?? '').trim(),
+      billingType,
+      lineItems,
     } as Omit<InvoiceEntity, 'id'>);
 
     await this.syncCustomerOutstanding(created.customerId);
@@ -162,23 +180,46 @@ export class InvoiceService extends BaseService {
       await this.assertUniqueInvoiceNumber(input.invoiceNumber.trim(), id);
     }
 
-    const { subtotal, taxPercent, tax, total } = resolveUpdateAmounts(existing, {
-      subtotal: input.subtotal,
-      taxPercent: input.taxPercent,
-      tax: input.tax,
-      total: input.total,
-    });
+    const billingType = input.billingType ?? existing.billingType;
+    const billingChanged = billingType !== existing.billingType;
+    const billingChangeReason = (input.billingChangeReason ?? '').trim();
+    if (billingChanged && normalizeInvoiceStatus(existing.status) === 'cancelled') {
+      throw new ValidationError('Cancelled invoices cannot change GST');
+    }
+    if (billingChanged && !billingChangeReason) {
+      throw new ValidationError('Give a reason for changing GST on this invoice');
+    }
+
+    const { subtotal, taxPercent, tax, total, lineItems } = await this.resolveUpdatedAmounts(
+      existing,
+      input,
+      billingType,
+    );
 
     const totalChanged = roundMoney(total) !== roundMoney(existing.total);
     const payments = totalChanged ? await this.listPaymentsForInvoice(id) : [];
     const balance = totalChanged ? applyBalance({ ...existing, total }, payments) : null;
+    if (balance && total < balance.received - 0.001) {
+      throw new ValidationError('Invoice total cannot be less than the amount already received', [
+        `Received so far is ${roundMoney(balance.received)}`,
+      ]);
+    }
 
-    const timeline = prependInvoiceTimeline(
+    let timeline = prependInvoiceTimeline(
       existing.timeline,
       createInvoiceTimelineEntry({ action: 'updated' }),
     );
+    if (billingChanged) {
+      timeline = prependInvoiceTimeline(
+        timeline,
+        createInvoiceTimelineEntry({
+          action: billingType === 'non_gst' ? 'gst_removed' : 'gst_added',
+          notes: billingChangeReason,
+        }),
+      );
+    }
 
-    const patch: Partial<InvoiceEntity> = { timeline };
+    const patch: Partial<InvoiceEntity> = { timeline, billingType, lineItems };
     if (input.invoiceNumber !== undefined) patch.invoiceNumber = input.invoiceNumber.trim();
     if (input.customerId !== undefined) patch.customerId = input.customerId;
     if (input.customerName !== undefined) patch.customerName = input.customerName.trim();
@@ -207,11 +248,17 @@ export class InvoiceService extends BaseService {
     if (input.customerId && input.customerId !== existing.customerId) {
       await this.syncCustomerOutstanding(existing.customerId);
     }
+    if (updated.status === 'paid' && normalizeInvoiceStatus(existing.status) !== 'paid') {
+      await this.advanceLinkedComponentRenewals(updated);
+    }
     return updated;
   }
 
   async remove(id: string): Promise<void> {
     const existing = await this.getById(id);
+    for (const payment of await this.listPaymentsForInvoice(id)) {
+      await paymentRepository.deleteOrThrow(payment.id, 'Payment');
+    }
     await invoiceRepository.updateOrThrow(
       id,
       {
@@ -227,9 +274,8 @@ export class InvoiceService extends BaseService {
   }
 
   async restore(id: string): Promise<InvoiceEntity> {
-    const restored = await invoiceRepository.restore(id);
-    await this.syncCustomerOutstanding(restored.customerId);
-    return restored;
+    await invoiceRepository.restore(id);
+    return this.recalculateInvoice(id);
   }
 
   async changeStatus(id: string, status: InvoiceEntity['status']): Promise<InvoiceEntity> {
@@ -323,16 +369,29 @@ export class InvoiceService extends BaseService {
 
   /** Single sheet read for SPA revenue bootstrap (avoids N× GET /:id/payments). */
   async listAllPayments(): Promise<PaymentEntity[]> {
-    return paymentRepository.findAll();
+    const [payments, invoices] = await Promise.all([
+      paymentRepository.findAll(),
+      invoiceRepository.findAll(),
+    ]);
+    const liveInvoiceIds = new Set(invoices.map((invoice) => invoice.id));
+    return payments.filter((payment) => liveInvoiceIds.has(payment.invoiceId));
   }
 
   async addPayment(
     invoiceId: string,
     input: PaymentCreateInput,
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
-    const invoice = await this.getById(invoiceId);
+    let invoice = await this.getById(invoiceId);
     if (normalizeInvoiceStatus(invoice.status) === 'cancelled') {
       throw new ValidationError('Cancelled invoices cannot accept payments');
+    }
+
+    const removeGstReason = (input.removeGstReason ?? '').trim();
+    if (removeGstReason && invoice.billingType === 'gst') {
+      invoice = await this.update(invoiceId, {
+        billingType: 'non_gst',
+        billingChangeReason: removeGstReason,
+      });
     }
 
     const existingPayments = await this.listPaymentsForInvoice(invoiceId);
@@ -356,6 +415,8 @@ export class InvoiceService extends BaseService {
       receivedBy: input.receivedBy.trim(),
       transactionId: input.transactionId.trim(),
       notes: input.notes.trim(),
+      receivedAccount:
+        input.receivedAccount ?? (invoice.billingType === 'gst' ? 'gst' : 'other'),
     } as Omit<PaymentEntity, 'id'>);
 
     const invoiceUpdated = await this.recalculateInvoice(invoiceId, {
@@ -399,6 +460,7 @@ export class InvoiceService extends BaseService {
       notes: input.notes !== undefined ? input.notes.trim() : existing.notes,
       currency:
         input.currency !== undefined ? input.currency.trim() : existing.currency,
+      receivedAccount: input.receivedAccount ?? existing.receivedAccount,
     };
 
     const otherPayments = (await this.listPaymentsForInvoice(invoiceId)).filter(
@@ -423,6 +485,7 @@ export class InvoiceService extends BaseService {
         transactionId: candidate.transactionId,
         notes: candidate.notes,
         currency: candidate.currency,
+        receivedAccount: candidate.receivedAccount,
       } as Partial<PaymentEntity>,
       'Payment',
     );
@@ -507,14 +570,70 @@ export class InvoiceService extends BaseService {
     await documentRepository.deleteOrThrow(fileId, 'Document');
   }
 
-  private async amountsFromSelectedComponents(
-    componentIds: string[] | undefined,
-    taxPercent?: number,
+  /**
+   * Saved line items are re-taxed when GST changes, and the totals are taken from
+   * them so the invoice header always equals the sum of its lines. Lines that no
+   * longer add up to the subtotal are dropped rather than shown wrong.
+   */
+  private async resolveUpdatedAmounts(
+    existing: InvoiceEntity,
+    input: InvoiceUpdateInput,
+    billingType: InvoiceBillingType,
   ): Promise<{
     subtotal: number;
     taxPercent: number;
     tax: number;
     total: number;
+    lineItems: InvoiceLineItem[];
+  }> {
+    const billingChanged = billingType !== existing.billingType;
+    let amounts = resolveUpdateAmounts(existing, {
+      subtotal: input.subtotal,
+      taxPercent: input.taxPercent,
+      tax: input.tax,
+      total: input.total,
+    });
+
+    if (billingType === 'non_gst') {
+      const base =
+        amounts.subtotal > 0 ? amounts.subtotal : roundMoney(amounts.total - amounts.tax);
+      amounts = { subtotal: base, taxPercent: 0, tax: 0, total: base };
+    } else if (billingChanged) {
+      const rate =
+        input.taxPercent !== undefined && input.taxPercent > 0
+          ? input.taxPercent
+          : await this.defaultGstPercentFor(existing);
+      const base = amounts.subtotal > 0 ? amounts.subtotal : amounts.total;
+      const tax = computeTaxAmount(base, rate);
+      amounts = { subtotal: base, taxPercent: rate, tax, total: roundMoney(base + tax) };
+    }
+
+    if (!lineItemsMatchSubtotal(existing.lineItems, amounts.subtotal)) {
+      return { ...amounts, lineItems: [] };
+    }
+    const rateChanged =
+      billingChanged || roundMoney(amounts.taxPercent) !== roundMoney(existing.taxPercent);
+    if (!rateChanged) {
+      return { ...amounts, lineItems: existing.lineItems };
+    }
+    const lineItems = repriceLineItems(existing.lineItems, amounts.taxPercent);
+    return { ...totalsFromLineItems(lineItems), lineItems };
+  }
+
+  /**
+   * A single rate (the user's GST %, or 0 for non-GST) applies to every line when
+   * the components share one rate; mixed-rate components keep their own rates.
+   */
+  private async amountsFromSelectedComponents(
+    componentIds: string[] | undefined,
+    taxPercent: number | undefined,
+    billingType: InvoiceBillingType,
+  ): Promise<{
+    subtotal: number;
+    taxPercent: number;
+    tax: number;
+    total: number;
+    lineItems: InvoiceLineItem[];
   } | null> {
     if (!componentIds?.length) return null;
 
@@ -524,36 +643,39 @@ export class InvoiceService extends BaseService {
     );
     if (selected.length === 0) return null;
 
-    const subtotal = roundMoney(
-      selected.reduce((sum, component) => sum + computeComponentTaxable(component), 0),
-    );
     const rates = [
       ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
     ];
-    const resolvedPercent =
-      taxPercent !== undefined && Number.isFinite(taxPercent)
-        ? taxPercent
+    const uniformPercent =
+      billingType === 'non_gst'
+        ? 0
         : rates.length === 1
-          ? rates[0]
+          ? taxPercent !== undefined && Number.isFinite(taxPercent)
+            ? taxPercent
+            : rates[0]
           : undefined;
 
-    if (resolvedPercent !== undefined) {
-      return resolveCreateAmounts({
-        subtotal,
-        taxPercent: resolvedPercent,
-      });
-    }
-
-    const total = roundMoney(
-      selected.reduce((sum, component) => sum + computeComponentLineTotal(component), 0),
+    const lineItems = selected.map((component) =>
+      buildLineItem({
+        componentId: component.id,
+        name: component.name,
+        taxable: computeComponentTaxable(component),
+        gstPercent: uniformPercent ?? Number(component.gstPercent || 0),
+      }),
     );
-    const tax = roundMoney(total - subtotal);
-    return {
-      subtotal,
-      taxPercent: subtotal > 0 ? roundMoney((tax / subtotal) * 100) : 0,
-      tax,
-      total,
-    };
+    return { ...totalsFromLineItems(lineItems), lineItems };
+  }
+
+  /** GST rate to use when a non-GST invoice is switched to GST without a stated rate. */
+  private async defaultGstPercentFor(invoice: InvoiceEntity): Promise<number> {
+    const fromLines = invoice.lineItems.find((line) => line.gstPercent > 0)?.gstPercent;
+    if (fromLines) return fromLines;
+    const components = await dealComponentRepository.findAll();
+    const fromComponents = components.find(
+      (component) =>
+        invoice.componentIds.includes(component.id) && Number(component.gstPercent) > 0,
+    )?.gstPercent;
+    return Number(fromComponents) || DEFAULT_GST_PERCENT;
   }
 
   private async listPaymentsForInvoice(invoiceId: string): Promise<PaymentEntity[]> {

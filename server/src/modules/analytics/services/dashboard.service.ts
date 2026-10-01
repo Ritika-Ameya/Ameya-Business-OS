@@ -458,6 +458,7 @@ export class DashboardService extends BaseService {
         frequency: renewal.renewalFrequency || renewal.renewalType || '',
         dueDate: String(renewal.renewalDate ?? '').slice(0, 10),
         amount: Number(renewal.amount || 0),
+        gstAmount: Number(renewal.gstAmount || 0),
       };
     });
 
@@ -510,6 +511,7 @@ export class DashboardService extends BaseService {
           renewal: renewal.componentName || renewal.renewalLabel,
           dueDate: renewal.renewalDate,
           amount: renewal.amount,
+          gstAmount: renewal.gstAmount,
         })),
       renewedCustomersList,
       revenueThisMonthItems,
