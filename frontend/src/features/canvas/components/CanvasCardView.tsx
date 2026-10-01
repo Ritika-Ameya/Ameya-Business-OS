@@ -71,9 +71,11 @@ export function CanvasCardView({
           {formatCurrency(card.expectedAmount)}
           {showExGst ? (
             <span className="ml-1.5 text-[11px] font-medium text-muted-foreground">
-              {formatCurrency(exGst)} ex-GST
+              {formatCurrency(exGst)} + GST {formatCurrency((card.expectedAmount ?? 0) - (exGst ?? 0))}
             </span>
-          ) : null}
+          ) : (
+            <span className="ml-1.5 text-[11px] font-medium text-muted-foreground">No GST</span>
+          )}
         </p>
       ) : (
         <p className="mt-1.5 text-xs text-muted-foreground">No expected receipt yet</p>

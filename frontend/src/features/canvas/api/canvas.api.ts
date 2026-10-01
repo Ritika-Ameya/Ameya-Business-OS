@@ -10,6 +10,17 @@ const BASE = "/canvas";
 export const canvasApi = {
   getBoard: () => apiRequest<CanvasBoard>(BASE),
 
+  listDealForecasts: (dealId: string) =>
+    apiRequest<
+      Array<{
+        id: string;
+        reason: string;
+        expectedAmount: number;
+        expectedDate: string;
+        sourceType: ReceiptSourceType;
+      }>
+    >(`${BASE}/deals/${dealId}/forecasts`),
+
   setTemperature: (customerId: string, temperature: "hot" | "warm" | "cold" | "") =>
     apiRequest<CanvasBoard>(`${BASE}/temperatures/${customerId}`, {
       method: "PUT",
@@ -29,6 +40,8 @@ export const canvasApi = {
     sourceType: ReceiptSourceType;
     reason: string;
     dealId?: string;
+    componentId?: string;
+    gstPercent?: 0 | 18;
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts`, { method: "POST", body }),
 
   updateReceipt: (body: {
@@ -38,6 +51,7 @@ export const canvasApi = {
     sourceType?: ReceiptSourceType;
     reason?: string;
     status?: "expected" | "received" | "cancelled";
+    gstPercent?: 0 | 18;
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts`, { method: "PATCH", body }),
 
   dismiss: (cardId: string) =>

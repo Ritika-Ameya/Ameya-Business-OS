@@ -10,14 +10,15 @@ import {
   renewalFilterLabel,
   type RenewalFilter,
 } from "@/features/dashboard/utils/renewal-filter";
-import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
+import { formatBaseWithGst } from "@/features/revenue/utils/invoice-utils";
 
 export function UpcomingRenewalsCard() {
   const { summary } = useDashboard();
   const [filter, setFilter] = useState<RenewalFilter>(DEFAULT_RENEWAL_FILTER);
   const all = summary?.renewalsAll ?? [];
   const items = filterRenewals(all, filter);
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const baseTotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const gstTotal = items.reduce((sum, item) => sum + (item.gstAmount ?? 0), 0);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-white/70 bg-card/95 shadow-card transition-shadow duration-300 hover:shadow-elevated accent-bar-teal dark:border-white/10">
@@ -27,7 +28,7 @@ export function UpcomingRenewalsCard() {
             <h3 className="text-sm font-semibold tracking-tight">Renewals</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {renewalFilterLabel(filter)} · {items.length} {items.length === 1 ? "plan" : "plans"} ·{" "}
-              {formatInvoiceCurrency(total)} before GST
+              {formatBaseWithGst(baseTotal, gstTotal)}
             </p>
           </div>
           <div className="flex size-10 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { canvasApi } from "@/features/canvas/api/canvas.api";
-import { GstPair, splitInclusive } from "@/features/canvas/components/GstAmount";
+import { splitInclusive } from "@/features/canvas/components/GstAmount";
 import { customersApi } from "@/features/customers/api/customers.api";
 import {
   SOURCE_LABELS,
@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import { formatCurrency } from "@/shared/utils";
+import { cn, formatCurrency } from "@/shared/utils";
 
 export interface CreateDraft {
   customerId: string;
@@ -57,10 +57,13 @@ export function CanvasDrawer({
   const creating = Boolean(draft) && card?.kind !== "receipt";
   const [customerId, setCustomerId] = useState(draft?.customerId || card?.customerId || "");
   const [amount, setAmount] = useState("");
+  const [gstRate, setGstRate] = useState<0 | 18>(18);
   const [expectedDate, setExpectedDate] = useState("");
   const [sourceType, setSourceType] = useState<ReceiptSourceType>("other");
   const [reason, setReason] = useState("");
   const [dealId, setDealId] = useState("");
+  const [componentId, setComponentId] = useState("");
+  const [componentTouched, setComponentTouched] = useState(false);
   const [parts, setParts] = useState<Array<{ expectedAmount: string; expectedDate: string }>>([
     { expectedAmount: "", expectedDate: "" },
     { expectedAmount: "", expectedDate: "" },
@@ -73,11 +76,14 @@ export function CanvasDrawer({
   useEffect(() => {
     setError("");
     setCustomerId(draft?.customerId || card?.customerId || "");
-    setAmount(card?.expectedAmount != null ? String(card.expectedAmount) : "");
+    setAmount(card?.kind === "receipt" && card.amountExGst != null ? String(card.amountExGst) : "");
+    setGstRate(card?.kind === "receipt" && (card.gstPercent ?? 0) > 0 ? 18 : card?.kind === "receipt" ? 0 : 18);
     setExpectedDate(draft?.expectedDate || card?.expectedDate || "");
     setSourceType((card?.sourceType || "other") as ReceiptSourceType);
     setReason(card?.kind === "receipt" ? card.reason : "");
     setDealId(card?.dealId || "");
+    setComponentId(card?.componentId || "");
+    setComponentTouched(false);
     setTemperature(card?.recordType === "opportunity" ? card.temperature : "");
     setParts([
       { expectedAmount: "", expectedDate: card?.expectedDate || "" },
@@ -90,7 +96,24 @@ export function CanvasDrawer({
     [board.deals, card?.customerId, customerId]
   );
   const selectedDeal = board.deals.find((deal) => deal.id === (dealId || card?.dealId));
+  const dealComponents = selectedDeal?.components ?? [];
   const account = board.accounts.find((item) => item.id === (customerId || card?.customerId));
+  const baseValue = Number(amount);
+  const gstValue =
+    gstRate === 18 && Number.isFinite(baseValue) ? Math.round(((baseValue * 18) / 100) * 100) / 100 : 0;
+  const totalValue = Number.isFinite(baseValue) ? Math.round((baseValue + gstValue) * 100) / 100 : 0;
+  const amountReady = Number.isFinite(baseValue) && baseValue > 0;
+
+  useEffect(() => {
+    if (componentTouched || componentId || !dealId) return;
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) return;
+    const totalNumber =
+      gstRate === 18 ? Math.round(amountNumber * 1.18 * 100) / 100 : amountNumber;
+    const options = board.deals.find((deal) => deal.id === dealId)?.components ?? [];
+    const matches = options.filter((component) => Math.abs(component.total - totalNumber) < 0.6);
+    if (matches.length === 1) setComponentId(matches[0].id);
+  }, [amount, board.deals, componentId, componentTouched, dealId, gstRate]);
 
   const run = async (action: () => Promise<CanvasBoard>) => {
     setPending(true);
@@ -107,6 +130,13 @@ export function CanvasDrawer({
 
   const save = () => {
     const parsedAmount = Number(amount);
+    const gstAmount =
+      gstRate === 18 && Number.isFinite(parsedAmount)
+        ? Math.round(((parsedAmount * 18) / 100) * 100) / 100
+        : 0;
+    const totalAmount = Number.isFinite(parsedAmount)
+      ? Math.round((parsedAmount + gstAmount) * 100) / 100
+      : 0;
     if (!customerId) {
       setError("Choose an account.");
       return;
@@ -127,11 +157,13 @@ export function CanvasDrawer({
       void run(() =>
         canvasApi.createReceipt({
           customerId,
-          expectedAmount: parsedAmount,
+          expectedAmount: totalAmount,
           expectedDate,
           sourceType,
           reason: reason.trim(),
           dealId: dealId || undefined,
+          componentId: componentId || undefined,
+          gstPercent: gstRate,
         })
       );
       return;
@@ -140,10 +172,11 @@ export function CanvasDrawer({
     void run(() =>
       canvasApi.updateReceipt({
         cardId: card.id,
-        expectedAmount: parsedAmount,
+        expectedAmount: totalAmount,
         expectedDate,
         sourceType,
         reason: reason.trim(),
+        gstPercent: gstRate,
       })
     );
   };
@@ -220,15 +253,59 @@ export function CanvasDrawer({
             </Field>
           ) : null}
 
-          <Field label="Expected amount (with GST)">
-            <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <Field label="GST">
+            <div role="radiogroup" className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: 18 as const, label: "18% GST", hint: "Added on the base amount" },
+                  { value: 0 as const, label: "0% GST", hint: "Base amount only" },
+                ] as const
+              ).map((option) => {
+                const selected = gstRate === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setGstRate(option.value)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-left transition-colors",
+                      selected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border hover:bg-muted/50"
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">{option.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
           </Field>
-          {Number.isFinite(Number(amount)) ? (
-            <GstPair
-              inclusive={Number(amount)}
-              exclusive={splitInclusive(Number(amount), card?.gstPercent ?? 0).exclusive}
-              percent={card?.gstPercent ?? 0}
-            />
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Base amount">
+              <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+            </Field>
+            <Field label="GST">
+              <Input
+                readOnly
+                value={amountReady ? (gstRate === 18 ? formatCurrency(gstValue) : "No GST") : ""}
+              />
+            </Field>
+            <Field label="Total">
+              <Input
+                readOnly
+                value={amountReady ? formatCurrency(totalValue) : ""}
+              />
+            </Field>
+          </div>
+          {amountReady ? (
+            <p className="text-sm font-medium tabular-nums">
+              {gstRate === 18
+                ? `${formatCurrency(baseValue)} + GST ${formatCurrency(gstValue)} = Total ${formatCurrency(totalValue)}`
+                : `${formatCurrency(baseValue)} · No GST`}
+            </p>
           ) : null}
           {card?.liveBalance != null ? (
             <p className="text-xs text-muted-foreground">
@@ -260,7 +337,14 @@ export function CanvasDrawer({
             <Input value={reason} onChange={(event) => setReason(event.target.value)} />
           </Field>
           <Field label="Deal">
-            <Select value={dealId || "none"} onValueChange={(value) => setDealId(value === "none" ? "" : value)}>
+            <Select
+              value={dealId || "none"}
+              onValueChange={(value) => {
+                setDealId(value === "none" ? "" : value);
+                setComponentId("");
+                setComponentTouched(false);
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="No deal" />
               </SelectTrigger>
@@ -279,6 +363,37 @@ export function CanvasDrawer({
               Deal probability is {selectedDeal.probability}%. Contract value is{" "}
               {formatCurrency(selectedDeal.contractValue)}. Neither number is treated as expected cash.
             </p>
+          ) : null}
+          {dealComponents.length > 0 ? (
+            <Field label="Component">
+              <Select
+                value={componentId || "none"}
+                onValueChange={(value) => {
+                  setComponentTouched(true);
+                  setComponentId(value === "none" ? "" : value);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose component" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dealComponents.filter((component) => Math.abs(component.total - totalValue) < 0.6).length ===
+                  1 ? null : (
+                    <SelectItem value="none">Not a component renewal</SelectItem>
+                  )}
+                  {dealComponents.map((component) => (
+                    <SelectItem key={component.id} value={component.id}>
+                      {component.name} · {formatCurrency(component.total)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {componentId
+                  ? "This receipt is the forecast for that component, so the canvas will not add a second card for the same amount."
+                  : "If this amount is one of the deal's components, choose it. Otherwise the canvas also shows that component's own forecast."}
+              </p>
+            </Field>
           ) : null}
 
           <div className="flex flex-wrap gap-3 text-sm">

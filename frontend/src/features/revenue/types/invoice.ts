@@ -67,7 +67,8 @@ export interface InvoiceFilters {
 export interface GenerateInvoiceContext {
   customerId: string;
   customerName: string;
-  dealId: string;
-  dealTitle: string;
+  /** When set, the deal field is locked. Omit it to let the user pick this customer's deal. */
+  dealId?: string;
+  dealTitle?: string;
   componentIds?: string[];
 }

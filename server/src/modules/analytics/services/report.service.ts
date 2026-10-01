@@ -1,6 +1,7 @@
 import { BaseService } from '../../../services/base.service';
 import { dealRepository } from '../../deals';
-import { expenseRepository } from '../../expenses';
+import { expenseMasterRepository, expenseRepository } from '../../expenses';
+import { stoppedPendingGenerations } from '../../expenses/utils/recurring.util';
 import {
   computeRegisterStats,
   roundMoney,
@@ -259,7 +260,14 @@ export class ReportService extends BaseService {
     filters: ReportFilters,
   ): Promise<ReportResult<ExpenseReportStats, ReportExpenseItem>> {
     this.logInfo('Building expense report');
-    const expenses = await expenseRepository.findAll();
+    const [loadedExpenses, expenseMasters] = await Promise.all([
+      expenseRepository.findAll(),
+      expenseMasterRepository.findAll(),
+    ]);
+    const stoppedIds = new Set(
+      stoppedPendingGenerations(expenseMasters, loadedExpenses).map((expense) => expense.id),
+    );
+    const expenses = loadedExpenses.filter((expense) => !stoppedIds.has(expense.id));
     const filtered = filterExpensesForReport(expenses, filters);
     const registerStats = computeRegisterStats(filtered, []);
     const recurringExpenses = filtered.filter((expense) => expense.recurring).length;

@@ -3,11 +3,12 @@ import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
   componentRenewalFrequencyLabels,
   computeComponentLineTotal,
-  formatComponentCurrency,
+  computeComponentTaxable,
   formatComponentDate,
   getComponentCurrentDueDate,
   hasComponentRenewal,
 } from "@/features/deals/utils/deal-component-utils";
+import { formatBaseWithGst } from "@/features/revenue/utils/invoice-utils";
 import type { Deal } from "@/features/deals/types/deal";
 
 interface DealRenewalsTabProps {
@@ -78,7 +79,10 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                       {formatComponentDate(dueDate)}
                     </td>
                     <td className="px-3 py-2">
-                      {formatComponentCurrency(computeComponentLineTotal(component))}
+                      {formatBaseWithGst(
+                        computeComponentTaxable(component),
+                        computeComponentLineTotal(component) - computeComponentTaxable(component)
+                      )}
                     </td>
                   </tr>
                   );

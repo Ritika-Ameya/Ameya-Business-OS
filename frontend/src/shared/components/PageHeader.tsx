@@ -37,17 +37,20 @@ interface StatCardProps {
   barClass?: string;
   /** Calendar / filter window this value is calculated for */
   period?: string;
+  /** Opens the records behind this number. */
+  onClick?: () => void;
 }
 
-export function StatCard({ label, value, icon, accent, barClass, period }: StatCardProps) {
-  return (
-    <div
-      className={cn(
-        "group relative flex h-full overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-4 shadow-card transition-all duration-300 sm:p-5 dark:border-white/10",
-        "hover:-translate-y-1 hover:shadow-elevated",
-        barClass
-      )}
-    >
+export function StatCard({ label, value, icon, accent, barClass, period, onClick }: StatCardProps) {
+  const className = cn(
+    "group relative flex h-full overflow-hidden rounded-2xl border border-white/70 bg-card/95 p-4 shadow-card transition-all duration-300 sm:p-5 dark:border-white/10",
+    "hover:-translate-y-1 hover:shadow-elevated",
+    barClass,
+    onClick &&
+      "w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+  );
+  const body = (
+    <>
       <div
         className={cn(
           "absolute -right-4 -top-4 size-28 rounded-full opacity-60 blur-3xl transition-opacity group-hover:opacity-90",
@@ -75,6 +78,14 @@ export function StatCard({ label, value, icon, accent, barClass, period }: StatC
           {icon}
         </div>
       </div>
-    </div>
+    </>
+  );
+  if (!onClick) {
+    return <div className={className}>{body}</div>;
+  }
+  return (
+    <button type="button" className={className} onClick={onClick} aria-haspopup="dialog">
+      {body}
+    </button>
   );
 }

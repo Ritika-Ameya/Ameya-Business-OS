@@ -1,7 +1,11 @@
 import { Calendar } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps, type ChangeEvent } from "react";
 import { cn } from "@/shared/utils";
-import { displayDateToIso, isoToDisplayDate } from "@/shared/utils/format-date";
+import {
+  dateInputPlaceholder,
+  displayDateToIso,
+  isoToDisplayDate,
+} from "@/shared/utils/format-date";
 import { inputClassName } from "@/shared/ui/input-styles";
 
 type DateInputProps = Omit<ComponentProps<"input">, "type">;
@@ -64,7 +68,7 @@ export function DateInput({
         type="text"
         inputMode="text"
         autoComplete="off"
-        placeholder="DD/MM/YYYY"
+        placeholder={dateInputPlaceholder()}
         value={text}
         required={required}
         disabled={disabled}

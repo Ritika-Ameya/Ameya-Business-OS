@@ -6,8 +6,9 @@ import { dealRepository } from '../../deals';
 import { dealComponentRepository } from '../../deals/services/deal.repository';
 import type { DealEntity } from '../../deals/types/deal.entities';
 import { migrateDealRenewalsToComponents } from '../../deals/utils/renewalMigration.util';
-import { expenseRepository } from '../../expenses';
+import { expenseMasterRepository, expenseRepository } from '../../expenses';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
+import { stoppedPendingGenerations } from '../../expenses/utils/recurring.util';
 import type { StageMasterEntity } from '../../masters/types/master.entities';
 import { stageMasterRepository } from '../../masters/services/master.services';
 import { isInactiveStage } from '../../customers/utils/stageEngine.util';
@@ -293,7 +294,8 @@ export class DashboardService extends BaseService {
       dealsWithDeleted,
       invoicesWithDeleted,
       payments,
-      expenses,
+      loadedExpenses,
+      expenseMasters,
       stages,
       components,
     ] = await Promise.all([
@@ -302,6 +304,7 @@ export class DashboardService extends BaseService {
       invoiceRepository.findAll({ includeDeleted: true }),
       paymentRepository.findAll(),
       expenseRepository.findAll(),
+      expenseMasterRepository.findAll(),
       stageMasterRepository.findAll().catch((error) => {
         this.logWarn('Stage master load failed; using stage ids as names', error);
         return [] as StageMasterEntity[];
@@ -312,6 +315,10 @@ export class DashboardService extends BaseService {
     const customers = customersWithDeleted.filter((customer) => !customer.isDeleted);
     const deals = dealsWithDeleted.filter((deal) => !deal.isDeleted);
     const invoices = invoicesWithDeleted.filter((invoice) => !invoice.isDeleted);
+    const stoppedIds = new Set(
+      stoppedPendingGenerations(expenseMasters, loadedExpenses).map((expense) => expense.id),
+    );
+    const expenses = loadedExpenses.filter((expense) => !stoppedIds.has(expense.id));
 
     const now = new Date();
     const thisYear = now.getFullYear();

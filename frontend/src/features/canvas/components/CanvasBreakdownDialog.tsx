@@ -155,8 +155,8 @@ export function CanvasBreakdownDialog({
                     `Counts unpaid receipts whose expected date is before ${
                       firstMonth ? formatMonthLabel(firstMonth) : "this period"
                     }.`,
-                    "An unpaid receipt stays outstanding in every later month until it is paid. It is the same receipt each time, never a copy, and it is counted once here.",
-                    "On the board it sits in one column, tagged “Carried forward from …”.",
+                    "An unpaid receipt moves only into the current month. A later month does not show it until that month arrives and it is still unpaid.",
+                    "On the board it sits in that one month, tagged “Carried from …”.",
                     "It leaves this list as soon as the payment is recorded (Mark as paid, or a payment on the invoice).",
                   ]}
                 />
@@ -244,8 +244,8 @@ function OutstandingBody({
             </tbody>
           </table>
           <p className="border-t border-border/50 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-            “Unpaid from before” is the balance still open at the start of each month, so the same receipt shows in
-            every later month until paid. Don't add these rows together; the total above counts each receipt once.
+            “Unpaid from before” is only on the current month. Later months list their own dues. Each receipt is
+            counted once in the total above.
           </p>
         </div>
       ) : null}
@@ -255,7 +255,7 @@ function OutstandingBody({
         items={[
           "To collect = Due in period + Carried forward.",
           "Due in period: unpaid receipts dated in the chosen months.",
-          "Carried forward: unpaid receipts from earlier months. They stay until paid.",
+          "Carried forward: unpaid receipts from earlier months, expected in the current month only. They are not added to later months.",
           "Amounts include GST. Paid, cancelled and replaced receipts are left out.",
         ]}
       />
@@ -284,7 +284,10 @@ function CardsBody({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-2xl font-bold tabular-nums">{formatCurrency(total.amount)}</p>
         <p className="text-xs text-muted-foreground">
-          {formatCurrency(total.exGst)} without GST · {total.count} {total.count === 1 ? "item" : "items"}
+          {Math.abs(total.amount - total.exGst) > 0.009
+            ? `${formatCurrency(total.exGst)} + GST ${formatCurrency(total.amount - total.exGst)} · `
+            : "No GST · "}
+          {total.count} {total.count === 1 ? "item" : "items"}
         </p>
       </div>
       {bySource.length > 0 ? (
@@ -356,9 +359,14 @@ function CardList({
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="text-right">
                       <p className="text-sm font-semibold tabular-nums">{formatCurrency(card.expectedAmount ?? 0)}</p>
-                      <p className="text-[11px] tabular-nums text-muted-foreground">
-                        {formatCurrency(card.amountExGst ?? card.expectedAmount ?? 0)} ex-GST
-                      </p>
+                      {Math.abs((card.expectedAmount ?? 0) - (card.amountExGst ?? card.expectedAmount ?? 0)) > 0.009 ? (
+                        <p className="text-[11px] tabular-nums text-muted-foreground">
+                          {formatCurrency(card.amountExGst ?? 0)} + GST{" "}
+                          {formatCurrency((card.expectedAmount ?? 0) - (card.amountExGst ?? 0))}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">No GST</p>
+                      )}
                     </div>
                     <ArrowRight className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>

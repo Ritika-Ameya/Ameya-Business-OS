@@ -168,39 +168,33 @@ export const isCarryForward = (card: CanvasCard, monthKey: string): boolean =>
   countsAsCash(card) && MONTH_KEY.test(card.monthKey) && card.monthKey < monthKey;
 
 /**
- * An unpaid receipt stays outstanding in every month after its own until it is
- * paid. The card is never copied: on a board showing several months it sits in
- * exactly one column, so month and quarter totals count it once.
+ * Where an unpaid receipt is expected on the months currently on screen.
+ * It is never copied into later months.
  *
- * - Its own month is on screen and it is not yet past due by month: stays there.
- * - Past due by month: shown in the latest visible month up to the current
- *   month, i.e. where it is outstanding now.
- * - The view starts after its month (for example a future quarter): shown in
- *   the first visible month.
+ * - Due this month or later: only its own month, and only when that month is open.
+ * - Due in a past month and still unpaid: only the current month. It may still
+ *   be collected there. A later month does not show it until that month arrives.
+ * - A view that is entirely in the past shows the receipt in its own month, so
+ *   that month's history stays visible.
  */
+export const carryTarget = (ownMonth: string, months: string[], todayIso: string): string | null => {
+  const scheduled = months.filter((month) => MONTH_KEY.test(month)).sort();
+  if (!MONTH_KEY.test(ownMonth) || scheduled.length === 0) return null;
+  const currentMonth = monthKeyOf(parseToday(todayIso));
+  if (ownMonth >= currentMonth) return scheduled.includes(ownMonth) ? ownMonth : null;
+  if (scheduled.includes(currentMonth)) return currentMonth;
+  if (scheduled.every((month) => month < currentMonth) && scheduled.includes(ownMonth)) return ownMonth;
+  return null;
+};
+
 export const placeCarriedForward = (
   cards: CanvasCard[],
   months: string[],
   todayIso: string
 ): CanvasCard[] => {
-  const scheduled = months.filter((month) => MONTH_KEY.test(month)).sort();
-  if (scheduled.length === 0) return cards;
-  const currentMonth = monthKeyOf(parseToday(todayIso));
-  const first = scheduled[0];
-
-  const targetFor = (card: CanvasCard): string | null => {
-    if (!countsAsCash(card) || !MONTH_KEY.test(card.monthKey)) return null;
-    const own = card.monthKey;
-    if (own < currentMonth) {
-      const upToNow = scheduled.filter((month) => month >= own && month <= currentMonth);
-      if (upToNow.length > 0) return upToNow[upToNow.length - 1];
-    }
-    if (scheduled.includes(own)) return own;
-    return own < first ? first : null;
-  };
-
   return cards.map((card) => {
-    const target = targetFor(card);
+    if (!countsAsCash(card)) return card;
+    const target = carryTarget(card.monthKey, months, todayIso);
     if (!target || target === card.monthKey) return card;
     return { ...card, monthKey: target, carriedFrom: card.monthKey };
   });
@@ -234,24 +228,23 @@ const round2 = (value: number) => Math.round(value * 100) / 100;
 
 /**
  * Period totals, each unpaid receipt counted once:
- * - `expected`: unpaid receipts whose own month is inside the period.
- * - `carried`: unpaid receipts from before the period, still outstanding.
+ * - `expected`: unpaid receipts due in a month that is on screen.
+ * - `carried`: unpaid receipts from before the current month, shown only in the
+ *   current month.
  * - `paid`: money actually received in the period.
  *
- * `byMonth` is a per-month outstanding position: `expected` is that month's own
- * dues and `carried` is everything still unpaid from earlier months, so the same
- * receipt appears in every later month's `carried` until it is paid. These are
- * balances, not additive amounts; use the top-level totals for the period sum.
+ * A later month does not inherit earlier unpaid receipts. They move there only
+ * after that month becomes the current month and they are still unpaid.
  */
 export const summarizeView = (
   visible: CanvasCard[],
   months: string[],
   paid: CanvasPaidEntry[],
   query: string,
+  todayIso: string,
   source: CanvasCard[] = visible
 ): CanvasViewSummary => {
   const scheduled = months.filter((monthKey) => MONTH_KEY.test(monthKey)).sort();
-  const firstMonth = scheduled[0] ?? "";
   const byMonth = new Map(
     scheduled.map((monthKey) => [monthKey, { monthKey, expected: 0, carried: 0, paid: 0 }])
   );
@@ -263,26 +256,26 @@ export const summarizeView = (
     byMonth: [],
   };
 
+  const currentMonth = monthKeyOf(parseToday(todayIso));
+
   for (const card of visible) {
     if (!countsAsCash(card)) continue;
-    const ownMonth = ownMonthOf(card);
-    const carried = Boolean(firstMonth) && MONTH_KEY.test(ownMonth) && ownMonth < firstMonth;
-    const bucket = carried ? summary.carried : summary.expected;
+    const bucket = card.carriedFrom ? summary.carried : summary.expected;
     bucket.count += 1;
     bucket.amount += card.expectedAmount ?? 0;
     bucket.exGst += card.amountExGst ?? card.expectedAmount ?? 0;
-    (carried ? summary.items.carried : summary.items.expected).push(card);
+    (card.carriedFrom ? summary.items.carried : summary.items.expected).push(card);
   }
 
   for (const card of source) {
     if (!countsAsCash(card)) continue;
-    const ownMonth = ownMonthOf(card);
-    if (!MONTH_KEY.test(ownMonth)) continue;
+    const ownMonth = card.monthKey;
+    const target = carryTarget(ownMonth, scheduled, todayIso);
+    const month = target ? byMonth.get(target) : undefined;
+    if (!month) continue;
     const amount = card.expectedAmount ?? 0;
-    for (const month of byMonth.values()) {
-      if (ownMonth === month.monthKey) month.expected += amount;
-      else if (ownMonth < month.monthKey) month.carried += amount;
-    }
+    if (ownMonth < currentMonth && target === currentMonth) month.carried += amount;
+    else month.expected += amount;
   }
 
   const needle = query.trim().toLowerCase();
@@ -338,20 +331,21 @@ export const isRenewalDueSoon = (renewal: CanvasRenewalReminder, todayIso: strin
   daysUntil(renewal.renewalDate, todayIso) <= RENEWAL_REMINDER_DAYS;
 
 /**
- * Renewals that belong to the months on screen, using the board's own rule: a
- * renewal shows in its month, and while unpaid it stays in every later month.
+ * A renewal is listed in its own month. One that is already overdue is listed
+ * only with the current month, not again in every later month.
  */
 export const renewalsInView = (
   renewals: CanvasRenewalReminder[],
   months: string[],
   overdueOnly: boolean,
-  query: string
+  query: string,
+  todayIso: string
 ): CanvasRenewalReminder[] => {
-  const scheduled = months.filter((month) => MONTH_KEY.test(month)).sort();
-  const lastMonth = scheduled[scheduled.length - 1];
   const needle = query.trim().toLowerCase();
   return renewals.filter((item) => {
-    if (overdueOnly ? item.status !== "overdue" : !lastMonth || item.renewalDate.slice(0, 7) > lastMonth) {
+    if (overdueOnly) {
+      if (item.status !== "overdue") return false;
+    } else if (!carryTarget(item.renewalDate.slice(0, 7), months, todayIso)) {
       return false;
     }
     if (!needle) return true;

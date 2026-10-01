@@ -20,6 +20,7 @@ export const EXPECTED_RECEIPTS_CONTRACT: PersistenceContract = {
     'componentId',
     'installmentIndex',
     'expectedAmount',
+    'gstPercent',
     'currency',
     'expectedDate',
     'reason',

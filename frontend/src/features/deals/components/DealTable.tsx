@@ -41,6 +41,7 @@ interface DealTableProps {
   onResetFilters?: () => void;
   onEdit?: (deal: Deal) => void;
   onDelete?: (deal: Deal) => void;
+  onGenerateInvoice?: (deal: Deal) => void;
 }
 
 export function DealTable({
@@ -52,6 +53,7 @@ export function DealTable({
   onResetFilters,
   onEdit,
   onDelete,
+  onGenerateInvoice,
 }: DealTableProps) {
   if (deals.length === 0) {
     if (isEmpty) {
@@ -167,6 +169,11 @@ export function DealTable({
                       <DropdownMenuItem asChild>
                         <Link to={`/customers/${deal.customerId}`}>View customer</Link>
                       </DropdownMenuItem>
+                      {onGenerateInvoice && (
+                        <DropdownMenuItem onClick={() => onGenerateInvoice(deal)}>
+                          Generate invoice
+                        </DropdownMenuItem>
+                      )}
                       {onEdit && (
                         <DropdownMenuItem onClick={() => onEdit(deal)}>
                           Edit deal

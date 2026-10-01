@@ -1,19 +1,42 @@
 import { Handshake } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DealTable } from "@/features/deals/components/DealTable";
+import { EditDealDialog } from "@/features/deals/components/EditDealDialog";
+import { GenerateInvoiceDialog } from "@/features/revenue/components/invoices/GenerateInvoiceDialog";
 import { Button } from "@/shared/ui/button";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { getDealsByCustomerId } from "@/features/deals/utils/deal-utils";
 import type { Customer } from "@/features/customers/types/customer";
+import type { Deal } from "@/features/deals/types/deal";
+import type { GenerateInvoiceContext } from "@/features/revenue/types/invoice";
 
 interface CustomerDealsTabProps {
   customer: Customer;
 }
 
 export function CustomerDealsTab({ customer }: CustomerDealsTabProps) {
-  const { deals, components } = useDeals();
+  const { deals, components, removeDeal } = useDeals();
+  const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [invoicingDeal, setInvoicingDeal] = useState<Deal | null>(null);
   const customerDeals = getDealsByCustomerId(deals, customer.id);
   const createDealPath = `/customers/${customer.id}/deals/new`;
+  const invoiceContext: GenerateInvoiceContext | undefined = invoicingDeal
+    ? {
+        customerId: invoicingDeal.customerId,
+        customerName: invoicingDeal.customerName,
+        dealId: invoicingDeal.id,
+        dealTitle: invoicingDeal.title,
+      }
+    : undefined;
+
+  const handleDelete = async (deal: Deal) => {
+    const confirmed = window.confirm(
+      `Delete deal "${deal.title}"?\n\nRelated components and deal documents will also be deleted.`
+    );
+    if (!confirmed) return;
+    await removeDeal(deal.id);
+  };
 
   if (customerDeals.length === 0) {
     return (
@@ -45,7 +68,29 @@ export function CustomerDealsTab({ customer }: CustomerDealsTabProps) {
           </Link>
         </Button>
       </div>
-      <DealTable deals={customerDeals} components={components} />
+      <DealTable
+        deals={customerDeals}
+        components={components}
+        onEdit={setEditingDeal}
+        onGenerateInvoice={setInvoicingDeal}
+        onDelete={(deal) => {
+          void handleDelete(deal);
+        }}
+      />
+      <EditDealDialog
+        deal={editingDeal}
+        open={Boolean(editingDeal)}
+        onOpenChange={(open) => {
+          if (!open) setEditingDeal(null);
+        }}
+      />
+      <GenerateInvoiceDialog
+        open={Boolean(invoicingDeal)}
+        onOpenChange={(open) => {
+          if (!open) setInvoicingDeal(null);
+        }}
+        context={invoiceContext}
+      />
     </div>
   );
 }

@@ -89,6 +89,41 @@ const gstFromInvoice = (
   return { amountExGst, gstAmount, gstPercent };
 };
 
+/**
+ * A hand-entered receipt often stores the deal's GST-inclusive price without a
+ * component link. When that amount is one component's price including GST, use
+ * that component's rate so the canvas does not call it "No GST".
+ */
+/** The one component on this deal whose GST-inclusive total equals the receipt. */
+export const componentIdMatchingDealTotal = (
+  dealId: string,
+  expectedAmount: number,
+  components: DealComponentEntity[],
+): string => {
+  const amount = roundMoney(expectedAmount);
+  if (!dealId || amount <= 0) return '';
+  const matches = components.filter(
+    (component) =>
+      component.dealId === dealId && Math.abs(computeComponentLineTotal(component) - amount) < 0.6,
+  );
+  return matches.length === 1 ? matches[0].id : '';
+};
+
+const gstPercentMatchingDealPrice = (
+  receipt: ExpectedReceiptEntity,
+  components: DealComponentEntity[],
+): number => {
+  const componentId = componentIdMatchingDealTotal(
+    receipt.dealId,
+    receipt.expectedAmount,
+    components,
+  );
+  const matched = componentId
+    ? components.find((component) => component.id === componentId)
+    : undefined;
+  return Number(matched?.gstPercent) || 0;
+};
+
 const gstFromComponent = (
   component: DealComponentEntity,
 ): Pick<CanvasCard, 'amountExGst' | 'gstAmount' | 'gstPercent'> => {
@@ -154,16 +189,21 @@ export const buildCanvasCards = (input: {
       .map((receipt) => receipt.invoiceId)
       .filter(Boolean),
   );
+  const componentIdForReceipt = (receipt: ExpectedReceiptEntity): string =>
+    receipt.componentId ||
+    componentIdMatchingDealTotal(receipt.dealId, receipt.expectedAmount, input.components);
+
   const coveredComponents = new Set(
     activeReceipts
-      .filter((receipt) => {
-        if (!receipt.componentId) return false;
-        if (!paidReceipt(receipt)) return true;
-        const component = componentById.get(receipt.componentId);
+      .map((receipt) => {
+        const componentId = componentIdForReceipt(receipt);
+        if (!componentId) return '';
+        if (!paidReceipt(receipt)) return componentId;
+        const component = componentById.get(componentId);
         const currentDue = component ? getComponentCurrentDueDate(component).slice(0, 10) : '';
-        return receipt.expectedDate.slice(0, 10) === currentDue;
+        return receipt.expectedDate.slice(0, 10) === currentDue ? componentId : '';
       })
-      .map((receipt) => receipt.componentId),
+      .filter(Boolean),
   );
   const openInvoiceComponents = new Set<string>();
   for (const invoice of input.invoices) {
@@ -181,6 +221,7 @@ export const buildCanvasCards = (input: {
 
   for (const receipt of activeReceipts) {
     if (receipt.origin === 'dismissed') continue;
+    if (receipt.customerId && !customerById.has(receipt.customerId)) continue;
     const customer = customerById.get(receipt.customerId);
     const invoice = receipt.invoiceId ? invoiceById.get(receipt.invoiceId) : undefined;
     const deal = receipt.dealId ? dealById.get(receipt.dealId) : undefined;
@@ -190,10 +231,20 @@ export const buildCanvasCards = (input: {
     const expectedDate = receipt.expectedDate?.slice(0, 10) ?? '';
     const status = displayStatus(receipt.status, expectedDate, input.today, invoice);
     if (status === 'superseded') continue;
-    const component = receipt.componentId ? componentById.get(receipt.componentId) : undefined;
+    const componentId = componentIdForReceipt(receipt);
+    const component = componentId ? componentById.get(componentId) : undefined;
+    const componentPercent = Number(component?.gstPercent) || 0;
+    const chosenPercent = receipt.gstPercent;
     const gst = invoice
       ? gstFromInvoice(invoice, receipt.expectedAmount)
-      : gstFromInclusive(receipt.expectedAmount, Number(component?.gstPercent) || 0);
+      : chosenPercent != null
+        ? gstFromInclusive(receipt.expectedAmount, chosenPercent)
+        : gstFromInclusive(
+            receipt.expectedAmount,
+            componentPercent > 0
+              ? componentPercent
+              : gstPercentMatchingDealPrice(receipt, input.components),
+          );
 
     pushReceipt({
       id: receipt.id,
@@ -214,7 +265,7 @@ export const buildCanvasCards = (input: {
       dealTitle: deal?.title || invoice?.dealTitle || '',
       invoiceId: receipt.invoiceId,
       invoiceNumber: invoice?.invoiceNumber || '',
-      componentId: receipt.componentId,
+      componentId,
       status,
       liveBalance: invoice ? effectiveInvoiceOutstanding(invoice) : null,
       amountOverridden: true,
@@ -228,6 +279,7 @@ export const buildCanvasCards = (input: {
     if (!isCollectionInvoice(invoice)) continue;
     if (effectiveInvoiceOutstanding(invoice) <= 0) continue;
     if (coveredInvoices.has(invoice.id)) continue;
+    if (invoice.customerId && !customerById.has(invoice.customerId)) continue;
     const customer = customerById.get(invoice.customerId);
     const recordType = customer?.recordType ?? 'customer';
     const temperature =
@@ -271,6 +323,7 @@ export const buildCanvasCards = (input: {
     if (openInvoiceComponents.has(component.id)) continue;
     const deal = dealById.get(component.dealId);
     if (!deal?.customerId) continue;
+    if (!customerById.has(deal.customerId)) continue;
     const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
     if (!dueDate) continue;
     const customer = customerById.get(deal.customerId);

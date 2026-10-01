@@ -8,7 +8,11 @@ import {
 } from "@/features/dashboard/utils/renewal-filter";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
+import {
+  formatBaseWithGst,
+  formatInvoiceCurrency,
+  formatInvoiceDate,
+} from "@/features/revenue/utils/invoice-utils";
 import { formatDate } from "@/shared/utils/format-date";
 import { Button } from "@/shared/ui/button";
 import {
@@ -201,12 +205,13 @@ function RenewalsBody({ summary }: { summary: DashboardSummaryDto }) {
   const all = summary.renewalsAll ?? [];
   const items = filterRenewals(all, filter);
   const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalGst = items.reduce((sum, item) => sum + Number(item.gstAmount || 0), 0);
   return (
     <>
       <RenewalFilterChips items={all} value={filter} onChange={setFilter} />
       <div className="grid grid-cols-2 gap-2">
         <StatChip label={renewalFilterLabel(filter)} value={`${items.length} ${items.length === 1 ? "plan" : "plans"}`} />
-        <StatChip label="Value before GST" value={formatInvoiceCurrency(totalAmount)} />
+        <StatChip label="Expected" value={formatBaseWithGst(totalAmount, totalGst)} />
       </div>
       <div className="overflow-hidden rounded-xl border border-border/60">
         <RenewalRows items={items} empty={`No renewals for ${renewalFilterLabel(filter).toLowerCase()}.`} />

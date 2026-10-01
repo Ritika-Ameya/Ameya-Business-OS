@@ -92,7 +92,10 @@ export function CanvasSummary({
           {formatCurrency(toCollect)}
         </span>
         <span className="relative mt-0.5 block text-xs text-white/80">
-          {formatCurrency(toCollectExGst)} without GST · {items(summary.expected.count + summary.carried.count, "receipt", "receipts")}
+          {Math.abs(toCollect - toCollectExGst) > 0.009
+            ? `${formatCurrency(toCollectExGst)} + GST ${formatCurrency(toCollect - toCollectExGst)} · `
+            : "No GST · "}
+          {items(summary.expected.count + summary.carried.count, "receipt", "receipts")}
         </span>
       </button>
 

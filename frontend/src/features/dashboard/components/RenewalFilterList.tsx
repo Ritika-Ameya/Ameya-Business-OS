@@ -108,9 +108,14 @@ export function RenewalRows({
                 {formatInvoiceCurrency(item.amount)}
               </span>
               {(item.gstAmount ?? 0) > 0.009 ? (
-                <span className="block text-[11px] tabular-nums text-muted-foreground">
-                  + GST {formatInvoiceCurrency(item.gstAmount ?? 0)}
-                </span>
+                <>
+                  <span className="block text-[11px] tabular-nums text-muted-foreground">
+                    + GST {formatInvoiceCurrency(item.gstAmount ?? 0)}
+                  </span>
+                  <span className="block text-[11px] font-semibold tabular-nums">
+                    Total {formatInvoiceCurrency(item.amount + (item.gstAmount ?? 0))}
+                  </span>
+                </>
               ) : null}
             </span>
           </li>

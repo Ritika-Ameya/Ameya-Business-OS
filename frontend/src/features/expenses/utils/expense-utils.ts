@@ -223,6 +223,27 @@ export interface RegisterStats {
   upcomingRecurring: number;
 }
 
+/** Unpaid auto-row from a template that is inactive or has auto-generate off. */
+export function isStoppedPendingGeneration(
+  transaction: ExpenseTransaction,
+  masters: ExpenseMasterTemplate[]
+): boolean {
+  if (!transaction.recurring || transaction.status !== "pending" || !transaction.masterTemplateId) {
+    return false;
+  }
+  const master = masters.find((item) => item.id === transaction.masterTemplateId);
+  return !master || master.status !== "active" || !master.autoGenerate;
+}
+
+export function withoutStoppedPendingGenerations(
+  transactions: ExpenseTransaction[],
+  masters: ExpenseMasterTemplate[]
+): ExpenseTransaction[] {
+  return transactions.filter(
+    (transaction) => !isStoppedPendingGeneration(transaction, masters)
+  );
+}
+
 export function computeRegisterStats(
   transactions: ExpenseTransaction[],
   masters: ExpenseMasterTemplate[]

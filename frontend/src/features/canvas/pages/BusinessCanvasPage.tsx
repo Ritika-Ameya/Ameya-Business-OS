@@ -108,12 +108,12 @@ export function BusinessCanvasPage() {
     [filtered, months, today, overdueView]
   );
   const summary = useMemo(
-    () => summarizeView(visible, months, board?.paid ?? [], filters.q, filtered),
-    [visible, months, board?.paid, filters.q, filtered]
+    () => summarizeView(visible, months, board?.paid ?? [], filters.q, today, filtered),
+    [visible, months, board?.paid, filters.q, today, filtered]
   );
   const renewals = useMemo(
-    () => renewalsInView(board?.renewals ?? [], months, overdueView, filters.q),
-    [board?.renewals, months, overdueView, filters.q]
+    () => renewalsInView(board?.renewals ?? [], months, overdueView, filters.q, today),
+    [board?.renewals, months, overdueView, filters.q, today]
   );
   const periodLabel = overdueView ? "overdue months" : periodLabelFor(months);
   const firstMonth = months.filter((month) => month !== "unscheduled").sort()[0] ?? "";

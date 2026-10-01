@@ -10,6 +10,7 @@ import { canvasService } from '../services/canvas.service';
 import {
   createReceiptSchema,
   customerIdParamSchema,
+  dealIdParamSchema,
   dismissReceiptSchema,
   markReceiptPaidSchema,
   scheduleReceiptSchema,
@@ -92,6 +93,14 @@ export class CanvasController {
       await canvasService.updateReceipt(req.body);
       const board = await canvasService.getBoard();
       ApiResponse.updated(res, board, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly listDealForecasts = [
+    validate({ params: dealIdParamSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const forecasts = await canvasService.listDealForecasts(getRouteParam(req.params.dealId));
+      ApiResponse.success(res, forecasts, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
     }),
   ];
 

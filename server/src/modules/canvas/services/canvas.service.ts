@@ -1,5 +1,6 @@
 import { customerRepository } from '../../customers';
 import { dealComponentRepository, dealRepository } from '../../deals';
+import { computeComponentLineTotal } from '../../deals/utils/componentAmount.util';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import { invoiceRepository, invoiceService, paymentRepository } from '../../revenue';
 import {
@@ -26,6 +27,7 @@ import {
   buildCanvasCards,
   buildPaidEntries,
   buildRenewalReminders,
+  componentIdMatchingDealTotal,
   shiftDateToMonth,
 } from '../utils/canvasBoard.util';
 import { expectedReceiptRepository, leadTemperatureRepository } from './canvas.repository';
@@ -75,6 +77,14 @@ export class CanvasService extends BaseService {
         probability: Number(deal.probability || 0),
         contractValue: Number(deal.contractValue || 0),
         expectedCloseDate: deal.expectedCloseDate?.slice(0, 10) ?? '',
+        components: snapshot.components
+          .filter((component) => component.dealId === deal.id)
+          .map((component) => ({
+            id: component.id,
+            name: component.name?.trim() || 'Component',
+            total: computeComponentLineTotal(component),
+            gstPercent: Number(component.gstPercent) || 0,
+          })),
       })),
       renewals: buildRenewalReminders({
         customers: snapshot.customers,
@@ -207,6 +217,7 @@ export class CanvasService extends BaseService {
         componentId: card.componentId,
         installmentIndex: card.installmentIndex || 1,
         expectedAmount: settled ? expected : remaining,
+        gstPercent: card.gstPercent,
         currency: card.currency || invoice.currency || 'INR',
         expectedDate: card.expectedDate,
         reason: card.reason,
@@ -260,24 +271,29 @@ export class CanvasService extends BaseService {
   async createReceipt(input: CreateReceiptInput): Promise<ExpectedReceiptEntity> {
     const customer = await customerRepository.findById(input.customerId);
     if (!customer) throw new NotFoundError('Account not found');
+    const dealComponents = input.dealId
+      ? (await dealComponentRepository.findAll()).filter((component) => component.dealId === input.dealId)
+      : [];
     if (input.dealId) {
       const deal = await dealRepository.findById(input.dealId);
       if (!deal || deal.customerId !== input.customerId) {
         throw new ValidationError('That deal does not belong to this account.');
       }
     }
+    const componentId = this.componentForNewReceipt(input, dealComponents);
 
     return expectedReceiptRepository.create({
       origin: 'manual',
       sourceType: input.sourceType,
-      sourceRefType: this.refType(input),
-      sourceRefId: input.invoiceId || input.componentId || input.dealId || input.customerId,
+      sourceRefType: componentId ? 'component' : this.refType(input),
+      sourceRefId: input.invoiceId || componentId || input.dealId || input.customerId,
       customerId: input.customerId,
       dealId: input.dealId ?? '',
       invoiceId: input.invoiceId ?? '',
-      componentId: input.componentId ?? '',
+      componentId,
       installmentIndex: 1,
       expectedAmount: roundMoney(input.expectedAmount),
+      gstPercent: input.gstPercent ?? null,
       currency: 'INR',
       expectedDate: input.expectedDate,
       reason: input.reason.trim(),
@@ -297,7 +313,48 @@ export class CanvasService extends BaseService {
       sourceType: input.sourceType,
       reason: input.reason?.trim(),
       status: input.status,
+      gstPercent: input.gstPercent,
     });
+  }
+
+  /** Hand-entered forecasts for this deal that are not already an invoice. */
+  async listDealForecasts(dealId: string): Promise<
+    Array<{
+      id: string;
+      reason: string;
+      expectedAmount: number;
+      expectedDate: string;
+      sourceType: ExpectedReceiptEntity['sourceType'];
+    }>
+  > {
+    const deal = await dealRepository.findById(dealId);
+    const customerId = deal?.customerId ?? '';
+    const receipts = await expectedReceiptRepository.findAll();
+    return receipts
+      .filter((receipt) => {
+        if (
+          receipt.origin !== 'manual' ||
+          receipt.status !== 'expected' ||
+          receipt.invoiceId ||
+          receipt.sourceType !== 'deal_expected'
+        ) {
+          return false;
+        }
+        if (receipt.dealId === dealId) return true;
+        return (
+          Boolean(customerId) &&
+          receipt.customerId === customerId &&
+          !receipt.dealId &&
+          receipt.sourceType === 'deal_expected'
+        );
+      })
+      .map((receipt) => ({
+        id: receipt.id,
+        reason: receipt.reason,
+        expectedAmount: roundMoney(receipt.expectedAmount),
+        expectedDate: receipt.expectedDate?.slice(0, 10) ?? '',
+        sourceType: receipt.sourceType,
+      }));
   }
 
   async dismiss(cardId: string): Promise<void> {
@@ -341,6 +398,7 @@ export class CanvasService extends BaseService {
         componentId: '',
         installmentIndex: index,
         expectedAmount: roundMoney(part.expectedAmount),
+        gstPercent: null,
         currency: invoice.currency || 'INR',
         expectedDate: part.expectedDate,
         reason: part.reason?.trim() || `Installment ${index} · ${invoice.invoiceNumber}`,
@@ -359,14 +417,36 @@ export class CanvasService extends BaseService {
     invoices: Awaited<ReturnType<typeof invoiceRepository.findAll>>;
   }> {
     const today = toLocalDateOnly(new Date());
-    const [customers, deals, components, invoices, receipts, temperatures] = await Promise.all([
-      customerRepository.findAll(),
-      dealRepository.findAll(),
-      dealComponentRepository.findAll(),
-      invoiceRepository.findAll(),
-      expectedReceiptRepository.findAll(),
-      leadTemperatureRepository.findAll(),
-    ]);
+    const [customers, deals, components, invoices, loadedReceipts, loadedTemperatures] =
+      await Promise.all([
+        customerRepository.findAll(),
+        dealRepository.findAll(),
+        dealComponentRepository.findAll(),
+        invoiceRepository.findAll(),
+        expectedReceiptRepository.findAll(),
+        leadTemperatureRepository.findAll(),
+      ]);
+
+    const liveCustomerIds = new Set(customers.map((customer) => customer.id));
+    const staleReceipts = loadedReceipts.filter(
+      (receipt) => receipt.customerId !== '' && !liveCustomerIds.has(receipt.customerId),
+    );
+    const staleTemperatures = loadedTemperatures.filter(
+      (row) => row.customerId !== '' && !liveCustomerIds.has(row.customerId),
+    );
+    if (staleReceipts.length > 0 || staleTemperatures.length > 0) {
+      for (const receipt of staleReceipts) {
+        await expectedReceiptRepository.delete(receipt.id);
+      }
+      for (const row of staleTemperatures) {
+        await leadTemperatureRepository.delete(row.id);
+      }
+      this.logInfo(
+        `Removed ${staleReceipts.length} canvas receipt(s) and ${staleTemperatures.length} temperature row(s) left behind by deleted customers`,
+      );
+    }
+    const receipts = loadedReceipts.filter((receipt) => !staleReceipts.includes(receipt));
+    const temperatures = loadedTemperatures.filter((row) => !staleTemperatures.includes(row));
 
     return {
       today,
@@ -393,6 +473,20 @@ export class CanvasService extends BaseService {
     return card;
   }
 
+  private componentForNewReceipt(
+    input: CreateReceiptInput,
+    components: Awaited<ReturnType<typeof dealComponentRepository.findAll>>,
+  ): string {
+    if (input.componentId) {
+      const chosen = components.find((component) => component.id === input.componentId);
+      if (!chosen) {
+        throw new ValidationError('That component does not belong to the selected deal.');
+      }
+      return chosen.id;
+    }
+    return componentIdMatchingDealTotal(input.dealId, input.expectedAmount, components);
+  }
+
   private refType(input: CreateReceiptInput): ReceiptSourceRefType {
     if (input.invoiceId) return 'invoice';
     if (input.componentId) return 'component';
@@ -402,7 +496,12 @@ export class CanvasService extends BaseService {
 
   private async persistCard(
     card: CanvasCard,
-    patch: Partial<Pick<ExpectedReceiptEntity, 'expectedAmount' | 'expectedDate' | 'sourceType' | 'reason' | 'status'>>,
+    patch: Partial<
+      Pick<
+        ExpectedReceiptEntity,
+        'expectedAmount' | 'expectedDate' | 'sourceType' | 'reason' | 'status' | 'gstPercent'
+      >
+    >,
     origin: ExpectedReceiptEntity['origin'] = 'override',
   ): Promise<void> {
     if (card.persistedId && origin !== 'dismissed') {
@@ -412,6 +511,7 @@ export class CanvasService extends BaseService {
       if (patch.sourceType !== undefined) next.sourceType = patch.sourceType;
       if (patch.reason !== undefined) next.reason = patch.reason;
       if (patch.status !== undefined) next.status = patch.status;
+      if (patch.gstPercent !== undefined) next.gstPercent = patch.gstPercent;
       await expectedReceiptRepository.update(card.persistedId, next);
       return;
     }
@@ -438,6 +538,7 @@ export class CanvasService extends BaseService {
         reason: patch.reason ?? card.reason,
         status: patch.status ?? existingMatch.status,
         origin: origin === 'dismissed' ? 'dismissed' : existingMatch.origin,
+        ...(patch.gstPercent !== undefined ? { gstPercent: patch.gstPercent } : {}),
       });
       return;
     }
@@ -461,6 +562,7 @@ export class CanvasService extends BaseService {
       componentId: card.componentId,
       installmentIndex: card.installmentIndex || 1,
       expectedAmount: roundMoney(patch.expectedAmount ?? card.expectedAmount ?? 0),
+      gstPercent: patch.gstPercent !== undefined ? patch.gstPercent : card.gstPercent,
       currency: card.currency || 'INR',
       expectedDate: patch.expectedDate ?? card.expectedDate,
       reason: patch.reason ?? card.reason,

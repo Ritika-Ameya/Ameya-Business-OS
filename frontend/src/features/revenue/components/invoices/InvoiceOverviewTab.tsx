@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui/table";
 import { RenewalFrequencyBadge } from "@/features/deals/components/components/ComponentBadges";
 import { useDeals } from "@/features/deals/hooks/use-deals";
-import { formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
+import { billedComponentLines, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import type { Invoice } from "@/features/revenue/types/invoice";
 
 interface InvoiceOverviewTabProps {
@@ -26,9 +26,11 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
   const { components: allComponents } = useDeals();
   const componentById = new Map(allComponents.map((component) => [component.id, component]));
   const isNonGst = invoice.billingType === "non_gst";
+  const lines = billedComponentLines(invoice, allComponents);
+  const lineByComponent = new Map(lines.map((line) => [line.componentId, line]));
   const rows =
     invoice.lineItems.length > 0
-      ? invoice.lineItems.map((line) => ({
+      ? lines.map((line) => ({
           key: line.componentId || line.name,
           name: line.name,
           component: componentById.get(line.componentId),
@@ -36,9 +38,22 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
         }))
       : invoice.componentIds.map((componentId) => {
           const component = componentById.get(componentId);
-          return { key: componentId, name: component?.name ?? "—", component, line: null };
+          const line = lineByComponent.get(componentId) ?? null;
+          return {
+            key: componentId,
+            name: line?.name ?? component?.name ?? "—",
+            component,
+            line,
+          };
         });
-  const hasLines = invoice.lineItems.length > 0;
+  const showAmounts = rows.some((row) => row.line);
+  const rowBase = rows.reduce((sum, row) => sum + (row.line?.taxable ?? 0), 0);
+  const rowTax = rows.reduce((sum, row) => sum + (row.line?.gstAmount ?? 0), 0);
+  const rowsMatchInvoice =
+    showAmounts &&
+    rows.every((row) => row.line) &&
+    Math.abs(rowBase - invoice.subtotal) < 1 &&
+    Math.abs(rowTax - invoice.tax) < 1;
 
   return (
     <div className="space-y-6">
@@ -46,9 +61,11 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
         <CardHeader>
           <CardTitle>Invoice Components</CardTitle>
           <CardDescription>
-            {hasLines || rows.length === 0
+            {rows.length === 0
               ? "What was billed on this invoice"
-              : "Components on this invoice. Amounts below are the invoice totals as billed."}
+              : rowsMatchInvoice
+                ? "Each component is on its own row. The total below is the sum of these rows."
+                : "Each component shows its own amount. The total below is what was billed on this invoice."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -64,7 +81,7 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                     <TableHead className="pl-4">Component</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Frequency</TableHead>
-                    {hasLines && (
+                    {showAmounts && (
                       <>
                         <TableHead className="text-right">Base amount</TableHead>
                         <TableHead className="text-right">GST</TableHead>
@@ -87,18 +104,20 @@ export function InvoiceOverviewTab({ invoice }: InvoiceOverviewTabProps) {
                           "—"
                         )}
                       </TableCell>
-                      {row.line && (
+                      {showAmounts && (
                         <>
                           <TableCell className="text-right tabular-nums">
-                            {formatInvoiceCurrency(row.line.taxable)}
+                            {row.line ? formatInvoiceCurrency(row.line.taxable) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
-                            {row.line.gstPercent > 0
-                              ? `${formatInvoiceCurrency(row.line.gstAmount)} (${row.line.gstPercent}%)`
-                              : "No GST"}
+                            {row.line
+                              ? row.line.gstPercent > 0
+                                ? `${formatInvoiceCurrency(row.line.gstAmount)} (${row.line.gstPercent}%)`
+                                : "No GST"
+                              : "—"}
                           </TableCell>
                           <TableCell className="pr-4 text-right font-medium tabular-nums">
-                            {formatInvoiceCurrency(row.line.total)}
+                            {row.line ? formatInvoiceCurrency(row.line.total) : "—"}
                           </TableCell>
                         </>
                       )}

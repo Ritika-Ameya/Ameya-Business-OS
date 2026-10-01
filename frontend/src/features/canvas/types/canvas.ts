@@ -88,6 +88,14 @@ export interface CanvasAccountOption {
   temperature: LeadTemperature;
 }
 
+export interface CanvasDealComponentOption {
+  id: string;
+  name: string;
+  /** Component total, including GST. */
+  total: number;
+  gstPercent?: number;
+}
+
 export interface CanvasDealOption {
   id: string;
   title: string;
@@ -95,6 +103,7 @@ export interface CanvasDealOption {
   probability: number;
   contractValue: number;
   expectedCloseDate: string;
+  components?: CanvasDealComponentOption[];
 }
 
 export interface CanvasBoard {

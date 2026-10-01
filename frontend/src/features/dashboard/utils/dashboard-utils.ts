@@ -239,8 +239,7 @@ export function formatActivityTime(timestamp: string): string {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays} days ago`;
 
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-  }).format(date);
+  return formatDate(
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+  );
 }

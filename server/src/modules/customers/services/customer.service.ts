@@ -20,6 +20,10 @@ import {
   stateRepository,
 } from '../../masters/services/master.services';
 import {
+  expectedReceiptRepository,
+  leadTemperatureRepository,
+} from '../../canvas/services/canvas.repository';
+import {
   dealComponentRepository,
   dealRepository,
 } from '../../deals/services/deal.repository';
@@ -291,13 +295,16 @@ export class CustomerService extends BaseService {
     this.logInfo(`Soft-deleting customer ${id} and related data`);
     await this.getById(id);
 
-    const [deals, components, invoices, payments, documents] = await Promise.all([
-      dealRepository.findAll(),
-      dealComponentRepository.findAll(),
-      invoiceRepository.findAll(),
-      paymentRepository.findAll(),
-      documentRepository.findAll(),
-    ]);
+    const [deals, components, invoices, payments, documents, receipts, temperatures] =
+      await Promise.all([
+        dealRepository.findAll(),
+        dealComponentRepository.findAll(),
+        invoiceRepository.findAll(),
+        paymentRepository.findAll(),
+        documentRepository.findAll(),
+        expectedReceiptRepository.findAll(),
+        leadTemperatureRepository.findAll(),
+      ]);
 
     const customerDeals = deals.filter((deal) => deal.customerId === id);
     const customerInvoices = invoices.filter((invoice) => invoice.customerId === id);
@@ -322,6 +329,20 @@ export class CustomerService extends BaseService {
       if (!isCustomerDoc && !isDealDoc && !isInvoiceDoc) continue;
       await deleteDriveFileQuietly(document.driveFileId);
       await documentRepository.deleteOrThrow(document.id, 'Document');
+    }
+
+    for (const receipt of receipts) {
+      const belongsToCustomer =
+        receipt.customerId === id ||
+        (receipt.dealId !== '' && dealIds.has(receipt.dealId)) ||
+        (receipt.invoiceId !== '' && invoiceIds.has(receipt.invoiceId));
+      if (!belongsToCustomer) continue;
+      await expectedReceiptRepository.deleteOrThrow(receipt.id, 'Expected receipt');
+    }
+
+    for (const temperature of temperatures) {
+      if (temperature.customerId !== id) continue;
+      await leadTemperatureRepository.deleteOrThrow(temperature.id, 'Lead temperature');
     }
 
     for (const invoice of customerInvoices) {
