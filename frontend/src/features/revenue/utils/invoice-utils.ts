@@ -1,17 +1,76 @@
+import { computeComponentTaxable } from "@/features/deals/utils/deal-component-utils";
+import type { DealComponent } from "@/features/deals/types/deal-component";
 import type {
   Invoice,
   InvoiceFilters,
+  InvoiceLineItem,
   InvoiceNumberSort,
   InvoiceStatus,
 } from "@/features/revenue/types/invoice";
+import { formatCurrency } from "@/shared/utils/format-currency";
 
 export { formatCurrency as formatInvoiceCurrency } from "@/shared/utils/format-currency";
 export { formatDate as formatInvoiceDate } from "@/shared/utils/format-date";
+
+/** Base and GST stay separate. The bracket is base plus GST. */
+export function formatBaseWithGst(base: number, gstAmount: number): string {
+  if (gstAmount <= 0.009) return formatCurrency(base);
+  return `${formatCurrency(base)} + GST ${formatCurrency(gstAmount)} (Total ${formatCurrency(base + gstAmount)})`;
+}
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * One row per component. Saved invoice lines win. Older invoices use each
+ * linked component's own base and GST, so a multi-component bill is not
+ * only a combined total.
+ */
+export function billedComponentLines(
+  invoice: Invoice,
+  components: DealComponent[],
+): InvoiceLineItem[] {
+  if (invoice.lineItems.length > 0) return invoice.lineItems;
+
+  const byId = new Map(components.map((component) => [component.id, component]));
+  const linked = invoice.componentIds
+    .map((id) => byId.get(id))
+    .filter((component): component is DealComponent => Boolean(component));
+  if (linked.length === 0) return [];
+
+  const nonGst = invoice.billingType === "non_gst";
+  return linked.map((component) => {
+    const taxable = roundMoney(computeComponentTaxable(component));
+    const gstPercent = nonGst ? 0 : Number(component.gstPercent) || invoice.gstPercent || 0;
+    const gstAmount = nonGst ? 0 : roundMoney((taxable * gstPercent) / 100);
+    return {
+      componentId: component.id,
+      name: component.name,
+      taxable,
+      gstPercent,
+      gstAmount,
+      total: roundMoney(taxable + gstAmount),
+    };
+  });
+}
+
+/** Paid amount equals the invoice's base (pre-GST) balance, i.e. the client skipped GST. */
+export function isBaseOnlyPayment(invoice: Invoice, amount: number): boolean {
+  if (invoice.billingType !== "gst" || invoice.tax <= 0.009) return false;
+  if (!Number.isFinite(amount) || amount <= 0) return false;
+  return Math.abs(invoice.received + amount - invoice.subtotal) <= 1;
+}
 
 export const defaultInvoiceFilters: InvoiceFilters = {
   status: "all",
   customer: "all",
   date: "all",
+  billingType: "all",
+};
+
+export const invoiceBillingTypeLabels: Record<InvoiceFilters["billingType"], string> = {
+  all: "GST & Non-GST",
+  gst: "With GST",
+  non_gst: "Without GST",
 };
 
 export const invoiceStatusLabels: Record<InvoiceFilters["status"], string> = {
@@ -116,7 +175,12 @@ export function filterInvoices(
           (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear())) ||
       (filters.date === "overdue" && isPastDue);
 
-    return matchesSearch && matchesStatus && matchesCustomer && matchesDate;
+    const matchesBillingType =
+      filters.billingType === "all" || invoice.billingType === filters.billingType;
+
+    return (
+      matchesSearch && matchesStatus && matchesCustomer && matchesDate && matchesBillingType
+    );
   });
 }
 

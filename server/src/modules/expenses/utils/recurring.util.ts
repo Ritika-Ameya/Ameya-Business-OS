@@ -91,6 +91,36 @@ export type GeneratedExpenseInput = Omit<
   'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deletedAt' | 'isDeleted' | 'version'
 >;
 
+export const generatingMasterIds = (masters: ExpenseMasterEntity[]): Set<string> =>
+  new Set(
+    masters
+      .filter((master) => master.status === 'active' && master.autoGenerate)
+      .map((master) => master.id),
+  );
+
+/**
+ * Unpaid auto-generated rows whose template is inactive or no longer auto-generates.
+ * Paid and partial rows stay — that money was actually recorded.
+ */
+export const isStoppedPendingGeneration = (
+  transaction: Pick<ExpenseEntity, 'recurring' | 'status' | 'masterTemplateId'>,
+  activeGeneratorIds: Set<string>,
+): boolean =>
+  Boolean(transaction.recurring) &&
+  transaction.status === 'pending' &&
+  Boolean(transaction.masterTemplateId) &&
+  !activeGeneratorIds.has(transaction.masterTemplateId);
+
+export const stoppedPendingGenerations = (
+  masters: ExpenseMasterEntity[],
+  transactions: ExpenseEntity[],
+): ExpenseEntity[] => {
+  const activeIds = generatingMasterIds(masters);
+  return transactions.filter((transaction) =>
+    isStoppedPendingGeneration(transaction, activeIds),
+  );
+};
+
 export const generatePendingFromMasters = (
   masters: ExpenseMasterEntity[],
   transactions: ExpenseEntity[],

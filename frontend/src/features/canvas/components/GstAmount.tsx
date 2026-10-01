@@ -7,6 +7,10 @@ export function splitInclusive(amount: number, taxPercent: number | null | undef
   return { exclusive, gst: Math.round((amount - exclusive) * 100) / 100, percent };
 }
 
+function gstPart(inclusive: number, exclusive: number): number {
+  return Math.round((inclusive - exclusive) * 100) / 100;
+}
+
 export function GstPair({
   inclusive,
   exclusive,
@@ -22,8 +26,30 @@ export function GstPair({
     return <p className="text-sm text-muted-foreground">No amount yet</p>;
   }
   const without = exclusive ?? inclusive;
-  const rateLabel =
-    percent == null ? "" : percent > 0 ? `GST ${percent}%` : "No GST";
+  const gst = gstPart(inclusive, without);
+  const hasGst = gst > 0.009;
+
+  if (!hasGst) {
+    if (compact) {
+      return (
+        <p className="mt-1 text-sm font-semibold tabular-nums leading-tight">
+          {formatCurrency(inclusive)}{" "}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            No GST
+          </span>
+        </p>
+      );
+    }
+    return (
+      <p className="mt-2 text-xs font-medium text-muted-foreground">
+        <span className="font-semibold tabular-nums text-foreground">{formatCurrency(inclusive)}</span>
+        {" · No GST"}
+      </p>
+    );
+  }
+
+  const rate = percent != null && percent > 0 ? ` ${percent}%` : "";
+  const split = `${formatCurrency(without)} + GST${rate} ${formatCurrency(gst)}`;
 
   if (compact) {
     return (
@@ -31,33 +57,20 @@ export function GstPair({
         <p className="text-sm font-semibold tabular-nums leading-tight">
           {formatCurrency(inclusive)}{" "}
           <span className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-            with GST
+            Total
           </span>
         </p>
-        <p className="text-[11px] tabular-nums text-muted-foreground">
-          {formatCurrency(without)} without GST
-        </p>
+        <p className="text-[11px] tabular-nums text-muted-foreground">{split}</p>
       </div>
     );
   }
 
   return (
-    <div className="mt-2">
-      <div className="grid grid-cols-2 gap-1.5">
-        <div className="rounded-lg bg-muted/70 px-2 py-1.5">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Without GST</p>
-          <p className="text-xs font-semibold tabular-nums">{formatCurrency(without)}</p>
-        </div>
-        <div className="rounded-lg bg-violet-500/12 px-2 py-1.5 ring-1 ring-violet-500/20">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-            With GST
-          </p>
-          <p className="text-xs font-semibold tabular-nums text-violet-800 dark:text-violet-100">
-            {formatCurrency(inclusive)}
-          </p>
-        </div>
-      </div>
-      {rateLabel ? <p className="mt-1 text-[10px] font-medium text-muted-foreground">{rateLabel}</p> : null}
+    <div className="mt-2 rounded-lg bg-violet-500/12 px-2 py-1.5 ring-1 ring-violet-500/20">
+      <p className="text-[11px] font-medium tabular-nums text-muted-foreground">{split}</p>
+      <p className="text-xs font-semibold tabular-nums text-violet-800 dark:text-violet-100">
+        Total {formatCurrency(inclusive)}
+      </p>
     </div>
   );
 }

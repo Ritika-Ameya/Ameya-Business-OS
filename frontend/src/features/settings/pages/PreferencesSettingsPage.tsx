@@ -79,8 +79,8 @@ export function PreferencesSettingsPage() {
               </SelectTrigger>
               <SelectContent>
                 {dateFormatOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

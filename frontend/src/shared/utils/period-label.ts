@@ -1,4 +1,4 @@
-import { formatDate } from "@/shared/utils/format-date";
+import { formatDate, toLocalIsoDate } from "@/shared/utils/format-date";
 
 export function calendarMonthPeriod(date = new Date()): string {
   return new Intl.DateTimeFormat("en-IN", {
@@ -43,11 +43,7 @@ export function lastSixMonthsPeriod(date = new Date()): string {
 }
 
 export function calendarDayPeriod(date = new Date()): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return formatDate(toLocalIsoDate(date));
 }
 
 export function tomorrowDayPeriod(date = new Date()): string {

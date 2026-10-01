@@ -5,7 +5,10 @@ import {
   Phone,
   Receipt,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { canvasApi } from "@/features/canvas/api/canvas.api";
+import type { LeadTemperature } from "@/features/canvas/types/canvas";
+import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { Badge } from "@/shared/ui/badge";
 import {
   Select,
@@ -41,6 +44,13 @@ import type { SettingsStage } from "@/features/settings/types/settings";
 interface CustomerHeroProps {
   customer: Customer;
 }
+
+const TEMPERATURE_OPTIONS = [
+  { value: "hot", label: "Hot", dot: "bg-rose-500" },
+  { value: "warm", label: "Warm", dot: "bg-amber-500" },
+  { value: "cold", label: "Cold", dot: "bg-sky-500" },
+  { value: "unset", label: "Not set", dot: "bg-slate-400" },
+] as const;
 
 function HeroMetric({
   label,
@@ -155,6 +165,47 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
   const handleRecordTypeChange = (recordType: RecordType) => {
     if (recordType === customer.recordType) return;
     void updateRecordType(customer.id, recordType, stages);
+  };
+
+  const isOpportunity = customer.recordType === "opportunity";
+  const [temperature, setTemperature] = useState<{ customerId: string; value: LeadTemperature } | null>(
+    null
+  );
+  const [temperatureSaving, setTemperatureSaving] = useState(false);
+  const [temperatureError, setTemperatureError] = useState("");
+
+  useEffect(() => {
+    if (!isOpportunity) return;
+    let cancelled = false;
+    canvasApi
+      .getLeadTemperature(customer.id)
+      .then((result) => {
+        if (!cancelled) setTemperature({ customerId: customer.id, value: result.temperature });
+      })
+      .catch(() => {
+        if (!cancelled) setTemperatureError("Could not load Hot / Warm / Cold.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customer.id, isOpportunity]);
+
+  const temperatureValue =
+    temperature?.customerId === customer.id ? temperature.value || "unset" : undefined;
+
+  const handleTemperatureChange = async (value: string) => {
+    const next: LeadTemperature = value === "unset" ? "" : (value as LeadTemperature);
+    if (temperatureSaving || next === temperature?.value) return;
+    setTemperatureSaving(true);
+    setTemperatureError("");
+    try {
+      const result = await canvasApi.setLeadTemperature(customer.id, next);
+      setTemperature({ customerId: customer.id, value: result.temperature });
+    } catch (err) {
+      setTemperatureError(getErrorMessage(err));
+    } finally {
+      setTemperatureSaving(false);
+    }
   };
 
   return (
@@ -272,6 +323,39 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {isOpportunity ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                      Hot / Warm / Cold
+                    </p>
+                    <Select
+                      value={temperatureValue}
+                      disabled={temperatureSaving || temperatureValue === undefined}
+                      onValueChange={(value) => void handleTemperatureChange(value)}
+                    >
+                      <SelectTrigger
+                        aria-label="Opportunity temperature"
+                        className="w-full rounded-xl border-white/30 bg-white text-slate-900 shadow-sm hover:bg-white/95 [&_svg]:text-slate-500"
+                      >
+                        <SelectValue placeholder={temperatureError ? "Unavailable" : "Loading…"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEMPERATURE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <span className="flex items-center gap-2">
+                              <span className={cn("size-2.5 rounded-full", option.dot)} />
+                              {option.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {temperatureError ? (
+                      <p className="text-xs text-amber-100">{temperatureError}</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex flex-col gap-2 text-sm text-white/85">

@@ -125,8 +125,12 @@ export const buildRecentActivity = (
     });
   }
 
+  const liveInvoiceIds = new Set(
+    invoices.filter((invoice) => !invoice.isDeleted).map((invoice) => invoice.id),
+  );
   for (const payment of payments) {
     if (payment.isDeleted || payment.status !== 'received') continue;
+    if (!liveInvoiceIds.has(payment.invoiceId)) continue;
     items.push({
       id: `payment-${payment.id}`,
       type: 'payment_received',

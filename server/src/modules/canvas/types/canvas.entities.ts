@@ -31,7 +31,10 @@ export interface ExpectedReceiptEntity extends CanvasEntityBase {
   invoiceId: string;
   componentId: string;
   installmentIndex: number;
+  /** Cash expected, including GST when gstPercent is set. */
   expectedAmount: number;
+  /** 18 or 0 when chosen on the receipt. Null on older rows, which still infer GST. */
+  gstPercent: number | null;
   currency: string;
   expectedDate: string;
   reason: string;
@@ -84,6 +87,13 @@ export interface CanvasAccountOption {
   temperature: LeadTemperatureValue | '';
 }
 
+export interface CanvasDealComponentOption {
+  id: string;
+  name: string;
+  total: number;
+  gstPercent: number;
+}
+
 export interface CanvasDealOption {
   id: string;
   title: string;
@@ -91,6 +101,37 @@ export interface CanvasDealOption {
   probability: number;
   contractValue: number;
   expectedCloseDate: string;
+  components: CanvasDealComponentOption[];
+}
+
+export type CanvasRenewalStatus = 'overdue' | 'this_month' | 'next_month' | 'later';
+
+export interface CanvasRenewalReminder {
+  id: string;
+  componentId: string;
+  componentName: string;
+  customerId: string;
+  companyName: string;
+  dealId: string;
+  dealTitle: string;
+  renewalDate: string;
+  renewalFrequency: string;
+  lastRenewedDate: string;
+  amount: number;
+  status: CanvasRenewalStatus;
+  /** Open invoice already raised for this renewal cycle, if any. */
+  invoiceId: string;
+  invoiceNumber: string;
+}
+
+export interface CanvasPaidEntry {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  companyName: string;
+  amount: number;
+  paidAt: string;
 }
 
 export interface CanvasBoardPayload {
@@ -99,4 +140,6 @@ export interface CanvasBoardPayload {
   cards: CanvasCard[];
   accounts: CanvasAccountOption[];
   deals: CanvasDealOption[];
+  renewals: CanvasRenewalReminder[];
+  paid: CanvasPaidEntry[];
 }

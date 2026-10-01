@@ -2,7 +2,13 @@ import type { BaseEntity } from '../../../types';
 import type { InvoiceTimelineEntry } from '../../../types/entity.contracts';
 import { createBaseEntityMapper } from '../../../utils/entityMapper.util';
 import { parseNumberField } from '../../../utils/sheetMapper.util';
-import type { InvoiceEntity, PaymentEntity } from '../types/revenue.entities';
+import type {
+  InvoiceBillingType,
+  InvoiceEntity,
+  InvoiceLineItem,
+  PaymentAccount,
+  PaymentEntity,
+} from '../types/revenue.entities';
 import { normalizeInvoiceStatus } from '../utils/invoiceCalculation.util';
 
 const str = (record: Record<string, string>, key: string, fallback = ''): string =>
@@ -48,6 +54,39 @@ const parseTimeline = (raw: string): InvoiceTimelineEntry[] => {
   }
 };
 
+const parseLineItems = (raw: string): InvoiceLineItem[] => {
+  if (!raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((entry) => {
+      const item = entry as Record<string, unknown>;
+      return {
+        componentId: String(item.componentId ?? ''),
+        name: String(item.name ?? ''),
+        taxable: Number(item.taxable) || 0,
+        gstPercent: Number(item.gstPercent) || 0,
+        gstAmount: Number(item.gstAmount) || 0,
+        total: Number(item.total) || 0,
+      };
+    });
+  } catch {
+    return [];
+  }
+};
+
+const parsePaymentAccount = (raw: string): PaymentAccount | '' => {
+  const value = raw.trim();
+  return value === 'gst' || value === 'other' ? value : '';
+};
+
+/** Rows written before `billingType` existed are GST invoices only if they carried tax. */
+const parseBillingType = (record: Record<string, string>): InvoiceBillingType => {
+  const raw = str(record, 'billingType').trim();
+  if (raw === 'gst' || raw === 'non_gst') return raw;
+  return num(record, 'tax') > 0 || num(record, 'taxPercent') > 0 ? 'gst' : 'non_gst';
+};
+
 export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
   (record, base: BaseEntity) => {
     const status = normalizeInvoiceStatus(str(record, 'status', 'draft'));
@@ -75,6 +114,8 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     cancelledAt: str(record, 'cancelledAt'),
     cancelledBy: str(record, 'cancelledBy'),
     nextActionDate: str(record, 'nextActionDate'),
+    billingType: parseBillingType(record),
+    lineItems: parseLineItems(str(record, 'lineItems')),
     };
   },
   (entity) => ({
@@ -100,6 +141,8 @@ export const invoiceMapper = createBaseEntityMapper<InvoiceEntity>(
     cancelledAt: rowStr(entity, 'cancelledAt'),
     cancelledBy: rowStr(entity, 'cancelledBy'),
     nextActionDate: rowStr(entity, 'nextActionDate'),
+    billingType: rowStr(entity, 'billingType'),
+    lineItems: JSON.stringify(entity.lineItems ?? []),
   }),
 );
 
@@ -117,6 +160,7 @@ export const paymentMapper = createBaseEntityMapper<PaymentEntity>(
     receivedBy: str(record, 'receivedBy'),
     transactionId: str(record, 'transactionId'),
     notes: str(record, 'notes'),
+    receivedAccount: parsePaymentAccount(str(record, 'receivedAccount')),
   }),
   (entity) => ({
     invoiceId: rowStr(entity, 'invoiceId'),
@@ -130,5 +174,6 @@ export const paymentMapper = createBaseEntityMapper<PaymentEntity>(
     receivedBy: rowStr(entity, 'receivedBy'),
     transactionId: rowStr(entity, 'transactionId'),
     notes: rowStr(entity, 'notes'),
+    receivedAccount: rowStr(entity, 'receivedAccount'),
   }),
 );

@@ -1,23 +1,25 @@
 import { z } from 'zod';
 import { normalizePhoneToE164 } from '../../../utils/phone.util';
 
+const isOptionalEmail = (value: string): boolean =>
+  value === '' || z.string().email().safeParse(value).success;
+
+const isOptionalWebsite = (value: string): boolean =>
+  value === '' ||
+  /^https?:\/\/.+/i.test(value) ||
+  /^[\w.-]+\.[a-z]{2,}([/:].*)?$/i.test(value);
+
 const optionalEmailSchema = z
   .string()
   .default('')
-  .refine((value) => value === '' || z.string().email().safeParse(value).success, {
+  .refine(isOptionalEmail, {
     message: 'Invalid email address',
   });
 
 const optionalWebsiteSchema = z
   .string()
   .default('')
-  .refine(
-    (value) =>
-      value === '' ||
-      /^https?:\/\/.+/i.test(value) ||
-      /^[\w.-]+\.[a-z]{2,}([/:].*)?$/i.test(value),
-    { message: 'Invalid website URL' },
-  );
+  .refine(isOptionalWebsite, { message: 'Invalid website URL' });
 
 const phoneSchema = z
   .string()
@@ -34,54 +36,53 @@ const phoneSchema = z
     }
   });
 
-const optionalPhoneSchema = z
-  .string()
-  .default('')
-  .transform((value, ctx) => {
-    try {
-      return normalizePhoneToE164(value);
-    } catch (error) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: (error as Error).message || 'Please enter a valid mobile number.',
-      });
-      return z.NEVER;
-    }
-  });
+const normalizeOptionalPhone = (value: string, ctx: z.RefinementCtx): string => {
+  try {
+    return normalizePhoneToE164(value);
+  } catch (error) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: (error as Error).message || 'Please enter a valid mobile number.',
+    });
+    return z.NEVER;
+  }
+};
+
+const optionalPhoneSchema = z.string().default('').transform(normalizeOptionalPhone);
+
+const isOptionalGstin = (value: string): boolean =>
+  value === '' || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(value);
 
 const optionalGstinSchema = z
   .string()
   .default('')
   .transform((value) => value.trim().toUpperCase())
-  .refine(
-    (value) =>
-      value === '' ||
-      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(value),
-    { message: 'Invalid GSTIN format' },
-  );
+  .refine(isOptionalGstin, { message: 'Invalid GSTIN format' });
 
 const optionalIdSchema = z.string().default('');
 
 const optionalDateSchema = z.string().default('');
 
+const parseTagsInput = (value: string[] | string): string[] => {
+  if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean);
+  if (!value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item));
+  } catch {
+    // CSV fallback
+  }
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+};
+
 const tagsSchema = z
   .union([z.array(z.string()), z.string()])
   .optional()
   .default([])
-  .transform((value) => {
-    if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean);
-    if (!value.trim()) return [];
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      if (Array.isArray(parsed)) return parsed.map((item) => String(item));
-    } catch {
-      // CSV fallback
-    }
-    return value
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean);
-  });
+  .transform(parseTagsInput);
 
 export const recordTypeSchema = z.enum(['opportunity', 'customer']);
 export const customerStatusSchema = z.enum(['active', 'inactive', 'prospect']);
@@ -126,9 +127,48 @@ export const customerCreateSchema = customerFieldsSchema.extend({
   allowDuplicateCompanyName: z.boolean().optional().default(false),
 });
 
-export const customerUpdateSchema = customerFieldsSchema.partial().extend({
+/**
+ * Update accepts only the fields that were sent. Zod 4 applies `.default()`
+ * even inside `.partial()`, so deriving this from the create schema would
+ * reset omitted fields (record type, stage, dates, values) on every edit.
+ */
+export const customerUpdateSchema = z.object({
+  recordType: recordTypeSchema.optional(),
+  status: customerStatusSchema.optional(),
+  currentStageId: z.string().optional(),
+  companyName: z.string().optional(),
+  gstin: z
+    .string()
+    .transform((value) => value.trim().toUpperCase())
+    .refine(isOptionalGstin, { message: 'Invalid GSTIN format' })
+    .optional(),
+  vatId: z.string().optional(),
+  licenseNo: z.string().optional(),
+  industryId: z.string().optional(),
+  sourceId: z.string().optional(),
   contactPerson: z.string().min(1, 'Contact person is required').optional(),
   phone: phoneSchema.optional(),
+  alternatePhone: z.string().transform(normalizeOptionalPhone).optional(),
+  email: z.string().refine(isOptionalEmail, { message: 'Invalid email address' }).optional(),
+  website: z.string().refine(isOptionalWebsite, { message: 'Invalid website URL' }).optional(),
+  billingAddress: z.string().optional(),
+  serviceAddress: z.string().optional(),
+  countryId: z.string().optional(),
+  stateId: z.string().optional(),
+  city: z.string().optional(),
+  pincode: z.string().optional(),
+  notes: z.string().optional(),
+  businessValue: z.coerce.number().min(0).optional(),
+  expectedRevenue: z.coerce.number().min(0).optional(),
+  nextActionDate: z.string().optional(),
+  lastContactDate: z.string().optional(),
+  renewalDate: z.string().optional(),
+  outstandingAmount: z.coerce.number().min(0).optional(),
+  tags: z.union([z.array(z.string()), z.string()]).transform(parseTagsInput).optional(),
+  isActive: z.boolean().optional(),
+  activeDeals: z.coerce.number().int().min(0).optional(),
+  lastPayment: z.string().optional(),
+  businessSince: z.string().optional(),
   allowDuplicateCompanyName: z.boolean().optional(),
 });
 

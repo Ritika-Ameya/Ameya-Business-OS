@@ -153,6 +153,8 @@ export const INVOICES_CONTRACT: PersistenceContract = {
     'cancelledAt',
     'cancelledBy',
     'nextActionDate',
+    'billingType',
+    'lineItems',
   ]),
 };
 
@@ -171,6 +173,7 @@ export const PAYMENTS_CONTRACT: PersistenceContract = {
     'receivedBy',
     'transactionId',
     'notes',
+    'receivedAccount',
   ]),
 };
 

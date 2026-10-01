@@ -8,7 +8,7 @@ import {
   getComponentCurrentDueDate,
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
-import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
+import type { InvoiceEntity, PaymentEntity } from '../../revenue/types/revenue.entities';
 import {
   effectiveInvoiceOutstanding,
   isCollectionInvoice,
@@ -16,6 +16,8 @@ import {
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import type {
   CanvasCard,
+  CanvasPaidEntry,
+  CanvasRenewalReminder,
   ExpectedReceiptEntity,
   LeadTemperatureEntity,
   LeadTemperatureValue,
@@ -87,6 +89,41 @@ const gstFromInvoice = (
   return { amountExGst, gstAmount, gstPercent };
 };
 
+/**
+ * A hand-entered receipt often stores the deal's GST-inclusive price without a
+ * component link. When that amount is one component's price including GST, use
+ * that component's rate so the canvas does not call it "No GST".
+ */
+/** The one component on this deal whose GST-inclusive total equals the receipt. */
+export const componentIdMatchingDealTotal = (
+  dealId: string,
+  expectedAmount: number,
+  components: DealComponentEntity[],
+): string => {
+  const amount = roundMoney(expectedAmount);
+  if (!dealId || amount <= 0) return '';
+  const matches = components.filter(
+    (component) =>
+      component.dealId === dealId && Math.abs(computeComponentLineTotal(component) - amount) < 0.6,
+  );
+  return matches.length === 1 ? matches[0].id : '';
+};
+
+const gstPercentMatchingDealPrice = (
+  receipt: ExpectedReceiptEntity,
+  components: DealComponentEntity[],
+): number => {
+  const componentId = componentIdMatchingDealTotal(
+    receipt.dealId,
+    receipt.expectedAmount,
+    components,
+  );
+  const matched = componentId
+    ? components.find((component) => component.id === componentId)
+    : undefined;
+  return Number(matched?.gstPercent) || 0;
+};
+
 const gstFromComponent = (
   component: DealComponentEntity,
 ): Pick<CanvasCard, 'amountExGst' | 'gstAmount' | 'gstPercent'> => {
@@ -142,11 +179,31 @@ export const buildCanvasCards = (input: {
   }
 
   const activeReceipts = input.receipts.filter((receipt) => receipt.status !== 'superseded');
+  // A receipt marked paid must not hide what is still owed: the invoice's remaining
+  // balance, or the component's next renewal cycle once its due date has moved on.
+  const paidReceipt = (receipt: ExpectedReceiptEntity): boolean =>
+    receipt.status === 'received' && receipt.origin !== 'dismissed';
   const coveredInvoices = new Set(
-    activeReceipts.map((receipt) => receipt.invoiceId).filter(Boolean),
+    activeReceipts
+      .filter((receipt) => !paidReceipt(receipt))
+      .map((receipt) => receipt.invoiceId)
+      .filter(Boolean),
   );
+  const componentIdForReceipt = (receipt: ExpectedReceiptEntity): string =>
+    receipt.componentId ||
+    componentIdMatchingDealTotal(receipt.dealId, receipt.expectedAmount, input.components);
+
   const coveredComponents = new Set(
-    activeReceipts.map((receipt) => receipt.componentId).filter(Boolean),
+    activeReceipts
+      .map((receipt) => {
+        const componentId = componentIdForReceipt(receipt);
+        if (!componentId) return '';
+        if (!paidReceipt(receipt)) return componentId;
+        const component = componentById.get(componentId);
+        const currentDue = component ? getComponentCurrentDueDate(component).slice(0, 10) : '';
+        return receipt.expectedDate.slice(0, 10) === currentDue ? componentId : '';
+      })
+      .filter(Boolean),
   );
   const openInvoiceComponents = new Set<string>();
   for (const invoice of input.invoices) {
@@ -164,6 +221,7 @@ export const buildCanvasCards = (input: {
 
   for (const receipt of activeReceipts) {
     if (receipt.origin === 'dismissed') continue;
+    if (receipt.customerId && !customerById.has(receipt.customerId)) continue;
     const customer = customerById.get(receipt.customerId);
     const invoice = receipt.invoiceId ? invoiceById.get(receipt.invoiceId) : undefined;
     const deal = receipt.dealId ? dealById.get(receipt.dealId) : undefined;
@@ -173,10 +231,20 @@ export const buildCanvasCards = (input: {
     const expectedDate = receipt.expectedDate?.slice(0, 10) ?? '';
     const status = displayStatus(receipt.status, expectedDate, input.today, invoice);
     if (status === 'superseded') continue;
-    const component = receipt.componentId ? componentById.get(receipt.componentId) : undefined;
+    const componentId = componentIdForReceipt(receipt);
+    const component = componentId ? componentById.get(componentId) : undefined;
+    const componentPercent = Number(component?.gstPercent) || 0;
+    const chosenPercent = receipt.gstPercent;
     const gst = invoice
       ? gstFromInvoice(invoice, receipt.expectedAmount)
-      : gstFromInclusive(receipt.expectedAmount, Number(component?.gstPercent) || 0);
+      : chosenPercent != null
+        ? gstFromInclusive(receipt.expectedAmount, chosenPercent)
+        : gstFromInclusive(
+            receipt.expectedAmount,
+            componentPercent > 0
+              ? componentPercent
+              : gstPercentMatchingDealPrice(receipt, input.components),
+          );
 
     pushReceipt({
       id: receipt.id,
@@ -197,7 +265,7 @@ export const buildCanvasCards = (input: {
       dealTitle: deal?.title || invoice?.dealTitle || '',
       invoiceId: receipt.invoiceId,
       invoiceNumber: invoice?.invoiceNumber || '',
-      componentId: receipt.componentId,
+      componentId,
       status,
       liveBalance: invoice ? effectiveInvoiceOutstanding(invoice) : null,
       amountOverridden: true,
@@ -211,6 +279,7 @@ export const buildCanvasCards = (input: {
     if (!isCollectionInvoice(invoice)) continue;
     if (effectiveInvoiceOutstanding(invoice) <= 0) continue;
     if (coveredInvoices.has(invoice.id)) continue;
+    if (invoice.customerId && !customerById.has(invoice.customerId)) continue;
     const customer = customerById.get(invoice.customerId);
     const recordType = customer?.recordType ?? 'customer';
     const temperature =
@@ -254,6 +323,7 @@ export const buildCanvasCards = (input: {
     if (openInvoiceComponents.has(component.id)) continue;
     const deal = dealById.get(component.dealId);
     if (!deal?.customerId) continue;
+    if (!customerById.has(deal.customerId)) continue;
     const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
     if (!dueDate) continue;
     const customer = customerById.get(deal.customerId);
@@ -331,4 +401,109 @@ export const buildCanvasCards = (input: {
   }
 
   return cards;
+};
+
+const nextMonthKey = (today: string): string => {
+  const match = /^(\d{4})-(\d{2})/.exec(today);
+  if (!match) return '';
+  return monthKeyFromDate(toLocalDateOnly(new Date(Number(match[1]), Number(match[2]), 1)));
+};
+
+/**
+ * The current unpaid cycle of every renewing component: the same components the
+ * board shows as renewal cards, so the page can list the renewals of whichever
+ * months are on screen. Computed on every read, so nothing is stored and a paid
+ * cycle (which rolls the component's due date forward) drops out on its own.
+ */
+export const buildRenewalReminders = (input: {
+  customers: CustomerEntity[];
+  deals: DealEntity[];
+  components: DealComponentEntity[];
+  invoices: InvoiceEntity[];
+  today: string;
+}): CanvasRenewalReminder[] => {
+  const customerById = new Map(input.customers.map((customer) => [customer.id, customer]));
+  const dealById = new Map(input.deals.map((deal) => [deal.id, deal]));
+  const openInvoiceByComponent = new Map<string, InvoiceEntity>();
+  for (const invoice of input.invoices) {
+    if (!isCollectionInvoice(invoice)) continue;
+    for (const componentId of invoice.componentIds ?? []) {
+      if (componentId && !openInvoiceByComponent.has(componentId)) {
+        openInvoiceByComponent.set(componentId, invoice);
+      }
+    }
+  }
+
+  const thisMonth = monthKeyFromDate(input.today);
+  const nextMonth = nextMonthKey(input.today);
+  const reminders: CanvasRenewalReminder[] = [];
+
+  for (const component of input.components) {
+    if (!hasRenewalFrequency(component.renewalFrequency)) continue;
+    const deal = dealById.get(component.dealId);
+    if (!deal?.customerId) continue;
+    const customer = customerById.get(deal.customerId);
+    if (!customer) continue;
+    const dueDate = getComponentCurrentDueDate(component).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) continue;
+    if ((component.lastRenewedDate || '').slice(0, 10) === dueDate) continue;
+
+    const invoice = openInvoiceByComponent.get(component.id);
+    reminders.push({
+      id: `renewal-${component.id}`,
+      componentId: component.id,
+      componentName: component.name?.trim() || 'Renewal',
+      customerId: customer.id,
+      companyName: companyNameOf(customer, deal.customerName),
+      dealId: deal.id,
+      dealTitle: deal.title,
+      renewalDate: dueDate,
+      renewalFrequency: component.renewalFrequency,
+      lastRenewedDate: (component.lastRenewedDate || '').slice(0, 10),
+      amount: computeComponentLineTotal(component),
+      status:
+        dueDate < input.today
+          ? 'overdue'
+          : monthKeyFromDate(dueDate) === thisMonth
+            ? 'this_month'
+            : monthKeyFromDate(dueDate) === nextMonth
+              ? 'next_month'
+              : 'later',
+      invoiceId: invoice?.id ?? '',
+      invoiceNumber: invoice?.invoiceNumber ?? '',
+    });
+  }
+
+  return reminders.sort(
+    (a, b) => a.renewalDate.localeCompare(b.renewalDate) || a.companyName.localeCompare(b.companyName),
+  );
+};
+
+/** Received payments, for the Paid total of whichever months are on screen. */
+export const buildPaidEntries = (input: {
+  customers: CustomerEntity[];
+  invoices: InvoiceEntity[];
+  payments: PaymentEntity[];
+}): CanvasPaidEntry[] => {
+  const customerById = new Map(input.customers.map((customer) => [customer.id, customer]));
+  const invoiceById = new Map(input.invoices.map((invoice) => [invoice.id, invoice]));
+  const entries: CanvasPaidEntry[] = [];
+  for (const payment of input.payments) {
+    if (payment.status !== 'received') continue;
+    const invoice = invoiceById.get(payment.invoiceId);
+    if (!invoice) continue;
+    const paidAt = (payment.paidAt || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) continue;
+    const customerId = payment.customerId || invoice.customerId;
+    entries.push({
+      id: payment.id,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      customerId,
+      companyName: companyNameOf(customerById.get(customerId), invoice.customerName),
+      amount: roundMoney(Number(payment.amount) || 0),
+      paidAt,
+    });
+  }
+  return entries;
 };

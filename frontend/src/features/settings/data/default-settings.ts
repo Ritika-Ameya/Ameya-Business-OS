@@ -36,7 +36,7 @@ export const defaultBrandingSettings: BrandingSettings = {
 
 export const defaultPreferencesSettings: PreferencesSettings = {
   theme: "System",
-  dateFormat: "DD/MM/YYYY",
+  dateFormat: "DD MMM YYYY",
   currencyFormat: "Indian Rupee (INR)",
   timeZone: "Asia/Kolkata (IST)",
 };

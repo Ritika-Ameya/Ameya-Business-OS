@@ -30,7 +30,10 @@ import {
   parseSearchMode,
 } from '../utils/expenseSearch.util';
 import { roundMoney } from '../utils/expenseCalculation.util';
-import { generatePendingFromMasters } from '../utils/recurring.util';
+import {
+  generatePendingFromMasters,
+  stoppedPendingGenerations,
+} from '../utils/recurring.util';
 
 const DOCUMENT_ENTITY_TYPE = 'expense';
 
@@ -243,9 +246,19 @@ export class ExpenseService extends BaseService {
       expenseRepository.findAll(),
     ]);
 
-    const pending = generatePendingFromMasters(masters, transactions);
+    const stale = stoppedPendingGenerations(masters, transactions);
+    let current = transactions;
+    if (stale.length > 0) {
+      for (const transaction of stale) {
+        await expenseRepository.delete(transaction.id);
+      }
+      this.logInfo(`Removed ${stale.length} unpaid recurring expense(s) from stopped templates`);
+      current = await expenseRepository.findAll();
+    }
+
+    const pending = generatePendingFromMasters(masters, current);
     if (pending.length === 0) {
-      return transactions;
+      return current;
     }
 
     const created: ExpenseEntity[] = [];

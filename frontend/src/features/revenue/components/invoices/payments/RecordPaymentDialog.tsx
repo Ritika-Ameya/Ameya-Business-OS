@@ -24,7 +24,18 @@ import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { fileToUploadPayload, toLocalIsoDate } from "@/shared/utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
-import type { Payment, PaymentFormData, PaymentMode } from "@/features/revenue/types/payment";
+import { isBaseOnlyPayment } from "@/features/revenue/utils/invoice-utils";
+import {
+  DEFAULT_REMOVE_GST_REASON,
+  PaidWithoutGstPrompt,
+} from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
+import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
+import type {
+  Payment,
+  PaymentAccount,
+  PaymentFormData,
+  PaymentMode,
+} from "@/features/revenue/types/payment";
 
 const emptyForm: PaymentFormData = {
   paymentDate: "",
@@ -34,6 +45,7 @@ const emptyForm: PaymentFormData = {
   receivedBy: "",
   transactionId: "",
   notes: "",
+  receivedAccount: "gst",
 };
 
 interface RecordPaymentDialogProps {
@@ -46,13 +58,15 @@ interface RecordPaymentDialogProps {
 
 function formFromPayment(
   payment: Payment | null | undefined,
-  fallbackMode: PaymentMode
+  fallbackMode: PaymentMode,
+  defaultAccount: PaymentAccount
 ): PaymentFormData {
   if (!payment) {
     return {
       ...emptyForm,
       paymentDate: toLocalIsoDate(),
       mode: fallbackMode,
+      receivedAccount: defaultAccount,
     };
   }
   return {
@@ -63,6 +77,7 @@ function formFromPayment(
     receivedBy: payment.receivedBy || "",
     transactionId: payment.transactionId || "",
     notes: payment.notes || "",
+    receivedAccount: payment.receivedAccount ?? defaultAccount,
   };
 }
 
@@ -74,23 +89,33 @@ export function RecordPaymentDialog({
   initialPayment = null,
 }: RecordPaymentDialogProps) {
   const { paymentMethods } = useAppConfig();
-  const { recordPayment, updatePayment } = useRevenue();
+  const { recordPayment, updatePayment, getInvoice } = useRevenue();
+  const invoice = getInvoice(invoiceId);
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const fallbackMode = (activePaymentMethods[0]?.slug as PaymentMode) || "upi";
+  const defaultAccount: PaymentAccount = invoice?.billingType === "non_gst" ? "other" : "gst";
   const [form, setForm] = useState<PaymentFormData>(() =>
-    formFromPayment(initialPayment, fallbackMode)
+    formFromPayment(initialPayment, fallbackMode, defaultAccount)
   );
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removeGst, setRemoveGst] = useState(false);
+  const [removeGstReason, setRemoveGstReason] = useState(DEFAULT_REMOVE_GST_REASON);
   const isEditing = Boolean(initialPayment);
 
   useEffect(() => {
     if (!open) return;
-    setForm(formFromPayment(initialPayment, fallbackMode));
+    setForm(formFromPayment(initialPayment, fallbackMode, defaultAccount));
     setAttachmentFile(null);
     setError(null);
-  }, [open, initialPayment, fallbackMode]);
+    setRemoveGst(false);
+    setRemoveGstReason(DEFAULT_REMOVE_GST_REASON);
+  }, [open, initialPayment, fallbackMode, defaultAccount]);
+
+  const enteredAmount = Number.parseFloat(form.amount.replace(/,/g, ""));
+  const showGstPrompt =
+    !isEditing && invoice !== undefined && isBaseOnlyPayment(invoice, enteredAmount);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +132,11 @@ export function RecordPaymentDialog({
       setError("Payment cannot exceed outstanding balance.");
       return;
     }
+    const convertToNonGst = showGstPrompt && removeGst;
+    if (convertToNonGst && !removeGstReason.trim()) {
+      setError("Give a reason for removing GST.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -114,7 +144,9 @@ export function RecordPaymentDialog({
       if (isEditing && initialPayment) {
         await updatePayment(invoiceId, initialPayment.id, form);
       } else {
-        await recordPayment(invoiceId, form);
+        await recordPayment(invoiceId, form, {
+          removeGstReason: convertToNonGst ? removeGstReason.trim() : undefined,
+        });
       }
       if (attachmentFile) {
         const payload = await fileToUploadPayload(attachmentFile);
@@ -206,6 +238,17 @@ export function RecordPaymentDialog({
               </Select>
             </div>
 
+            <div className="space-y-2 sm:col-span-2">
+              <Label>
+                Received in account <span className="text-destructive">*</span>
+              </Label>
+              <ReceivedAccountToggle
+                value={form.receivedAccount}
+                onChange={(value) => updateField("receivedAccount", value)}
+                disabled={saving}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="reference-number">Reference Number</Label>
               <Input
@@ -267,6 +310,20 @@ export function RecordPaymentDialog({
               </p>
             </div>
           </div>
+
+          {showGstPrompt && invoice && (
+            <PaidWithoutGstPrompt
+              invoice={invoice}
+              checked={removeGst}
+              onCheckedChange={(checked) => {
+                setRemoveGst(checked);
+                updateField("receivedAccount", checked ? "other" : "gst");
+              }}
+              reason={removeGstReason}
+              onReasonChange={setRemoveGstReason}
+              disabled={saving}
+            />
+          )}
 
           {error && (
             <p role="alert" className="text-sm text-destructive">

@@ -30,10 +30,17 @@ import {
   resolveCustomerAddress,
   type InvoiceAddressType,
 } from "@/features/settings/utils/app-config-utils";
-import { computeComponentLineTotal, computeComponentTaxable, formatComponentCurrency, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
-import { composeInvoiceNumber, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
+import { computeComponentLineTotal, computeComponentTaxable, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
+import { canvasApi } from "@/features/canvas/api/canvas.api";
+import { SOURCE_LABELS, type ReceiptSourceType } from "@/features/canvas/types/canvas";
+import { composeInvoiceNumber, formatBaseWithGst, formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
 import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
-import type { GenerateInvoiceContext, Invoice } from "@/features/revenue/types/invoice";
+import { BillingTypeToggle } from "@/features/revenue/components/invoices/BillingTypeToggle";
+import type {
+  GenerateInvoiceContext,
+  Invoice,
+  InvoiceBillingType,
+} from "@/features/revenue/types/invoice";
 
 interface GenerateInvoiceDialogProps {
   open: boolean;
@@ -59,27 +66,45 @@ export function GenerateInvoiceDialog({
   const { finance } = useAppConfig();
   const { customers } = useCustomers();
   const { deals, getComponentsByDeal } = useDeals();
-  const { createInvoice } = useRevenue();
+  const { createInvoice, invoices } = useRevenue();
   const { refreshDashboard } = useDashboard();
   const defaultTax = getDefaultTaxPercentage(finance);
-  const isLocked = Boolean(context);
+  const customerLocked = Boolean(context?.customerId);
+  const dealLocked = Boolean(context?.dealId);
+
+  const firstDealForCustomer = (forCustomerId: string) =>
+    deals.find((deal) => deal.customerId === forCustomerId)?.id ?? "";
 
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(
     () => context?.customerId ?? customers[0]?.id ?? ""
   );
-  const [selectedDealId, setSelectedDealId] = useState(
-    () => context?.dealId ?? deals[0]?.id ?? ""
-  );
+  const [selectedDealId, setSelectedDealId] = useState(() => {
+    if (context?.dealId) return context.dealId;
+    const forCustomerId = context?.customerId ?? customers[0]?.id ?? "";
+    return deals.find((deal) => deal.customerId === forCustomerId)?.id ?? "";
+  });
   const [addressType, setAddressType] = useState<InvoiceAddressType>("billing");
   const [invoiceDate, setInvoiceDate] = useState(todayIsoDate);
   const [dueDate, setDueDate] = useState(() => addDaysIso(30));
   const [nextActionDate, setNextActionDate] = useState(() => addDaysIso(7));
   const [gstPercent, setGstPercent] = useState(String(defaultTax));
+  const [billingType, setBillingType] = useState<InvoiceBillingType>("gst");
   const [invoiceNumberRest, setInvoiceNumberRest] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forecasts, setForecasts] = useState<
+    Array<{
+      id: string;
+      reason: string;
+      expectedAmount: number;
+      expectedDate: string;
+      sourceType: ReceiptSourceType;
+    }>
+  >([]);
+  const [selectedForecastIds, setSelectedForecastIds] = useState<string[]>([]);
+  const [forecastOpen, setForecastOpen] = useState(false);
 
   const customerId = context?.customerId ?? selectedCustomerId;
   const dealId = context?.dealId ?? selectedDealId;
@@ -103,6 +128,22 @@ export function GenerateInvoiceDialog({
     ? resolveCustomerAddress(selectedCustomer, addressType)
     : "";
 
+  const lastBillingType = useMemo(() => {
+    const latest = invoices
+      .filter((invoice) => invoice.customerId === customerId && invoice.status !== "cancelled")
+      .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate))[0];
+    return latest?.billingType ?? null;
+  }, [invoices, customerId]);
+
+  const billingDefaultKey = open ? `${customerId}:${lastBillingType ?? "gst"}` : "";
+  const [appliedBillingDefaultKey, setAppliedBillingDefaultKey] = useState("");
+  if (billingDefaultKey !== appliedBillingDefaultKey) {
+    setAppliedBillingDefaultKey(billingDefaultKey);
+    if (open) setBillingType(lastBillingType ?? "gst");
+  }
+
+  const isNonGst = billingType === "non_gst";
+
   const summary = useMemo(() => {
     const selected = dealComponents.filter((component) =>
       selectedComponents.includes(component.id)
@@ -111,6 +152,10 @@ export function GenerateInvoiceDialog({
       (sum, component) => sum + computeComponentTaxable(component),
       0
     );
+    if (isNonGst) {
+      const base = Math.round(subtotal * 100) / 100;
+      return { subtotal: base, tax: 0, total: base, taxRate: 0 };
+    }
     const taxRate = Number.parseFloat(gstPercent) || 0;
     const uniqueRates = [
       ...new Set(selected.map((component) => Number(component.gstPercent || 0))),
@@ -133,7 +178,7 @@ export function GenerateInvoiceDialog({
         ? Math.round((tax / subtotal) * 10000) / 100
         : taxRate,
     };
-  }, [dealComponents, selectedComponents, gstPercent]);
+  }, [dealComponents, selectedComponents, gstPercent, isNonGst]);
 
   const selectedGstKey = useMemo(() => {
     const selected = dealComponents.filter((component) =>
@@ -145,6 +190,20 @@ export function GenerateInvoiceDialog({
     ];
     return rates.length === 1 ? String(rates[0]) : "mixed";
   }, [dealComponents, selectedComponents, defaultTax]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (context?.dealId) {
+      if (selectedDealId !== context.dealId) setSelectedDealId(context.dealId);
+      return;
+    }
+    const forCustomerId = context?.customerId ?? selectedCustomerId;
+    if (!forCustomerId) return;
+    const current = deals.find((deal) => deal.id === selectedDealId);
+    if (current?.customerId === forCustomerId) return;
+    const nextId = deals.find((deal) => deal.customerId === forCustomerId)?.id ?? "";
+    if (nextId !== selectedDealId) setSelectedDealId(nextId);
+  }, [open, context?.dealId, context?.customerId, selectedCustomerId, selectedDealId, deals]);
 
   useEffect(() => {
     if (!open) return;
@@ -168,8 +227,9 @@ export function GenerateInvoiceDialog({
       setInvoiceNumberRest("");
       setNotes("");
       setError(null);
-      setSelectedCustomerId(context?.customerId ?? customers[0]?.id ?? "");
-      setSelectedDealId(context?.dealId ?? deals[0]?.id ?? "");
+      const nextCustomerId = context?.customerId ?? customers[0]?.id ?? "";
+      setSelectedCustomerId(nextCustomerId);
+      setSelectedDealId(context?.dealId || firstDealForCustomer(nextCustomerId));
     }
     onOpenChange(nextOpen);
   };
@@ -210,6 +270,13 @@ export function GenerateInvoiceDialog({
     setSaving(true);
     setError(null);
     try {
+      const openForecasts = await canvasApi.listDealForecasts(dealId);
+      if (openForecasts.length > 0) {
+        setForecasts(openForecasts);
+        setSelectedForecastIds([]);
+        setForecastOpen(true);
+        return;
+      }
       const invoice = await createInvoice({
         customerId,
         customerName: context?.customerName ?? selectedCustomer?.name,
@@ -226,6 +293,7 @@ export function GenerateInvoiceDialog({
         notes: notes.trim(),
         nextActionDate,
         invoiceNumber,
+        billingType,
       });
       onOpenChange(false);
       setSelectedComponents([]);
@@ -239,6 +307,7 @@ export function GenerateInvoiceDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
@@ -254,10 +323,10 @@ export function GenerateInvoiceDialog({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customer">Customer</Label>
-                  {isLocked ? (
+                  {customerLocked ? (
                     <Input
                       id="customer"
-                      value={context!.customerName}
+                      value={context?.customerName ?? ""}
                       readOnly
                       className="rounded-xl bg-muted/50"
                     />
@@ -286,15 +355,21 @@ export function GenerateInvoiceDialog({
 
                 <div className="space-y-2">
                   <Label htmlFor="deal">Deal</Label>
-                  {isLocked ? (
+                  {dealLocked ? (
                     <Input
                       id="deal"
-                      value={context!.dealTitle}
+                      value={context?.dealTitle ?? ""}
                       readOnly
                       className="rounded-xl bg-muted/50"
                     />
                   ) : (
-                    <Select value={selectedDealId} onValueChange={setSelectedDealId}>
+                    <Select
+                      value={selectedDealId}
+                      onValueChange={(value) => {
+                        setSelectedDealId(value);
+                        setSelectedComponents([]);
+                      }}
+                    >
                       <SelectTrigger id="deal" className="w-full rounded-xl">
                         <SelectValue placeholder="Select deal" />
                       </SelectTrigger>
@@ -389,13 +464,14 @@ export function GenerateInvoiceDialog({
                               </p>
                             ) : null}
                           </div>
-                          <span className="shrink-0 text-right text-sm font-medium">
-                            {formatComponentCurrency(computeComponentLineTotal(component))}
-                            {component.gstPercent > 0 ? (
-                              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                                Incl. {component.gstPercent}% GST
-                              </span>
-                            ) : null}
+                          <span className="max-w-[14rem] shrink-0 text-right text-sm font-medium leading-snug">
+                            {formatBaseWithGst(
+                              computeComponentTaxable(component),
+                              isNonGst
+                                ? 0
+                                : computeComponentLineTotal(component) -
+                                    computeComponentTaxable(component),
+                            )}
                           </span>
                         </button>
                       );
@@ -467,15 +543,29 @@ export function GenerateInvoiceDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gst">GST %</Label>
-                <Input
-                  id="gst"
-                  type="number"
-                  value={gstPercent}
-                  onChange={(e) => setGstPercent(e.target.value)}
-                  className="rounded-xl"
-                />
+                <Label>GST on this invoice</Label>
+                <BillingTypeToggle value={billingType} onChange={setBillingType} />
+                <p className="text-xs text-muted-foreground">
+                  {lastBillingType
+                    ? `Suggested from this customer's last invoice (${
+                        lastBillingType === "gst" ? "with GST" : "without GST"
+                      }). Change it if this bill is different.`
+                    : "Choose per invoice. The same customer can be billed with or without GST."}
+                </p>
               </div>
+
+              {!isNonGst && (
+                <div className="space-y-2">
+                  <Label htmlFor="gst">GST %</Label>
+                  <Input
+                    id="gst"
+                    type="number"
+                    value={gstPercent}
+                    onChange={(e) => setGstPercent(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
@@ -505,7 +595,7 @@ export function GenerateInvoiceDialog({
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      GST ({summary.taxRate}%)
+                      {isNonGst ? "GST (not charged)" : `GST (${summary.taxRate}%)`}
                     </span>
                     <span className="font-medium">
                       {formatInvoiceCurrency(summary.tax)}
@@ -513,7 +603,9 @@ export function GenerateInvoiceDialog({
                   </div>
                   <div className="border-t border-border/70 pt-3">
                     <div className="flex justify-between">
-                      <span className="font-medium">Grand Total (incl. GST)</span>
+                      <span className="font-medium">
+                        {isNonGst ? "Grand Total (without GST)" : "Grand Total (incl. GST)"}
+                      </span>
                       <span className="text-lg font-semibold">
                         {formatInvoiceCurrency(summary.total)}
                       </span>
@@ -551,5 +643,118 @@ export function GenerateInvoiceDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={forecastOpen} onOpenChange={setForecastOpen}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Remove the old forecast</DialogTitle>
+          <DialogDescription>
+            This started as one forecast for the whole deal. The invoice uses the components you
+            selected. Select each old forecast. It is deleted only after you select it, then the
+            invoice is created. Cancel deletes nothing.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          {forecasts.map((forecast) => {
+            const selected = selectedForecastIds.includes(forecast.id);
+            return (
+              <button
+                key={forecast.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() =>
+                  setSelectedForecastIds((current) =>
+                    selected
+                      ? current.filter((id) => id !== forecast.id)
+                      : [...current, forecast.id]
+                  )
+                }
+                className={cn(
+                  "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left",
+                  selected ? "border-primary bg-primary/5" : "border-border"
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border"
+                  )}
+                >
+                  {selected ? <Check className="size-3" /> : null}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium tabular-nums">
+                    {formatInvoiceCurrency(forecast.expectedAmount)}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {SOURCE_LABELS[forecast.sourceType] || "Forecast"}
+                    {forecast.expectedDate ? ` · ${formatInvoiceDate(forecast.expectedDate)}` : ""}
+                    {forecast.reason ? ` · ${forecast.reason}` : ""}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {selectedForecastIds.length === forecasts.length
+            ? "Selected. These forecasts will be deleted and the invoice will be created."
+            : "Select each forecast. The invoice stays on hold until every old amount is selected."}
+        </p>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setForecastOpen(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || selectedForecastIds.length !== forecasts.length || forecasts.length === 0}
+            onClick={() => {
+              void (async () => {
+                setSaving(true);
+                setError(null);
+                try {
+                  for (const id of selectedForecastIds) {
+                    await canvasApi.dismiss(id);
+                  }
+                  setForecastOpen(false);
+                  const invoice = await createInvoice({
+                    customerId,
+                    customerName: context?.customerName ?? selectedCustomer?.name,
+                    dealId,
+                    dealTitle: context?.dealTitle ?? selectedDeal?.title,
+                    status: "due",
+                    issueDate: invoiceDate,
+                    dueDate,
+                    subtotal: summary.subtotal,
+                    taxPercent: summary.taxRate,
+                    tax: summary.tax,
+                    total: summary.total,
+                    componentIds: selectedComponents,
+                    notes: notes.trim(),
+                    nextActionDate,
+                    invoiceNumber: composeInvoiceNumber(finance.invoicePrefix, invoiceNumberRest),
+                    billingType,
+                  });
+                  onOpenChange(false);
+                  setSelectedComponents([]);
+                  onGenerate?.(invoice);
+                  void refreshDashboard({ silent: true });
+                } catch (err) {
+                  setError(getErrorMessage(err));
+                  setForecastOpen(false);
+                } finally {
+                  setSaving(false);
+                }
+              })();
+            }}
+          >
+            {saving ? "Removing…" : "Delete selected and create invoice"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

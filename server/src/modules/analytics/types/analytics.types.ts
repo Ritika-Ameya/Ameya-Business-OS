@@ -50,7 +50,9 @@ export interface RenewalRow {
   renewalStartDate: string;
   renewalDate: string;
   lastRenewedDate?: string;
+  /** Base amount before GST; GST is only charged if the invoice is raised with GST. */
   amount: number;
+  gstAmount: number;
   status: RenewalStatus;
   renewalType: RenewalType;
   renewalFrequency: string;
@@ -70,6 +72,9 @@ export interface ReportInvoiceItem {
   dueDate: string;
   status: string;
   gstPercent: number;
+  billingType: 'gst' | 'non_gst';
+  subtotal: number;
+  tax: number;
   componentIds: string[];
   notes: string;
 }
@@ -103,6 +108,11 @@ export interface RevenueReportStats {
   collected: number;
   outstanding: number;
   averageInvoiceValue: number;
+  /** Received payments by the account the money landed in. */
+  receivedGstAccount: number;
+  receivedOtherAccount: number;
+  /** GST charged on GST invoices; not income, it is owed to the government. */
+  gstBilled: number;
 }
 
 export interface ExpenseReportStats {
@@ -145,6 +155,7 @@ export interface UpcomingRenewalRow {
   renewal: string;
   dueDate: string;
   amount: number;
+  gstAmount: number;
 }
 
 export interface RenewedCustomerRow {
@@ -167,8 +178,44 @@ export interface RevenueMonthItem {
 export interface ChartMonthPoint {
   month: string;
   yearMonth: string;
+  /** Legacy: amount collected on invoices issued in the month. */
   revenue: number;
+  /** Payments received in the month, by payment date. */
+  received: number;
+  /** Invoices raised in the month (total with GST), by issue date. */
+  invoiced: number;
   expense: number;
+}
+
+export interface MoneyMonthItem {
+  id: string;
+  customerId: string;
+  company: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  date: string;
+}
+
+export interface DashboardMoneyFlow {
+  thisMonth: number;
+  lastMonth: number;
+  trendPct: number;
+  items: MoneyMonthItem[];
+}
+
+export interface DashboardRenewalItem {
+  id: string;
+  customerId: string;
+  company: string;
+  contactPerson: string;
+  dealId: string;
+  deal: string;
+  renewal: string;
+  frequency: string;
+  dueDate: string;
+  amount: number;
+  gstAmount: number;
 }
 
 export interface DashboardExpenseStats {
@@ -233,6 +280,10 @@ export interface DashboardSummary {
   upcomingRenewalsList: UpcomingRenewalRow[];
   renewedCustomersList: RenewedCustomerRow[];
   revenueThisMonthItems: RevenueMonthItem[];
+  received: DashboardMoneyFlow;
+  invoiced: DashboardMoneyFlow;
+  /** Current unpaid cycle of every renewing plan, overdue ones included. */
+  renewalsAll: DashboardRenewalItem[];
   upcomingRevenue: {
     items: UpcomingRevenueRow[];
     totalExpectedRevenue: number;

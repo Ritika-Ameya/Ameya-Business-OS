@@ -6,18 +6,20 @@ import { ExpenseRegisterSkeleton } from "@/features/expenses/components/ExpenseR
 import { ExpenseRegisterTable } from "@/features/expenses/components/ExpenseRegisterTable";
 import { UpdateRecurringTemplateDialog } from "@/features/expenses/components/UpdateRecurringTemplateDialog";
 import { StatCard } from "@/shared/components/PageHeader";
+import { StatDetailDialog, type StatDetailRow } from "@/shared/components/StatDetailDialog";
 import { Button } from "@/shared/ui/button";
 import { useExpenses } from "@/features/expenses/hooks/use-expenses";
 import { expensesApi } from "@/features/expenses/api/expenses.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import { fileToUploadPayload } from "@/shared/utils";
-import { toLocalIsoDate } from "@/shared/utils/format-date";
+import { formatDate, toLocalIsoDate } from "@/shared/utils/format-date";
 import {
   computeRegisterStats,
   defaultRegisterFilters,
   filterTransactions,
   formatExpenseCurrency,
   parseAmount,
+  withoutStoppedPendingGenerations,
 } from "@/features/expenses/utils/expense-utils";
 import { ALL_TIME, datePresetPeriodLabel } from "@/shared/utils/period-label";
 import type { ExpenseRegisterFilters, ExpenseTransaction, ExpenseTransactionFormData } from "@/features/expenses/types/expense";
@@ -94,9 +96,14 @@ export function ExpenseRegisterTab({
     onExpenseIdHandled?.();
   }, [ready, expenseId, transactions, onExpenseIdHandled, setDialogOpen]);
 
+  const liveTransactions = useMemo(
+    () => withoutStoppedPendingGenerations(transactions, masters),
+    [transactions, masters]
+  );
+
   const filteredTransactions = useMemo(
-    () => filterTransactions(transactions, deferredQuery, deferredFilters),
-    [transactions, deferredQuery, deferredFilters]
+    () => filterTransactions(liveTransactions, deferredQuery, deferredFilters),
+    [liveTransactions, deferredQuery, deferredFilters]
   );
 
   const hasActiveFilters =
@@ -117,6 +124,63 @@ export function ExpenseRegisterTab({
     () => computeRegisterStats(filteredTransactions, masters),
     [filteredTransactions, masters]
   );
+  const [openStat, setOpenStat] = useState<"total" | "paid" | "pending" | "recurring" | null>(
+    null
+  );
+  const expenseRow = (txn: ExpenseTransaction): StatDetailRow => ({
+    id: txn.id,
+    title: txn.name,
+    subtitle: txn.vendorOrEmployee ? `Payee · ${txn.vendorOrEmployee}` : undefined,
+    detail: `${txn.status === "paid" ? "Paid" : txn.status === "pending" ? "Pending" : txn.status} · ${formatDate(txn.date)}`,
+    value: formatExpenseCurrency(txn.amount),
+  });
+  const paidTxns = filteredTransactions.filter((txn) => txn.status === "paid");
+  const pendingTxns = filteredTransactions.filter(
+    (txn) => txn.status === "pending" || txn.status === "partial"
+  );
+  const recurringMasters = masters.filter(
+    (master) => master.status === "active" && master.autoGenerate
+  );
+  const statDetail =
+    openStat === "total"
+      ? {
+          title: "Total expense",
+          nameLabel: "Expense",
+          valueLabel: "Amount",
+          rows: filteredTransactions.map(expenseRow),
+          empty: "No expenses in this view.",
+        }
+      : openStat === "paid"
+        ? {
+            title: "Paid expenses",
+            nameLabel: "Expense",
+            valueLabel: "Amount paid",
+            rows: paidTxns.map(expenseRow),
+            empty: "No paid expenses in this view.",
+          }
+        : openStat === "pending"
+          ? {
+              title: "Pending expenses",
+              nameLabel: "Expense",
+              valueLabel: "Still to pay",
+              rows: pendingTxns.map(expenseRow),
+              empty: "No pending expenses in this view.",
+            }
+          : openStat === "recurring"
+            ? {
+                title: "Upcoming recurring",
+                nameLabel: "Template",
+                valueLabel: "Each cycle",
+                rows: recurringMasters.map((master) => ({
+                  id: master.id,
+                  title: master.name,
+                  subtitle: master.vendorOrEmployee ? `Payee · ${master.vendorOrEmployee}` : undefined,
+                  detail: `Repeats · ${master.frequency}`,
+                  value: formatExpenseCurrency(master.defaultAmount),
+                })),
+                empty: "No active recurring templates.",
+              }
+            : null;
 
   const registerPeriod = datePresetPeriodLabel(
     deferredFilters.datePreset,
@@ -241,6 +305,7 @@ export function ExpenseRegisterTab({
           icon={<ReceiptText className="size-5 text-blue-600 dark:text-blue-400" />}
           accent="bg-blue-500/10"
           period={registerPeriod}
+          onClick={() => setOpenStat("total")}
         />
         <StatCard
           label="Paid"
@@ -248,6 +313,7 @@ export function ExpenseRegisterTab({
           icon={<IndianRupee className="size-5 text-emerald-600 dark:text-emerald-400" />}
           accent="bg-emerald-500/10"
           period={registerPeriod}
+          onClick={() => setOpenStat("paid")}
         />
         <StatCard
           label="Pending"
@@ -255,6 +321,7 @@ export function ExpenseRegisterTab({
           icon={<CalendarClock className="size-5 text-amber-600 dark:text-amber-400" />}
           accent="bg-amber-500/10"
           period={registerPeriod}
+          onClick={() => setOpenStat("pending")}
         />
         <StatCard
           label="Upcoming Recurring"
@@ -262,8 +329,21 @@ export function ExpenseRegisterTab({
           icon={<RefreshCw className="size-5 text-violet-600 dark:text-violet-400" />}
           accent="bg-violet-500/10"
           period={ALL_TIME}
+          onClick={() => setOpenStat("recurring")}
         />
       </div>
+      <StatDetailDialog
+        open={statDetail !== null}
+        title={statDetail?.title ?? ""}
+        description={registerPeriod}
+        nameLabel={statDetail?.nameLabel}
+        valueLabel={statDetail?.valueLabel}
+        rows={statDetail?.rows ?? []}
+        empty={statDetail?.empty ?? ""}
+        onOpenChange={(open) => {
+          if (!open) setOpenStat(null);
+        }}
+      />
 
       <ExpenseRegisterFiltersBar
         query={query}
@@ -283,7 +363,7 @@ export function ExpenseRegisterTab({
           void handleDelete(transaction);
         }}
         isFiltered={hasActiveFilters}
-        isEmpty={transactions.length === 0}
+        isEmpty={liveTransactions.length === 0}
         onAdd={handleAdd}
         onResetFilters={resetFilters}
       />

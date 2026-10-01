@@ -20,6 +20,10 @@ import {
   stateRepository,
 } from '../../masters/services/master.services';
 import {
+  expectedReceiptRepository,
+  leadTemperatureRepository,
+} from '../../canvas/services/canvas.repository';
+import {
   dealComponentRepository,
   dealRepository,
 } from '../../deals/services/deal.repository';
@@ -260,42 +264,47 @@ export class CustomerService extends BaseService {
       }),
     );
 
-    return customerRepository.updateOrThrow(
-      id,
-      {
-        ...input,
-        allowDuplicateCompanyName: undefined,
-        companyName: input.companyName?.trim(),
-        gstin: input.gstin?.trim().toUpperCase(),
-        vatId: input.vatId?.trim(),
-        licenseNo: input.licenseNo?.trim(),
-        contactPerson: input.contactPerson?.trim(),
-        phone: input.phone?.trim(),
-        alternatePhone: input.alternatePhone?.trim(),
-        email: input.email?.trim(),
-        website: input.website?.trim(),
-        billingAddress: input.billingAddress?.trim(),
-        serviceAddress: input.serviceAddress?.trim(),
-        city: input.city?.trim(),
-        pincode: input.pincode?.trim(),
-        notes: input.notes?.trim(),
-        timeline,
-      } as Partial<CustomerEntity>,
-      'Customer',
-    );
+    const patch: Record<string, unknown> = {
+      ...input,
+      allowDuplicateCompanyName: undefined,
+      companyName: input.companyName?.trim(),
+      gstin: input.gstin?.trim().toUpperCase(),
+      vatId: input.vatId?.trim(),
+      licenseNo: input.licenseNo?.trim(),
+      contactPerson: input.contactPerson?.trim(),
+      phone: input.phone?.trim(),
+      alternatePhone: input.alternatePhone?.trim(),
+      email: input.email?.trim(),
+      website: input.website?.trim(),
+      billingAddress: input.billingAddress?.trim(),
+      serviceAddress: input.serviceAddress?.trim(),
+      city: input.city?.trim(),
+      pincode: input.pincode?.trim(),
+      notes: input.notes?.trim(),
+      timeline,
+    };
+    // An omitted field must keep its stored value, not be blanked by `undefined`.
+    for (const key of Object.keys(patch)) {
+      if (patch[key] === undefined) delete patch[key];
+    }
+
+    return customerRepository.updateOrThrow(id, patch as Partial<CustomerEntity>, 'Customer');
   }
 
   async remove(id: string): Promise<void> {
     this.logInfo(`Soft-deleting customer ${id} and related data`);
     await this.getById(id);
 
-    const [deals, components, invoices, payments, documents] = await Promise.all([
-      dealRepository.findAll(),
-      dealComponentRepository.findAll(),
-      invoiceRepository.findAll(),
-      paymentRepository.findAll(),
-      documentRepository.findAll(),
-    ]);
+    const [deals, components, invoices, payments, documents, receipts, temperatures] =
+      await Promise.all([
+        dealRepository.findAll(),
+        dealComponentRepository.findAll(),
+        invoiceRepository.findAll(),
+        paymentRepository.findAll(),
+        documentRepository.findAll(),
+        expectedReceiptRepository.findAll(),
+        leadTemperatureRepository.findAll(),
+      ]);
 
     const customerDeals = deals.filter((deal) => deal.customerId === id);
     const customerInvoices = invoices.filter((invoice) => invoice.customerId === id);
@@ -320,6 +329,20 @@ export class CustomerService extends BaseService {
       if (!isCustomerDoc && !isDealDoc && !isInvoiceDoc) continue;
       await deleteDriveFileQuietly(document.driveFileId);
       await documentRepository.deleteOrThrow(document.id, 'Document');
+    }
+
+    for (const receipt of receipts) {
+      const belongsToCustomer =
+        receipt.customerId === id ||
+        (receipt.dealId !== '' && dealIds.has(receipt.dealId)) ||
+        (receipt.invoiceId !== '' && invoiceIds.has(receipt.invoiceId));
+      if (!belongsToCustomer) continue;
+      await expectedReceiptRepository.deleteOrThrow(receipt.id, 'Expected receipt');
+    }
+
+    for (const temperature of temperatures) {
+      if (temperature.customerId !== id) continue;
+      await leadTemperatureRepository.deleteOrThrow(temperature.id, 'Lead temperature');
     }
 
     for (const invoice of customerInvoices) {

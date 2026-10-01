@@ -12,7 +12,7 @@ import {
   mapPaymentFormToBody,
   mapPaymentFromDto,
 } from "@/features/revenue/api/revenue.mappers";
-import type { InvoiceCreateBody } from "@/features/revenue/api/revenue.dto";
+import type { InvoiceCreateBody, InvoiceUpdateBody } from "@/features/revenue/api/revenue.dto";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type { Invoice } from "@/features/revenue/types/invoice";
 import type { Payment, PaymentFormData } from "@/features/revenue/types/payment";
@@ -30,7 +30,11 @@ interface RevenueContextValue {
   getInvoicesByCustomerId: (customerId: string) => Invoice[];
   getInvoicesByDealId: (dealId: string) => Invoice[];
   getPaymentsByInvoiceId: (invoiceId: string) => Payment[];
-  recordPayment: (invoiceId: string, data: PaymentFormData) => Promise<Payment>;
+  recordPayment: (
+    invoiceId: string,
+    data: PaymentFormData,
+    options?: { removeGstReason?: string }
+  ) => Promise<Payment>;
   updatePayment: (
     invoiceId: string,
     paymentId: string,
@@ -38,10 +42,7 @@ interface RevenueContextValue {
   ) => Promise<Payment>;
   removePayment: (invoiceId: string, paymentId: string) => Promise<void>;
   removeInvoice: (invoiceId: string) => Promise<void>;
-  updateInvoice: (
-    invoiceId: string,
-    body: Partial<InvoiceCreateBody>
-  ) => Promise<Invoice>;
+  updateInvoice: (invoiceId: string, body: InvoiceUpdateBody) => Promise<Invoice>;
   cancelInvoice: (invoiceId: string, reason: string) => Promise<Invoice>;
 }
 
@@ -113,8 +114,15 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const recordPayment = useCallback(
-    async (invoiceId: string, data: PaymentFormData) => {
-      const result = await invoicesApi.addPayment(invoiceId, mapPaymentFormToBody(data));
+    async (
+      invoiceId: string,
+      data: PaymentFormData,
+      options?: { removeGstReason?: string }
+    ) => {
+      const result = await invoicesApi.addPayment(invoiceId, {
+        ...mapPaymentFormToBody(data),
+        removeGstReason: options?.removeGstReason,
+      });
       const payment = mapPaymentFromDto(result.payment);
       const invoice = mapInvoiceFromDto(result.invoice);
       setPayments((prev) => [payment, ...prev.filter((item) => item.id !== payment.id)]);
@@ -159,7 +167,7 @@ export function RevenueProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateInvoice = useCallback(
-    async (invoiceId: string, body: Partial<InvoiceCreateBody>) => {
+    async (invoiceId: string, body: InvoiceUpdateBody) => {
       const dto = await invoicesApi.update(invoiceId, body);
       const invoice = mapInvoiceFromDto(dto);
       setInvoices((prev) => upsertInvoice(prev, invoice));

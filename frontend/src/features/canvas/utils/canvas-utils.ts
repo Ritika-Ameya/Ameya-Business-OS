@@ -1,7 +1,10 @@
 import type {
   CanvasCard,
   CanvasFilters,
+  CanvasPaidEntry,
+  CanvasRenewalReminder,
   CanvasRowKey,
+  PeriodPick,
   RangePreset,
 } from "@/features/canvas/types/canvas";
 
@@ -45,13 +48,28 @@ const monthsBetween = (fromKey: string, toKey: string): string[] => {
   return keys;
 };
 
+export const periodPickFor = (todayIso: string): PeriodPick => {
+  const today = parseToday(todayIso);
+  return {
+    year: today.getFullYear(),
+    month: today.getMonth(),
+    quarter: Math.floor(today.getMonth() / 3),
+  };
+};
+
 export const presetMonthKeys = (
   preset: RangePreset,
   todayIso: string,
   customFrom: string,
-  customTo: string
+  customTo: string,
+  pick?: PeriodPick
 ): string[] => {
   const today = parseToday(todayIso);
+  if (preset === "month" && pick) return [monthKeyOf(new Date(pick.year, pick.month, 1))];
+  if (preset === "quarter" && pick) {
+    const start = new Date(pick.year, pick.quarter * 3, 1);
+    return [0, 1, 2].map((offset) => monthKeyOf(addMonths(start, offset)));
+  }
   if (preset === "this-month") return [monthKeyOf(today)];
   if (preset === "last-month") return [monthKeyOf(addMonths(today, -1))];
   if (preset === "next-month") return [monthKeyOf(addMonths(today, 1))];
@@ -70,6 +88,8 @@ export const presetMonthKeys = (
 
 const countsAsCash = (card: CanvasCard): boolean =>
   card.kind === "receipt" && (card.status === "expected" || card.status === "overdue");
+
+const MONTH_KEY = /^\d{4}-\d{2}$/;
 
 export const filterCanvasCards = (cards: CanvasCard[], filters: CanvasFilters): CanvasCard[] => {
   const query = filters.q.trim().toLowerCase();
@@ -124,21 +144,216 @@ export const visibleMonthKeys = (
   customFrom: string,
   customTo: string,
   cards: CanvasCard[],
-  status: CanvasFilters["status"]
+  status: CanvasFilters["status"],
+  pick?: PeriodPick
 ): string[] => {
   if (status === "overdue") return receiptMonths(cards, "overdue");
   if (preset === "all") {
+    const currentMonth = monthKeyOf(parseToday(todayIso));
     const scheduled = receiptMonths(cards);
+    if (cards.some((card) => isCarryForward(card, currentMonth)) && !scheduled.includes(currentMonth)) {
+      scheduled.push(currentMonth);
+      scheduled.sort();
+    }
     const hasUnscheduled = cards.some(
       (card) => card.kind === "receipt" && card.monthKey === "unscheduled"
     );
     return hasUnscheduled ? ["unscheduled", ...scheduled] : scheduled;
   }
-  return presetMonthKeys(preset, todayIso, customFrom, customTo);
+  return presetMonthKeys(preset, todayIso, customFrom, customTo, pick);
+};
+
+/** Still unpaid and expected in a month before `monthKey`. */
+export const isCarryForward = (card: CanvasCard, monthKey: string): boolean =>
+  countsAsCash(card) && MONTH_KEY.test(card.monthKey) && card.monthKey < monthKey;
+
+/**
+ * Where an unpaid receipt is expected on the months currently on screen.
+ * It is never copied into later months.
+ *
+ * - Due this month or later: only its own month, and only when that month is open.
+ * - Due in a past month and still unpaid: only the current month. It may still
+ *   be collected there. A later month does not show it until that month arrives.
+ * - A view that is entirely in the past shows the receipt in its own month, so
+ *   that month's history stays visible.
+ */
+export const carryTarget = (ownMonth: string, months: string[], todayIso: string): string | null => {
+  const scheduled = months.filter((month) => MONTH_KEY.test(month)).sort();
+  if (!MONTH_KEY.test(ownMonth) || scheduled.length === 0) return null;
+  const currentMonth = monthKeyOf(parseToday(todayIso));
+  if (ownMonth >= currentMonth) return scheduled.includes(ownMonth) ? ownMonth : null;
+  if (scheduled.includes(currentMonth)) return currentMonth;
+  if (scheduled.every((month) => month < currentMonth) && scheduled.includes(ownMonth)) return ownMonth;
+  return null;
+};
+
+export const placeCarriedForward = (
+  cards: CanvasCard[],
+  months: string[],
+  todayIso: string
+): CanvasCard[] => {
+  return cards.map((card) => {
+    if (!countsAsCash(card)) return card;
+    const target = carryTarget(card.monthKey, months, todayIso);
+    if (!target || target === card.monthKey) return card;
+    return { ...card, monthKey: target, carriedFrom: card.monthKey };
+  });
 };
 
 export const cardsInMonths = (cards: CanvasCard[], months: string[]): CanvasCard[] =>
   cards.filter((card) => card.kind === "receipt" && months.includes(card.monthKey));
+
+export interface CanvasTotal {
+  count: number;
+  amount: number;
+  exGst: number;
+}
+
+export interface CanvasViewSummary {
+  expected: CanvasTotal;
+  carried: CanvasTotal;
+  paid: { count: number; amount: number };
+  items: {
+    expected: CanvasCard[];
+    carried: CanvasCard[];
+    paid: CanvasPaidEntry[];
+  };
+  byMonth: Array<{ monthKey: string; expected: number; carried: number; paid: number }>;
+}
+
+/** The month a card belongs to, before any carry-forward placement. */
+export const ownMonthOf = (card: CanvasCard): string => card.carriedFrom ?? card.monthKey;
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * Period totals, each unpaid receipt counted once:
+ * - `expected`: unpaid receipts due in a month that is on screen.
+ * - `carried`: unpaid receipts from before the current month, shown only in the
+ *   current month.
+ * - `paid`: money actually received in the period.
+ *
+ * A later month does not inherit earlier unpaid receipts. They move there only
+ * after that month becomes the current month and they are still unpaid.
+ */
+export const summarizeView = (
+  visible: CanvasCard[],
+  months: string[],
+  paid: CanvasPaidEntry[],
+  query: string,
+  todayIso: string,
+  source: CanvasCard[] = visible
+): CanvasViewSummary => {
+  const scheduled = months.filter((monthKey) => MONTH_KEY.test(monthKey)).sort();
+  const byMonth = new Map(
+    scheduled.map((monthKey) => [monthKey, { monthKey, expected: 0, carried: 0, paid: 0 }])
+  );
+  const summary: CanvasViewSummary = {
+    expected: { count: 0, amount: 0, exGst: 0 },
+    carried: { count: 0, amount: 0, exGst: 0 },
+    paid: { count: 0, amount: 0 },
+    items: { expected: [], carried: [], paid: [] },
+    byMonth: [],
+  };
+
+  const currentMonth = monthKeyOf(parseToday(todayIso));
+
+  for (const card of visible) {
+    if (!countsAsCash(card)) continue;
+    const bucket = card.carriedFrom ? summary.carried : summary.expected;
+    bucket.count += 1;
+    bucket.amount += card.expectedAmount ?? 0;
+    bucket.exGst += card.amountExGst ?? card.expectedAmount ?? 0;
+    (card.carriedFrom ? summary.items.carried : summary.items.expected).push(card);
+  }
+
+  for (const card of source) {
+    if (!countsAsCash(card)) continue;
+    const ownMonth = card.monthKey;
+    const target = carryTarget(ownMonth, scheduled, todayIso);
+    const month = target ? byMonth.get(target) : undefined;
+    if (!month) continue;
+    const amount = card.expectedAmount ?? 0;
+    if (ownMonth < currentMonth && target === currentMonth) month.carried += amount;
+    else month.expected += amount;
+  }
+
+  const needle = query.trim().toLowerCase();
+  for (const entry of paid) {
+    const month = byMonth.get(entry.paidAt.slice(0, 7));
+    if (!month) continue;
+    if (needle && !`${entry.companyName} ${entry.invoiceNumber}`.toLowerCase().includes(needle)) {
+      continue;
+    }
+    summary.paid.count += 1;
+    summary.paid.amount += entry.amount;
+    month.paid += entry.amount;
+    summary.items.paid.push(entry);
+  }
+
+  const byDate = (a: CanvasCard, b: CanvasCard) =>
+    a.expectedDate.localeCompare(b.expectedDate) || a.companyName.localeCompare(b.companyName);
+  summary.items.expected.sort(byDate);
+  summary.items.carried.sort(byDate);
+  summary.items.paid.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  for (const total of [summary.expected, summary.carried]) {
+    total.amount = round2(total.amount);
+    total.exGst = round2(total.exGst);
+  }
+  summary.paid.amount = round2(summary.paid.amount);
+  summary.byMonth = [...byMonth.values()].map((month) => ({
+    ...month,
+    expected: round2(month.expected),
+    carried: round2(month.carried),
+    paid: round2(month.paid),
+  }));
+  return summary;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export const daysUntil = (isoDate: string, todayIso: string): number =>
+  Math.round((parseToday(isoDate).getTime() - parseToday(todayIso).getTime()) / DAY_MS);
+
+/** "In 5 days", "Due today", "3 days overdue". */
+export const timeRemainingLabel = (isoDate: string, todayIso: string): string => {
+  const days = daysUntil(isoDate, todayIso);
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  if (days > 0) return `In ${days} days`;
+  return days === -1 ? "1 day overdue" : `${-days} days overdue`;
+};
+
+/** Overdue or due within about a month: the renewals to act on now. */
+export const RENEWAL_REMINDER_DAYS = 31;
+
+export const isRenewalDueSoon = (renewal: CanvasRenewalReminder, todayIso: string): boolean =>
+  daysUntil(renewal.renewalDate, todayIso) <= RENEWAL_REMINDER_DAYS;
+
+/**
+ * A renewal is listed in its own month. One that is already overdue is listed
+ * only with the current month, not again in every later month.
+ */
+export const renewalsInView = (
+  renewals: CanvasRenewalReminder[],
+  months: string[],
+  overdueOnly: boolean,
+  query: string,
+  todayIso: string
+): CanvasRenewalReminder[] => {
+  const needle = query.trim().toLowerCase();
+  return renewals.filter((item) => {
+    if (overdueOnly) {
+      if (item.status !== "overdue") return false;
+    } else if (!carryTarget(item.renewalDate.slice(0, 7), months, todayIso)) {
+      return false;
+    }
+    if (!needle) return true;
+    return `${item.companyName} ${item.componentName} ${item.dealTitle} ${item.invoiceNumber}`
+      .toLowerCase()
+      .includes(needle);
+  });
+};
 
 export const sumMonth = (cards: CanvasCard[], monthKey: string): number =>
   cards.reduce((sum, card) => {

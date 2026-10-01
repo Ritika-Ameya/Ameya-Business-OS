@@ -74,7 +74,7 @@ import type {
   VendorFormData,
 } from "@/features/settings/types/settings";
 import { normalizePhoneToE164 } from "@/shared/utils/phone";
-import { setActiveDateFormat } from "@/shared/utils/format-date";
+import { preferredDateFormat, setActiveDateFormat } from "@/shared/utils/format-date";
 import { cacheCompanyBrand } from "@/shared/utils/company-brand";
 
 const PREFERENCES_KEY = "ameya-settings-preferences";
@@ -114,9 +114,16 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   const [finance, setFinance] = useState<FinanceSettings>(defaultFinanceSettings);
   const [branding, setBranding] = useState(defaultBrandingSettings);
   const [preferences, setPreferences] = useState<PreferencesSettings>(() => {
-    const loaded = loadJson(PREFERENCES_KEY, defaultPreferencesSettings);
-    setActiveDateFormat(loaded.dateFormat);
-    return loaded;
+    const loaded = loadJson<PreferencesSettings & { dateFormatVersion?: number }>(
+      PREFERENCES_KEY,
+      defaultPreferencesSettings,
+    );
+    const upgraded = (loaded.dateFormatVersion ?? 0) < 2;
+    const dateFormat = upgraded ? preferredDateFormat(loaded.dateFormat) : loaded.dateFormat;
+    const next = { ...loaded, dateFormat, dateFormatVersion: 2 as const };
+    if (upgraded) persistJson(PREFERENCES_KEY, next);
+    setActiveDateFormat(next.dateFormat);
+    return next;
   });
   const [opportunitySources, setOpportunitySources] = useState<SettingsOpportunitySource[]>([]);
   const [industries, setIndustries] = useState<SettingsIndustry[]>([]);
@@ -235,7 +242,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
   const updatePreferences = useCallback((data: PreferencesSettings) => {
     setPreferences(data);
-    persistJson(PREFERENCES_KEY, data);
+    persistJson(PREFERENCES_KEY, { ...data, dateFormatVersion: 2 });
     setActiveDateFormat(data.dateFormat);
     setSuccessMessage("Preferences saved locally.");
   }, []);

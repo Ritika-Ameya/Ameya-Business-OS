@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { InvoiceTable } from "@/features/revenue/components/invoices/InvoiceTable";
 import { EditInvoiceDialog } from "@/features/revenue/components/invoices/EditInvoiceDialog";
+import { RecordPaymentDialog } from "@/features/revenue/components/invoices/payments/RecordPaymentDialog";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import type { Invoice } from "@/features/revenue/types/invoice";
 
@@ -20,6 +21,7 @@ export function InvoiceTableWithActions({
 }: InvoiceTableWithActionsProps) {
   const { removeInvoice } = useRevenue();
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
 
   const handleDelete = async (invoice: Invoice) => {
     const confirmed = window.confirm(
@@ -37,9 +39,18 @@ export function InvoiceTableWithActions({
         onResetFilters={onResetFilters}
         hideCustomerColumn={hideCustomerColumn}
         onEdit={setEditingInvoice}
+        onRecordPayment={setPayingInvoice}
         onDelete={(invoice) => {
           void handleDelete(invoice);
         }}
+      />
+      <RecordPaymentDialog
+        open={Boolean(payingInvoice)}
+        onOpenChange={(open) => {
+          if (!open) setPayingInvoice(null);
+        }}
+        invoiceId={payingInvoice?.id ?? ""}
+        maxAmount={payingInvoice?.outstanding}
       />
       <EditInvoiceDialog
         invoice={editingInvoice}

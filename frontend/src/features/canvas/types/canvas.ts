@@ -48,6 +48,37 @@ export interface CanvasCard {
   origin: "override" | "manual" | "installment" | "dismissed" | "suggestion" | "account";
   installmentIndex: number;
   currency: string;
+  /** Set on screen only: the unpaid month this card was carried forward from. */
+  carriedFrom?: string;
+}
+
+export type CanvasRenewalStatus = "overdue" | "this_month" | "next_month" | "later";
+
+export interface CanvasRenewalReminder {
+  id: string;
+  componentId: string;
+  componentName: string;
+  customerId: string;
+  companyName: string;
+  dealId: string;
+  dealTitle: string;
+  renewalDate: string;
+  renewalFrequency: string;
+  lastRenewedDate: string;
+  amount: number;
+  status: CanvasRenewalStatus;
+  invoiceId: string;
+  invoiceNumber: string;
+}
+
+export interface CanvasPaidEntry {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerId: string;
+  companyName: string;
+  amount: number;
+  paidAt: string;
 }
 
 export interface CanvasAccountOption {
@@ -57,6 +88,14 @@ export interface CanvasAccountOption {
   temperature: LeadTemperature;
 }
 
+export interface CanvasDealComponentOption {
+  id: string;
+  name: string;
+  /** Component total, including GST. */
+  total: number;
+  gstPercent?: number;
+}
+
 export interface CanvasDealOption {
   id: string;
   title: string;
@@ -64,6 +103,7 @@ export interface CanvasDealOption {
   probability: number;
   contractValue: number;
   expectedCloseDate: string;
+  components?: CanvasDealComponentOption[];
 }
 
 export interface CanvasBoard {
@@ -72,6 +112,8 @@ export interface CanvasBoard {
   cards: CanvasCard[];
   accounts: CanvasAccountOption[];
   deals: CanvasDealOption[];
+  renewals?: CanvasRenewalReminder[];
+  paid?: CanvasPaidEntry[];
 }
 
 export type RangePreset =
@@ -82,8 +124,19 @@ export type RangePreset =
   | "month-after"
   | "this-quarter"
   | "next-quarter"
+  | "month"
+  | "quarter"
   | "all"
   | "custom";
+
+/** Month or calendar quarter chosen with the "Pick a month" / "Pick a quarter" views. */
+export interface PeriodPick {
+  year: number;
+  /** 0-11 */
+  month: number;
+  /** 0-3, calendar quarters (Q1 = Jan-Mar), matching the rest of the app. */
+  quarter: number;
+}
 
 export interface CanvasFilters {
   q: string;

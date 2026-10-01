@@ -1,4 +1,4 @@
-import { Edit, Eye, MoreHorizontal, Receipt } from "lucide-react";
+import { Edit, Eye, MoreHorizontal, Receipt, Wallet } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
@@ -32,6 +32,7 @@ interface InvoiceTableProps {
   onResetFilters?: () => void;
   onEdit?: (invoice: Invoice) => void;
   onDelete?: (invoice: Invoice) => void;
+  onRecordPayment?: (invoice: Invoice) => void;
   /** When true, hide Customer column (used on customer workspace). */
   hideCustomerColumn?: boolean;
 }
@@ -42,6 +43,7 @@ export function InvoiceTable({
   onResetFilters,
   onEdit,
   onDelete,
+  onRecordPayment,
   hideCustomerColumn = false,
 }: InvoiceTableProps) {
   const location = useLocation();
@@ -77,7 +79,12 @@ export function InvoiceTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {invoices.map((invoice) => (
+          {invoices.map((invoice) => {
+            const canRecordPayment =
+              Boolean(onRecordPayment) &&
+              invoice.status !== "cancelled" &&
+              invoice.outstanding > 0;
+            return (
             <TableRow key={invoice.id}>
               <TableCell className="pl-4">
                 <Link
@@ -142,6 +149,16 @@ export function InvoiceTable({
                       <Eye />
                     </Link>
                   </Button>
+                  {canRecordPayment && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Record payment for ${invoice.invoiceNo}`}
+                      onClick={() => onRecordPayment?.(invoice)}
+                    >
+                      <Wallet />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -167,6 +184,11 @@ export function InvoiceTable({
                           View workspace
                         </Link>
                       </DropdownMenuItem>
+                      {canRecordPayment && (
+                        <DropdownMenuItem onClick={() => onRecordPayment?.(invoice)}>
+                          Record payment
+                        </DropdownMenuItem>
+                      )}
                       {onEdit && invoice.status !== "cancelled" && (
                         <DropdownMenuItem onClick={() => onEdit(invoice)}>
                           Edit invoice
@@ -188,7 +210,8 @@ export function InvoiceTable({
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </ResponsiveTableFrame>

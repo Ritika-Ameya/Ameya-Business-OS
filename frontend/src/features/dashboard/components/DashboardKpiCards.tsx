@@ -3,6 +3,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle2,
+  FileText,
   IndianRupee,
   Minus,
   RefreshCw,
@@ -20,6 +21,8 @@ const kpiVisual: Record<
   { accent: ModuleAccentKey; icon: typeof IndianRupee }
 > = {
   revenue: { accent: "revenue", icon: IndianRupee },
+  received: { accent: "revenue", icon: IndianRupee },
+  invoiced: { accent: "invoices", icon: FileText },
   collections: { accent: "collections", icon: Wallet },
   renewals: { accent: "renewals", icon: RefreshCw },
   renewed: { accent: "cash", icon: CheckCircle2 },
@@ -36,7 +39,7 @@ function TrendIndicator({ kpi }: { kpi: DashboardKpi }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+        "inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:text-xs",
         kpi.trendDirection === "up" &&
           "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
         kpi.trendDirection === "down" &&
@@ -83,14 +86,14 @@ function KpiCardContent({ kpi }: { kpi: DashboardKpi }) {
           </div>
           <div
             className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 dark:ring-white/10",
+              "hidden size-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ring-1 ring-black/5 sm:flex dark:ring-white/10",
               accent.iconBg
             )}
           >
             <Icon className="size-5" />
           </div>
         </div>
-        <p className="text-xl font-bold tracking-tight tabular-nums sm:text-2xl lg:text-[1.7rem]">
+        <p className="break-words text-lg font-bold tracking-tight tabular-nums sm:text-2xl">
           {kpi.value}
         </p>
         <TrendIndicator kpi={kpi} />
@@ -106,7 +109,7 @@ export function DashboardKpiCards() {
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-5">
         {kpis.map((kpi) => (
           <button
             key={kpi.id}

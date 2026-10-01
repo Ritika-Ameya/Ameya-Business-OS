@@ -4,6 +4,7 @@ import type {
   InvoiceCreateBody,
   InvoiceDocumentDto,
   InvoiceDto,
+  InvoiceUpdateBody,
   PaymentCreateBody,
   PaymentDto,
 } from "@/features/revenue/api/revenue.dto";
@@ -25,7 +26,7 @@ export const invoicesApi = {
   create: (body: InvoiceCreateBody) =>
     apiRequest<InvoiceDto>(INVOICES_BASE, { method: "POST", body }),
 
-  update: (id: string, body: Partial<InvoiceCreateBody>) =>
+  update: (id: string, body: InvoiceUpdateBody) =>
     apiRequest<InvoiceDto>(`${INVOICES_BASE}/${id}`, { method: "PUT", body }),
 
   remove: (id: string) =>

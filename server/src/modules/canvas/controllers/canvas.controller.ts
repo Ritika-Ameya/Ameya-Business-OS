@@ -10,7 +10,9 @@ import { canvasService } from '../services/canvas.service';
 import {
   createReceiptSchema,
   customerIdParamSchema,
+  dealIdParamSchema,
   dismissReceiptSchema,
+  markReceiptPaidSchema,
   scheduleReceiptSchema,
   setTemperatureSchema,
   splitReceiptSchema,
@@ -22,6 +24,41 @@ export class CanvasController {
     const board = await canvasService.getBoard();
     ApiResponse.success(res, board, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
   });
+
+  readonly getLeadTemperature = [
+    validate({ params: customerIdParamSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const customerId = getRouteParam(req.params.customerId);
+      const temperature = await canvasService.getTemperature(customerId);
+      ApiResponse.success(
+        res,
+        { customerId, temperature },
+        MESSAGES.SUCCESS,
+        HTTP_STATUS.OK,
+        getResponseMeta(req),
+      );
+    }),
+  ];
+
+  /** Same rule as setTemperature, without rebuilding the whole board. */
+  readonly setLeadTemperature = [
+    validate({ params: customerIdParamSchema, body: setTemperatureSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const customerId = getRouteParam(req.params.customerId);
+      await canvasService.setTemperature(customerId, req.body.temperature);
+      const temperature = await canvasService.getTemperature(customerId);
+      ApiResponse.updated(res, { customerId, temperature }, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly markPaid = [
+    validate({ body: markReceiptPaidSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      await canvasService.markPaid(req.body);
+      const board = await canvasService.getBoard();
+      ApiResponse.updated(res, board, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
 
   readonly setTemperature = [
     validate({ params: customerIdParamSchema, body: setTemperatureSchema }),
@@ -56,6 +93,14 @@ export class CanvasController {
       await canvasService.updateReceipt(req.body);
       const board = await canvasService.getBoard();
       ApiResponse.updated(res, board, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly listDealForecasts = [
+    validate({ params: dealIdParamSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const forecasts = await canvasService.listDealForecasts(getRouteParam(req.params.dealId));
+      ApiResponse.success(res, forecasts, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
     }),
   ];
 

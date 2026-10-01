@@ -2,6 +2,8 @@ import {
   AlertCircle,
   CheckCircle2,
   IndianRupee,
+  Landmark,
+  Receipt,
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useMemo } from "react";
@@ -40,6 +42,9 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
             collected: "—",
             outstanding: "—",
             averageInvoiceValue: "—",
+            receivedGstAccount: "—",
+            receivedOtherAccount: "—",
+            gstBilled: "—",
           },
     [data]
   );
@@ -80,6 +85,30 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
           label="Average Invoice Value"
           value={stats.averageInvoiceValue}
           icon={<AlertCircle className="size-5 text-violet-600 dark:text-violet-400" />}
+          accent="bg-violet-500/10"
+          period={period}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Received · GST account"
+          value={stats.receivedGstAccount}
+          icon={<Receipt className="size-5 text-emerald-600 dark:text-emerald-400" />}
+          accent="bg-emerald-500/10"
+          period={period}
+        />
+        <StatCard
+          label="Received · Other account"
+          value={stats.receivedOtherAccount}
+          icon={<Receipt className="size-5 text-sky-600 dark:text-sky-400" />}
+          accent="bg-sky-500/10"
+          period={period}
+        />
+        <StatCard
+          label="GST billed (payable)"
+          value={stats.gstBilled}
+          icon={<Landmark className="size-5 text-violet-600 dark:text-violet-400" />}
           accent="bg-violet-500/10"
           period={period}
         />

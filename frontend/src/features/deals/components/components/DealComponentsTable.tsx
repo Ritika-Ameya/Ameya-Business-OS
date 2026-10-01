@@ -24,6 +24,7 @@ import {
 import {
   componentBillingPeriodLabels,
   computeComponentLineTotal,
+  computeComponentTaxable,
   formatComponentCurrency,
   formatComponentDate,
   getComponentCurrentDueDate,
@@ -94,7 +95,9 @@ export function DealComponentsTable({
                   {formatComponentCurrency(computeComponentLineTotal(component))}
                   <p className="mt-0.5 text-xs font-normal text-muted-foreground">
                     {componentBillingPeriodLabels[billingPeriod]}
-                    {component.gstPercent > 0 ? ` · Incl. ${component.gstPercent}% GST` : ""}
+                    {component.gstPercent > 0
+                      ? ` · ${formatComponentCurrency(computeComponentTaxable(component))} + GST ${component.gstPercent}% ${formatComponentCurrency(computeComponentLineTotal(component) - computeComponentTaxable(component))}`
+                      : " · No GST"}
                   </p>
                 </div>
               </TableCell>

@@ -1,5 +1,48 @@
 const PREFERENCES_KEY = "ameya-settings-preferences";
-const DEFAULT_DATE_FORMAT = "DD/MM/YYYY";
+const DEFAULT_DATE_FORMAT = "DD MMM YYYY";
+const LEGACY_DATE_FORMAT = "DD/MM/YYYY";
+
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+const MONTH_INDEX: Record<string, number> = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
 
 type DateParts = { year: number; month: number; day: number };
 
@@ -26,6 +69,10 @@ function readStoredDateFormat(): string {
   }
 }
 
+function monthFromName(name: string): number | null {
+  return MONTH_INDEX[name.toLowerCase().replace(/\./g, "")] ?? null;
+}
+
 function parseDateParts(date?: string): DateParts | null {
   if (!date?.trim()) return null;
   const trimmed = date.trim();
@@ -47,6 +94,13 @@ function parseDateParts(date?: string): DateParts | null {
   const compact = /^(\d{2})(\d{2})(\d{4})$/.exec(trimmed);
   if (compact) {
     return validParts(Number(compact[3]), Number(compact[2]), Number(compact[1]));
+  }
+
+  const named = /^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\.?,?\s+(\d{4})$/.exec(trimmed);
+  if (named) {
+    const month = monthFromName(named[2]);
+    if (!month) return null;
+    return validParts(Number(named[3]), month, Number(named[1]));
   }
 
   const parsed = new Date(trimmed);
@@ -80,14 +134,19 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** Convert stored YYYY-MM-DD to DD/MM/YYYY for date fields. */
+/** Convert a stored date into the active display format, e.g. 26 Aug 2027. */
 export function isoToDisplayDate(iso?: string): string {
   const parts = parseDateParts(iso);
   if (!parts) return "";
-  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+  return formatWithPattern(parts, getActiveDateFormat());
 }
 
-/** Parse a typed date (DD/MM/YYYY) into YYYY-MM-DD. Empty string if blank; null if invalid. */
+/** Example shown in empty date fields, matching the active display format. */
+export function dateInputPlaceholder(): string {
+  return formatWithPattern({ year: 2027, month: 8, day: 26 }, getActiveDateFormat());
+}
+
+/** Parse a typed date into YYYY-MM-DD. Empty string if blank; null if invalid. */
 export function displayDateToIso(value?: string): string | null {
   if (!value?.trim()) return "";
   const parts = parseDateParts(value);
@@ -117,17 +176,19 @@ function formatWithPattern(parts: DateParts, pattern: string): string {
       return `${month}/${day}/${year}`;
     case "YYYY-MM-DD":
       return `${year}-${month}-${day}`;
-    case "DD MMM YYYY": {
-      return new Intl.DateTimeFormat("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(parts.year, parts.month - 1, parts.day));
-    }
     case "DD/MM/YYYY":
-    default:
       return `${day}/${month}/${year}`;
+    case "DD MMM YYYY":
+    default:
+      return `${parts.day} ${SHORT_MONTHS[parts.month - 1]} ${year}`;
   }
+}
+
+/** Older installs stored the slash format. Display dates as 26 Aug 2027 instead. */
+export function preferredDateFormat(format?: string | null): string {
+  const trimmed = format?.trim();
+  if (!trimmed || trimmed === LEGACY_DATE_FORMAT) return DEFAULT_DATE_FORMAT;
+  return trimmed;
 }
 
 export function formatDate(date?: string): string {

@@ -357,8 +357,11 @@ function MonthLane({
       {label ? (
         <div className="flex items-baseline justify-between gap-2 px-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="text-right text-[11px] font-medium tabular-nums text-muted-foreground">
-            {formatCurrency(laneTotals.exclusive)} ex · {formatCurrency(laneTotals.inclusive)} with GST
+          <p
+            className="text-right text-[11px] font-semibold tabular-nums text-muted-foreground"
+            title={`${formatCurrency(laneTotals.exclusive)} without GST`}
+          >
+            {formatCurrency(laneTotals.inclusive)}
           </p>
         </div>
       ) : null}

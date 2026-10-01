@@ -1,12 +1,13 @@
 import { BaseService } from '../../../services/base.service';
 import { dealRepository } from '../../deals';
-import { expenseRepository } from '../../expenses';
+import { expenseMasterRepository, expenseRepository } from '../../expenses';
+import { stoppedPendingGenerations } from '../../expenses/utils/recurring.util';
 import {
   computeRegisterStats,
   roundMoney,
 } from '../../expenses/utils/expenseCalculation.util';
 import type { ExpenseEntity } from '../../expenses/types/expense.entities';
-import { invoiceRepository } from '../../revenue';
+import { invoiceRepository, paymentRepository } from '../../revenue';
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
 import type {
   ExpenseReportStats,
@@ -49,6 +50,9 @@ const mapInvoiceItem = (invoice: InvoiceEntity): ReportInvoiceItem => ({
   dueDate: invoice.dueDate,
   status: invoice.status,
   gstPercent: Number(invoice.taxPercent || 0),
+  billingType: invoice.billingType,
+  subtotal: Number(invoice.subtotal || 0),
+  tax: Number(invoice.tax || 0),
   componentIds: invoice.componentIds ?? [],
   notes: invoice.notes ?? '',
 });
@@ -221,6 +225,22 @@ export class ReportService extends BaseService {
     );
     const averageInvoiceValue =
       filtered.length > 0 ? Math.round(totalRevenue / filtered.length) : 0;
+    const invoiceById = new Map(filtered.map((invoice) => [invoice.id, invoice]));
+    const payments = await paymentRepository.findAll();
+    const receivedGstAccount = roundMoney(
+      payments.reduce((sum, payment) => {
+        const invoice = invoiceById.get(payment.invoiceId);
+        if (!invoice || payment.status !== 'received') return sum;
+        const account =
+          payment.receivedAccount || (invoice.billingType === 'gst' ? 'gst' : 'other');
+        return account === 'gst' ? sum + Number(payment.amount || 0) : sum;
+      }, 0),
+    );
+    const gstBilled = roundMoney(
+      filtered
+        .filter((invoice) => invoice.billingType === 'gst' && invoice.status !== 'cancelled')
+        .reduce((sum, invoice) => sum + Number(invoice.tax || 0), 0),
+    );
 
     return {
       stats: {
@@ -228,6 +248,9 @@ export class ReportService extends BaseService {
         collected,
         outstanding,
         averageInvoiceValue,
+        receivedGstAccount,
+        receivedOtherAccount: roundMoney(Math.max(0, collected - receivedGstAccount)),
+        gstBilled,
       },
       items: filtered.map(mapInvoiceItem),
     };
@@ -237,7 +260,14 @@ export class ReportService extends BaseService {
     filters: ReportFilters,
   ): Promise<ReportResult<ExpenseReportStats, ReportExpenseItem>> {
     this.logInfo('Building expense report');
-    const expenses = await expenseRepository.findAll();
+    const [loadedExpenses, expenseMasters] = await Promise.all([
+      expenseRepository.findAll(),
+      expenseMasterRepository.findAll(),
+    ]);
+    const stoppedIds = new Set(
+      stoppedPendingGenerations(expenseMasters, loadedExpenses).map((expense) => expense.id),
+    );
+    const expenses = loadedExpenses.filter((expense) => !stoppedIds.has(expense.id));
     const filtered = filterExpensesForReport(expenses, filters);
     const registerStats = computeRegisterStats(filtered, []);
     const recurringExpenses = filtered.filter((expense) => expense.recurring).length;

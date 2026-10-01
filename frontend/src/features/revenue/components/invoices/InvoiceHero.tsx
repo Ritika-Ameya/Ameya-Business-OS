@@ -52,6 +52,16 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <InvoiceStatusBadge status={invoice.status} />
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs font-medium",
+                  invoice.billingType === "non_gst"
+                    ? "border-sky-500/30 text-sky-700 dark:text-sky-400"
+                    : "border-violet-500/30 text-violet-700 dark:text-violet-300"
+                )}
+              >
+                {invoice.billingType === "non_gst" ? "Without GST" : "With GST"}
+              </span>
               {invoice.outstanding > 0 && invoice.status !== "cancelled" && (
                 <span className="rounded-full border border-amber-500/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                   {formatInvoiceCurrency(invoice.outstanding)} due
@@ -121,7 +131,11 @@ export function InvoiceHero({ invoice }: InvoiceHeroProps) {
 
           <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-lg lg:grid-cols-2">
             <HeroMetric
-              label="Invoice Amount (incl. GST)"
+              label={
+                invoice.billingType === "non_gst"
+                  ? "Invoice Amount (without GST)"
+                  : "Invoice Amount (incl. GST)"
+              }
               value={formatInvoiceCurrency(invoice.amount)}
             />
             <HeroMetric

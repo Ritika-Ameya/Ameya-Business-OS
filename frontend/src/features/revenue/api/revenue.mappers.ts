@@ -24,6 +24,11 @@ export function mapInvoiceFromDto(dto: InvoiceDto): Invoice {
     dueDate: dto.dueDate,
     status: normalizeInvoiceStatus(dto.status),
     gstPercent: dto.taxPercent,
+    billingType:
+      dto.billingType ?? (dto.tax > 0 || dto.taxPercent > 0 ? "gst" : "non_gst"),
+    subtotal: dto.subtotal,
+    tax: dto.tax,
+    lineItems: Array.isArray(dto.lineItems) ? dto.lineItems : [],
     componentIds: Array.isArray(dto.componentIds) ? dto.componentIds : [],
     notes: dto.notes || undefined,
     timeline: Array.isArray(dto.timeline)
@@ -54,6 +59,7 @@ export function mapPaymentFromDto(dto: PaymentDto): Payment {
     transactionId: dto.transactionId || undefined,
     status: dto.status,
     notes: dto.notes || undefined,
+    receivedAccount: dto.receivedAccount || undefined,
   };
 }
 
@@ -67,6 +73,7 @@ export function mapPaymentFormToBody(data: PaymentFormData): PaymentCreateBody {
     transactionId: data.transactionId.trim(),
     notes: data.notes.trim(),
     status: "received",
+    receivedAccount: data.receivedAccount,
   };
 }
 

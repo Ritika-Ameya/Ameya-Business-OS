@@ -10,7 +10,11 @@ import type {
   PayeeType,
 } from "@/features/expenses/types/expense";
 import type { Invoice } from "@/features/revenue/types/invoice";
-import { formatInvoiceCurrency, normalizeInvoiceStatus } from "@/features/revenue/utils/invoice-utils";
+import {
+  formatBaseWithGst,
+  formatInvoiceCurrency,
+  normalizeInvoiceStatus,
+} from "@/features/revenue/utils/invoice-utils";
 import type { CompanyRenewalRow } from "@/features/revenue/utils/revenue-utils";
 import { formatExpenseCurrency } from "@/features/expenses/utils/expense-utils";
 
@@ -29,6 +33,10 @@ export function mapReportInvoice(dto: ReportInvoiceItemDto): Invoice {
     dueDate: dto.dueDate,
     status: normalizeInvoiceStatus(dto.status),
     gstPercent: dto.gstPercent,
+    billingType: dto.billingType ?? (dto.gstPercent > 0 ? "gst" : "non_gst"),
+    subtotal: dto.subtotal ?? dto.amount,
+    tax: dto.tax ?? 0,
+    lineItems: [],
     componentIds: dto.componentIds ?? [],
     notes: dto.notes || undefined,
   };
@@ -86,7 +94,7 @@ export function mapReportRenewal(dto: RenewalReportItemDto): CompanyRenewalRow {
     renewalStartDate: dto.renewalStartDate || "",
     renewalDate: dto.renewalDate,
     lastRenewedDate: dto.lastRenewedDate || "",
-    amount: dto.amount > 0 ? formatInvoiceCurrency(dto.amount) : "—",
+    amount: dto.amount > 0 ? formatBaseWithGst(dto.amount, dto.gstAmount ?? 0) : "—",
     amountValue: dto.amount,
     status,
     renewalType:
@@ -101,12 +109,18 @@ export function formatRevenueReportStats(stats: {
   collected: number;
   outstanding: number;
   averageInvoiceValue: number;
+  receivedGstAccount?: number;
+  receivedOtherAccount?: number;
+  gstBilled?: number;
 }) {
   return {
     totalRevenue: formatInvoiceCurrency(stats.totalRevenue),
     collected: formatInvoiceCurrency(stats.collected),
     outstanding: formatInvoiceCurrency(stats.outstanding),
     averageInvoiceValue: formatInvoiceCurrency(stats.averageInvoiceValue),
+    receivedGstAccount: formatInvoiceCurrency(stats.receivedGstAccount ?? 0),
+    receivedOtherAccount: formatInvoiceCurrency(stats.receivedOtherAccount ?? 0),
+    gstBilled: formatInvoiceCurrency(stats.gstBilled ?? 0),
   };
 }
 

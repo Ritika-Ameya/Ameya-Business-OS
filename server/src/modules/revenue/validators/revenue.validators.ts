@@ -8,6 +8,7 @@ export const invoiceStatusSchema = z.enum([
   'cancelled',
 ]);
 export const paymentStatusSchema = z.enum(['received', 'pending', 'failed']);
+export const invoiceBillingTypeSchema = z.enum(['gst', 'non_gst']);
 
 export const invoiceCreateSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
@@ -26,13 +27,35 @@ export const invoiceCreateSchema = z.object({
   notes: z.string().max(5000).default(''),
   invoiceNumber: z.string().trim().min(1, 'Invoice number is required'),
   nextActionDate: z.string().default(''),
+  billingType: invoiceBillingTypeSchema.optional(),
 });
 
-export const invoiceUpdateSchema = invoiceCreateSchema.partial().extend({
+/**
+ * Update accepts only the fields that were sent.
+ * Do not derive this from the create schema: create defaults (subtotal 0,
+ * tax 18%, status draft, empty customer name) would be applied to omitted
+ * fields and wipe the stored invoice on a due-date-only save.
+ */
+export const invoiceUpdateSchema = z.object({
   customerId: z.string().min(1).optional(),
+  customerName: z.string().optional(),
   dealId: z.string().min(1).optional(),
+  dealTitle: z.string().optional(),
+  status: invoiceStatusSchema.optional(),
   issueDate: z.string().min(1).optional(),
   dueDate: z.string().min(1).optional(),
+  subtotal: z.coerce.number().min(0).optional(),
+  taxPercent: z.coerce.number().min(0).max(100).optional(),
+  tax: z.coerce.number().min(0).optional(),
+  total: z.coerce.number().min(0).optional(),
+  currency: z.string().optional(),
+  componentIds: z.array(z.string()).optional(),
+  notes: z.string().max(5000).optional(),
+  invoiceNumber: z.string().trim().min(1, 'Invoice number is required').optional(),
+  nextActionDate: z.string().optional(),
+  billingType: invoiceBillingTypeSchema.optional(),
+  /** Required when `billingType` changes; kept on the invoice timeline. */
+  billingChangeReason: z.string().trim().max(2000).optional(),
 });
 
 export const invoiceStatusChangeSchema = z.object({
@@ -42,6 +65,8 @@ export const invoiceStatusChangeSchema = z.object({
 export const invoiceCancelSchema = z.object({
   reason: z.string().trim().min(1, 'Cancellation reason is required').max(2000),
 });
+
+export const paymentAccountSchema = z.enum(['gst', 'other']);
 
 export const paymentCreateSchema = z.object({
   paymentDate: z.string().min(1, 'Payment date is required'),
@@ -53,9 +78,13 @@ export const paymentCreateSchema = z.object({
   notes: z.string().default(''),
   status: paymentStatusSchema.default('received'),
   currency: z.string().default('INR'),
+  /** Defaults from the invoice's billing type when omitted. */
+  receivedAccount: paymentAccountSchema.optional(),
+  /** Client paid the base amount only: turn the invoice into a non-GST invoice first. */
+  removeGstReason: z.string().trim().max(2000).optional(),
 });
 
-export const paymentUpdateSchema = paymentCreateSchema.partial();
+export const paymentUpdateSchema = paymentCreateSchema.omit({ removeGstReason: true }).partial();
 
 export const invoiceDocumentCreateSchema = z.object({
   name: z.string().min(1, 'File name is required'),

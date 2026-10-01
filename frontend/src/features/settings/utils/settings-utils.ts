@@ -41,10 +41,10 @@ export const financialYearOptions = [
 ];
 
 export const dateFormatOptions = [
-  "DD/MM/YYYY",
-  "DD MMM YYYY",
-  "MM/DD/YYYY",
-  "YYYY-MM-DD",
+  { value: "DD MMM YYYY", label: "26 Aug 2027" },
+  { value: "DD/MM/YYYY", label: "26/08/2027" },
+  { value: "MM/DD/YYYY", label: "08/26/2027" },
+  { value: "YYYY-MM-DD", label: "2027-08-26" },
 ];
 
 export const currencyFormatOptions = [

@@ -1,23 +1,53 @@
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { canvasApi } from "@/features/canvas/api/canvas.api";
+import {
+  CanvasBreakdownDialog,
+  type BreakdownKind,
+} from "@/features/canvas/components/CanvasBreakdownDialog";
 import { CanvasDrawer, type CreateDraft } from "@/features/canvas/components/CanvasDrawer";
 import { CanvasFilters } from "@/features/canvas/components/CanvasFilters";
 import { CanvasMatrix } from "@/features/canvas/components/CanvasMatrix";
-import { GstHighlight } from "@/features/canvas/components/GstAmount";
+import { CanvasSummary } from "@/features/canvas/components/CanvasSummary";
+import { MarkReceiptPaidDialog } from "@/features/canvas/components/MarkReceiptPaidDialog";
 import {
   defaultCanvasFilters,
   type CanvasBoard,
   type CanvasCard,
   type CanvasRowKey,
+  type PeriodPick,
   type RangePreset,
 } from "@/features/canvas/types/canvas";
 import {
   cardsInMonths,
   filterCanvasCards,
+  formatMonthLabel,
+  monthKeyOf,
+  parseToday,
+  periodPickFor,
+  placeCarriedForward,
+  quarterLabel,
+  renewalsInView,
+  summarizeView,
   visibleMonthKeys,
 } from "@/features/canvas/utils/canvas-utils";
 import { ApiError } from "@/shared/api/errors";
 import { Button } from "@/shared/ui/button";
+import { toLocalIsoDate } from "@/shared/utils";
+
+const periodLabelFor = (months: string[]): string => {
+  const scheduled = months.filter((month) => month !== "unscheduled");
+  if (scheduled.length === 0) return "this period";
+  if (scheduled.length === 1) return formatMonthLabel(scheduled[0]);
+  const first = /^(\d{4})-(\d{2})$/.exec(scheduled[0]);
+  if (first && scheduled.length === 3 && (Number(first[2]) - 1) % 3 === 0) {
+    const quarterEnd = monthKeyOf(new Date(Number(first[1]), Number(first[2]) + 1, 1));
+    if (scheduled[2] === quarterEnd) {
+      return quarterLabel(Number(first[1]), Math.floor((Number(first[2]) - 1) / 3));
+    }
+  }
+  return `${formatMonthLabel(scheduled[0])} – ${formatMonthLabel(scheduled[scheduled.length - 1])}`;
+};
 
 export function BusinessCanvasPage() {
   const [board, setBoard] = useState<CanvasBoard | null>(null);
@@ -28,8 +58,11 @@ export function BusinessCanvasPage() {
   const [preset, setPreset] = useState<RangePreset>("this-month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [pick, setPick] = useState<PeriodPick>(() => periodPickFor(toLocalIsoDate()));
   const [selected, setSelected] = useState<CanvasCard | null>(null);
   const [draft, setDraft] = useState<CreateDraft | null>(null);
+  const [paying, setPaying] = useState<CanvasCard | null>(null);
+  const [breakdown, setBreakdown] = useState<BreakdownKind | null>(null);
   const [coarse, setCoarse] = useState(false);
 
   const load = async () => {
@@ -65,20 +98,35 @@ export function BusinessCanvasPage() {
     [board?.cards, filters]
   );
   const months = useMemo(
-    () => visibleMonthKeys(preset, today, customFrom, customTo, filtered, filters.status),
-    [preset, today, customFrom, customTo, filtered, filters.status]
+    () => visibleMonthKeys(preset, today, customFrom, customTo, filtered, filters.status, pick),
+    [preset, today, customFrom, customTo, filtered, filters.status, pick]
   );
-  const visible = useMemo(() => cardsInMonths(filtered, months), [filtered, months]);
-  const viewTotal = visible.reduce(
-    (sum, card) => {
-      if (card.status !== "expected" && card.status !== "overdue") return sum;
-      return {
-        exclusive: sum.exclusive + (card.amountExGst ?? card.expectedAmount ?? 0),
-        inclusive: sum.inclusive + (card.expectedAmount ?? 0),
-      };
-    },
-    { exclusive: 0, inclusive: 0 }
+  const overdueView = filters.status === "overdue";
+  const visible = useMemo(
+    () =>
+      cardsInMonths(overdueView ? filtered : placeCarriedForward(filtered, months, today), months),
+    [filtered, months, today, overdueView]
   );
+  const summary = useMemo(
+    () => summarizeView(visible, months, board?.paid ?? [], filters.q, today, filtered),
+    [visible, months, board?.paid, filters.q, today, filtered]
+  );
+  const renewals = useMemo(
+    () => renewalsInView(board?.renewals ?? [], months, overdueView, filters.q, today),
+    [board?.renewals, months, overdueView, filters.q, today]
+  );
+  const periodLabel = overdueView ? "overdue months" : periodLabelFor(months);
+  const firstMonth = months.filter((month) => month !== "unscheduled").sort()[0] ?? "";
+  const years = useMemo(() => {
+    const current = parseToday(today).getFullYear();
+    const set = new Set<number>([pick.year]);
+    for (let year = current - 3; year <= current + 2; year += 1) set.add(year);
+    for (const card of board?.cards ?? []) {
+      const year = Number(card.monthKey.slice(0, 4));
+      if (Number.isInteger(year) && year > 2000) set.add(year);
+    }
+    return [...set].sort((a, b) => a - b);
+  }, [today, pick.year, board?.cards]);
   const filtersActive =
     filters.q.trim() !== "" ||
     filters.status === "overdue" ||
@@ -91,6 +139,7 @@ export function BusinessCanvasPage() {
     setPreset("this-month");
     setCustomFrom("");
     setCustomTo("");
+    setPick(periodPickFor(today));
   };
 
   const mutate = async (action: () => Promise<CanvasBoard>) => {
@@ -104,24 +153,26 @@ export function BusinessCanvasPage() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1.5">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 space-y-1">
           <div className="h-1 w-10 rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500" />
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Business Canvas</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Money to collect by month. Tap any total to see exactly what is counted.
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <GstHighlight exclusive={viewTotal.exclusive} inclusive={viewTotal.inclusive} />
-          <Button
-            type="button"
-            onClick={() => {
-              setSelected(null);
-              setDraft({ customerId: "", expectedDate: "" });
-            }}
-          >
-            Add expected receipt
-          </Button>
-        </div>
+        <Button
+          type="button"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setSelected(null);
+            setDraft({ customerId: "", expectedDate: "" });
+          }}
+        >
+          <Plus className="size-4" />
+          Add expected receipt
+        </Button>
       </div>
 
       {error ? (
@@ -137,6 +188,8 @@ export function BusinessCanvasPage() {
         overdue={filters.status === "overdue"}
         customFrom={customFrom}
         customTo={customTo}
+        pick={pick}
+        years={years}
         showClear={filtersActive}
         onQuery={(value) => setFilters((current) => ({ ...current, q: value }))}
         onMonth={(value) => {
@@ -149,8 +202,36 @@ export function BusinessCanvasPage() {
         }}
         onCustomFrom={setCustomFrom}
         onCustomTo={setCustomTo}
+        onPick={setPick}
         onClear={clearFilters}
       />
+
+      {board && !loading ? (
+        <>
+          <CanvasSummary
+            summary={summary}
+            renewals={renewals}
+            today={today}
+            periodLabel={periodLabel}
+            showCarried={!overdueView}
+            onOpen={setBreakdown}
+          />
+          <CanvasBreakdownDialog
+            kind={breakdown}
+            summary={summary}
+            renewals={renewals}
+            periodLabel={periodLabel}
+            firstMonth={firstMonth}
+            today={today}
+            onClose={() => setBreakdown(null)}
+            onOpenCard={(card) => {
+              setBreakdown(null);
+              setDraft(null);
+              setSelected(card);
+            }}
+          />
+        </>
+      ) : null}
 
       {loading || !board ? (
         <div className="rounded-2xl border px-4 py-10 text-sm text-muted-foreground">
@@ -196,8 +277,26 @@ export function BusinessCanvasPage() {
             setDraft(null);
           }}
           onBoard={setBoard}
+          onMarkPaid={(card) => {
+            setSelected(null);
+            setDraft(null);
+            setPaying(card);
+          }}
         />
       ) : null}
+
+      <MarkReceiptPaidDialog
+        card={paying}
+        today={today}
+        onOpenChange={(open) => {
+          if (!open) setPaying(null);
+        }}
+        onBoard={(next) => {
+          setBoard(next);
+          setNotice("");
+          setError("");
+        }}
+      />
     </div>
   );
 }

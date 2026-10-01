@@ -116,7 +116,12 @@ export function CustomersPage() {
         </p>
       )}
 
-      <CustomerStatsCards customers={customersWithMetrics} stages={stages} />
+      <CustomerStatsCards
+        customers={customersWithMetrics}
+        stages={stages}
+        deals={deals}
+        components={components}
+      />
 
       <CustomerSearchFilters
         query={query}

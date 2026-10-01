@@ -6,6 +6,7 @@ import {
   thisQuarterPeriod,
 } from "@/shared/utils/period-label";
 import type { DashboardSummaryDto } from "@/features/dashboard/api/dashboard.dto";
+import { DEFAULT_RENEWAL_FILTER, filterRenewals } from "@/features/dashboard/utils/renewal-filter";
 import type {
   DashboardActivity,
   DashboardKpi,
@@ -66,102 +67,94 @@ export function getFounderInsight(
   return summary.insight;
 }
 
+const trendCopy = (pct: number): Pick<DashboardKpi, "trend" | "trendDirection"> => ({
+  trend: pct === 0 ? "Flat vs last month" : `${pct > 0 ? "+" : ""}${pct}% vs last month`,
+  trendDirection: pct > 0 ? "up" : pct < 0 ? "down" : "neutral",
+});
+
 export function getDashboardKpis(
   summary: DashboardSummaryDto | null
 ): DashboardKpi[] {
-  if (!summary) {
-    return [
-      {
-        id: "revenue",
-        label: "Revenue This Month",
-        value: "—",
-        trend: "Loading…",
-        trendDirection: "neutral",
-        href: "/revenue?tab=invoices",
-        period: thisMonthPeriod(),
-      },
-      {
-        id: "collections",
-        label: "Outstanding Collections",
-        value: "—",
-        trend: "Loading…",
-        trendDirection: "neutral",
-        href: "/revenue?tab=collections",
-        period: ALL_TIME,
-      },
-      {
-        id: "renewals",
-        label: "Upcoming Renewals",
-        value: "—",
-        trend: "Loading…",
-        trendDirection: "neutral",
-        href: "/revenue?tab=renewals",
-        period: thisQuarterPeriod(),
-      },
-      {
-        id: "renewed",
-        label: "Customers Renewed",
-        value: "—",
-        trend: "Loading…",
-        trendDirection: "neutral",
-        href: "/revenue?tab=renewals",
-        period: thisQuarterPeriod(),
-      },
-    ];
-  }
-
-  const trendPct = summary.revenueTrendPct;
-  const revenueTrend =
-    trendPct === 0
-      ? "Flat vs last month"
-      : `${trendPct > 0 ? "+" : ""}${trendPct}% vs last month`;
+  const loading = !summary;
+  const received = summary?.received;
+  const invoiced = summary?.invoiced;
+  const renewals = summary?.renewalsAll ?? [];
+  const nextMonth = filterRenewals(renewals, DEFAULT_RENEWAL_FILTER);
+  const overdueRenewals = filterRenewals(renewals, "overdue").length;
+  const loadingCopy = { trend: "Loading…", trendDirection: "neutral" as const };
 
   return [
     {
-      id: "revenue",
-      label: "Revenue This Month",
-      value: formatInvoiceCurrency(summary.revenueThisMonth),
-      trend: revenueTrend,
-      trendDirection: trendPct > 0 ? "up" : trendPct < 0 ? "down" : "neutral",
+      id: "received",
+      label: "Received This Month",
+      value: loading ? "—" : formatInvoiceCurrency(received?.thisMonth ?? 0),
+      ...(loading ? loadingCopy : trendCopy(received?.trendPct ?? 0)),
+      href: "/revenue?tab=collections",
+      period: thisMonthPeriod(),
+    },
+    {
+      id: "invoiced",
+      label: "Invoiced This Month",
+      value: loading ? "—" : formatInvoiceCurrency(invoiced?.thisMonth ?? 0),
+      ...(loading ? loadingCopy : trendCopy(invoiced?.trendPct ?? 0)),
       href: "/revenue?tab=invoices",
       period: thisMonthPeriod(),
     },
     {
       id: "collections",
       label: "Outstanding Collections",
-      value: formatInvoiceCurrency(summary.outstandingCollections),
-      trend:
-        summary.pendingInvoiceCount === 0
-          ? "All clear"
-          : `${summary.pendingInvoiceCount} invoice${summary.pendingInvoiceCount === 1 ? "" : "s"} pending`,
-      trendDirection: "neutral",
+      value: summary ? formatInvoiceCurrency(summary.outstandingCollections) : "—",
+      ...(!summary
+        ? loadingCopy
+        : {
+            trend:
+              summary.pendingInvoiceCount === 0
+                ? "All clear"
+                : `${summary.pendingInvoiceCount} invoice${summary.pendingInvoiceCount === 1 ? "" : "s"} pending`,
+            trendDirection: "neutral" as const,
+          }),
       href: "/revenue?tab=collections",
       period: ALL_TIME,
     },
     {
       id: "renewals",
-      label: "Upcoming Renewals",
-      value: String(summary.upcomingRenewals),
-      trend:
-        summary.upcomingRenewals > 0 ? "Due this quarter" : "None scheduled",
-      trendDirection: summary.upcomingRenewals > 0 ? "down" : "neutral",
+      label: "Renewals Next Month",
+      value: loading ? "—" : String(nextMonth.length),
+      ...(loading
+        ? loadingCopy
+        : {
+            trend:
+              overdueRenewals > 0
+                ? `${overdueRenewals} overdue · tap to filter`
+                : `${formatInvoiceCurrency(nextMonth.reduce((sum, item) => sum + item.amount, 0))} due`,
+            trendDirection: overdueRenewals > 0 ? ("down" as const) : ("neutral" as const),
+          }),
       href: "/revenue?tab=renewals",
-      period: thisQuarterPeriod(),
+      period: nextMonthPeriod(),
     },
     {
       id: "renewed",
       label: "Customers Renewed",
-      value: String(summary.renewedCustomersThisQuarter),
-      trend:
-        summary.renewedCustomersThisQuarter > 0
-          ? "This quarter"
-          : "None this quarter",
-      trendDirection: summary.renewedCustomersThisQuarter > 0 ? "up" : "neutral",
+      value: summary ? String(summary.renewedCustomersThisQuarter) : "—",
+      ...(!summary
+        ? loadingCopy
+        : {
+            trend: summary.renewedCustomersThisQuarter > 0 ? "This quarter" : "None this quarter",
+            trendDirection: summary.renewedCustomersThisQuarter > 0 ? ("up" as const) : ("neutral" as const),
+          }),
       href: "/revenue?tab=renewals",
       period: thisQuarterPeriod(),
     },
   ];
 }
+
+const nextMonthPeriod = (): string => {
+  const now = new Date();
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(
+    new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  );
+};
+
 
 export function getPendingCollectionsTop5(summary: DashboardSummaryDto | null) {
   if (!summary) return [];
@@ -246,8 +239,7 @@ export function formatActivityTime(timestamp: string): string {
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays} days ago`;
 
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-  }).format(date);
+  return formatDate(
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+  );
 }

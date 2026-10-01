@@ -1,7 +1,11 @@
 import { Calendar } from "lucide-react";
 import { useEffect, useId, useState, type ComponentProps, type ChangeEvent } from "react";
 import { cn } from "@/shared/utils";
-import { displayDateToIso, isoToDisplayDate } from "@/shared/utils/format-date";
+import {
+  dateInputPlaceholder,
+  displayDateToIso,
+  isoToDisplayDate,
+} from "@/shared/utils/format-date";
 import { inputClassName } from "@/shared/ui/input-styles";
 
 type DateInputProps = Omit<ComponentProps<"input">, "type">;
@@ -64,7 +68,7 @@ export function DateInput({
         type="text"
         inputMode="text"
         autoComplete="off"
-        placeholder="DD/MM/YYYY"
+        placeholder={dateInputPlaceholder()}
         value={text}
         required={required}
         disabled={disabled}
@@ -101,13 +105,22 @@ export function DateInput({
             min={typeof min === "string" ? min : undefined}
             max={typeof max === "string" ? max : undefined}
             disabled={disabled}
+            onClick={(event) => {
+              // Desktop Chrome opens the picker only from its own icon, which is clipped
+              // in this narrow overlay, so a plain click would otherwise do nothing.
+              try {
+                event.currentTarget.showPicker?.();
+              } catch {
+                // Browsers without showPicker fall back to their default behaviour.
+              }
+            }}
             onChange={(event) => {
               const iso = event.target.value;
               setText(isoToDisplayDate(iso));
               setInvalid(false);
               emitChange(onChange, iso, name, fieldId);
             }}
-            className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 cursor-pointer opacity-0"
+            className="absolute right-0.5 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer opacity-0"
           />
         </>
       )}

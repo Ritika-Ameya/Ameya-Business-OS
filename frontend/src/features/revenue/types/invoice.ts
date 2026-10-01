@@ -13,6 +13,17 @@ export interface InvoiceTimelineEntry {
   timestamp: string;
 }
 
+export type InvoiceBillingType = "gst" | "non_gst";
+
+export interface InvoiceLineItem {
+  componentId: string;
+  name: string;
+  taxable: number;
+  gstPercent: number;
+  gstAmount: number;
+  total: number;
+}
+
 export interface Invoice {
   id: string;
   invoiceNo: string;
@@ -27,6 +38,12 @@ export interface Invoice {
   dueDate: string;
   status: InvoiceStatus;
   gstPercent: number;
+  billingType: InvoiceBillingType;
+  /** Amount before GST. */
+  subtotal: number;
+  tax: number;
+  /** Empty on invoices created before billed lines were saved. */
+  lineItems: InvoiceLineItem[];
   componentIds: string[];
   notes?: string;
   timeline?: InvoiceTimelineEntry[];
@@ -44,12 +61,14 @@ export interface InvoiceFilters {
   status: InvoiceStatusFilter;
   customer: string;
   date: InvoiceDateFilter;
+  billingType: "all" | InvoiceBillingType;
 }
 
 export interface GenerateInvoiceContext {
   customerId: string;
   customerName: string;
-  dealId: string;
-  dealTitle: string;
+  /** When set, the deal field is locked. Omit it to let the user pick this customer's deal. */
+  dealId?: string;
+  dealTitle?: string;
   componentIds?: string[];
 }

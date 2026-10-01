@@ -27,6 +27,7 @@ import {
   componentRenewalFrequencyLabels,
   componentStatusLabels,
   computeComponentCostSummary,
+  computeComponentTaxable,
   formatComponentCurrency,
   formatComponentDate,
   getComponentCurrentDueDate,
@@ -93,6 +94,12 @@ export function AddComponentDialog({
     form.renewalFrequency === "biennial" ||
     form.renewalFrequency === "custom";
   const costSummary = computeComponentCostSummary(form);
+  const taxableAmount = computeComponentTaxable({
+    amount: parseAmount(form.amount),
+    quantity: parseAmount(form.quantity) || 1,
+    discount: parseAmount(form.discount),
+  });
+  const gstAmount = Math.round((costSummary.cycleTotal - taxableAmount) * 100) / 100;
   const unpaidCycleDate = form.renewalDate || getComponentCurrentDueDate({
     renewalStartDate: form.renewalStartDate,
     renewalDate: form.renewalDate,
@@ -419,6 +426,11 @@ export function AddComponentDialog({
             {parseAmount(form.amount) > 0 && (
               <div className="space-y-2 rounded-xl border border-border/70 bg-muted/40 px-3 py-3 sm:col-span-2">
                 <p className="text-xs font-medium text-muted-foreground">Calculated cost</p>
+                <p className="text-xs text-muted-foreground">
+                  {gstAmount > 0.009
+                    ? `${formatComponentCurrency(taxableAmount)} + GST ${parseAmount(form.gstPercent)}% ${formatComponentCurrency(gstAmount)}`
+                    : "No GST on this amount"}
+                </p>
                 {billingPeriod === "one-time" ? (
                   <div className="flex items-center justify-between">
                     <p className="text-sm">One-time cost (incl. GST)</p>
