@@ -113,6 +113,11 @@ export interface RevenueReportStats {
   receivedOtherAccount: number;
   /** GST charged on GST invoices; not income, it is owed to the government. */
   gstBilled: number;
+  /** Actual payments received from 1 April through 31 March. Not invoice totals. */
+  financialYearCollection: number;
+  financialYearLabel: string;
+  financialYearInnovex: number;
+  financialYearRitika: number;
 }
 
 export interface ExpenseReportStats {

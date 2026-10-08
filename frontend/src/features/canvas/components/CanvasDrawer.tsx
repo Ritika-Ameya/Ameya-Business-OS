@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
+import { DateInput } from "@/shared/ui/date-input";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import {
@@ -98,6 +99,12 @@ export function CanvasDrawer({
   const selectedDeal = board.deals.find((deal) => deal.id === (dealId || card?.dealId));
   const dealComponents = selectedDeal?.components ?? [];
   const account = board.accounts.find((item) => item.id === (customerId || card?.customerId));
+  const international = Boolean(account?.internationalClient);
+
+  useEffect(() => {
+    if (!(creating || card?.kind === "account")) return;
+    if (international) setGstRate(0);
+  }, [card?.kind, creating, international]);
   const baseValue = Number(amount);
   const gstValue =
     gstRate === 18 && Number.isFinite(baseValue) ? Math.round(((baseValue * 18) / 100) * 100) / 100 : 0;
@@ -206,7 +213,7 @@ export function CanvasDrawer({
       ) : null}
       {open ? (
       <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l bg-background shadow-xl"
+        className="fixed inset-y-0 right-0 z-50 flex w-full min-w-0 max-w-md flex-col overflow-x-hidden border-l bg-background shadow-xl"
       >
         <div className="flex items-start justify-between gap-3 border-b px-4 py-4">
           <div>
@@ -222,7 +229,7 @@ export function CanvasDrawer({
           </Button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <div className="min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4">
           {error ? (
             <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm">
               {error}
@@ -254,7 +261,13 @@ export function CanvasDrawer({
           ) : null}
 
           <Field label="GST">
-            <div role="radiogroup" className="grid grid-cols-2 gap-2">
+            {international ? (
+              <p className="text-xs text-muted-foreground">
+                International client. GST does not apply. This collection is counted under Ameya
+                Innovex, not Ritika.
+              </p>
+            ) : null}
+            <div role="radiogroup" className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
               {(
                 [
                   { value: 18 as const, label: "18% GST", hint: "Added on the base amount" },
@@ -262,15 +275,19 @@ export function CanvasDrawer({
                 ] as const
               ).map((option) => {
                 const selected = gstRate === option.value;
+                const locked = international && option.value === 18;
                 return (
                   <button
                     key={option.value}
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    onClick={() => setGstRate(option.value)}
+                    disabled={locked}
+                    onClick={() => {
+                      if (!locked) setGstRate(option.value);
+                    }}
                     className={cn(
-                      "rounded-xl border px-3 py-2 text-left transition-colors",
+                      "rounded-xl border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                       selected
                         ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                         : "border-border hover:bg-muted/50"
@@ -283,7 +300,7 @@ export function CanvasDrawer({
               })}
             </div>
           </Field>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
             <Field label="Base amount">
               <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
             </Field>
@@ -317,7 +334,11 @@ export function CanvasDrawer({
             </p>
           ) : null}
           <Field label="Expected date">
-            <Input type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} />
+            <DateInput
+              className="w-full min-w-0"
+              value={expectedDate}
+              onChange={(event) => setExpectedDate(event.target.value)}
+            />
           </Field>
           <Field label="Source">
             <Select value={sourceType} onValueChange={(value) => setSourceType(value as ReceiptSourceType)}>
@@ -449,7 +470,7 @@ export function CanvasDrawer({
               <p className="text-sm font-medium">Split into installments</p>
               <p className="text-xs text-muted-foreground">Each amount is with GST.</p>
               {parts.map((part, index) => (
-                <div key={index} className="grid grid-cols-2 gap-2">
+                <div key={index} className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
                   <Input
                     inputMode="decimal"
                     placeholder="Amount"
@@ -462,8 +483,9 @@ export function CanvasDrawer({
                       )
                     }
                   />
-                  <Input
-                    type="date"
+                  <DateInput
+                    className="w-full min-w-0"
+                    aria-label={`Installment ${index + 1} date`}
                     value={part.expectedDate}
                     onChange={(event) =>
                       setParts((current) =>

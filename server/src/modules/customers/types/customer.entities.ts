@@ -21,6 +21,8 @@ export interface CustomerEntity extends CustomerEntityBase {
   currentStageId: string;
   companyName: string;
   gstin: string;
+  /** Explicit flag. Blank/missing sheet cells stay false — never inferred from country. */
+  internationalClient: boolean;
   vatId: string;
   licenseNo: string;
   industryId: string;

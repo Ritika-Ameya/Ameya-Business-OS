@@ -188,7 +188,39 @@ export const mapLegacyDealFrequency = (
   }
 };
 
-/** Resolve next date for persistence on create/update. */
+/**
+ * Move only the current unpaid cycle when Business Canvas changes an expected date.
+ * Last paid cycle is never rewritten. A date on or before the last paid cycle is refused
+ * so roll-forward and undo stay valid.
+ * The first unpaid cycle (nothing paid yet, due date still the start date) moves the
+ * start date with it, because that start date is the due date.
+ */
+export const alignComponentDueDatePatch = (
+  component: {
+    renewalFrequency?: string | null;
+    renewalStartDate?: string;
+    renewalDate?: string;
+    lastRenewedDate?: string;
+  },
+  nextDate: string,
+): { renewalDate: string; renewalStartDate?: string } | null => {
+  if (!hasRenewalFrequency(component.renewalFrequency)) return null;
+  const next = nextDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) return null;
+
+  const currentDue = getComponentCurrentDueDate(component).slice(0, 10);
+  if (!currentDue || currentDue === next) return null;
+
+  const lastPaid = (component.lastRenewedDate || '').slice(0, 10);
+  if (lastPaid && next <= lastPaid) return null;
+
+  const start = (component.renewalStartDate || '').slice(0, 10);
+  if (!lastPaid && start && currentDue === start) {
+    return { renewalDate: next, renewalStartDate: next };
+  }
+  return { renewalDate: next };
+};
+
 export const resolveComponentRenewalDate = (input: {
   renewalFrequency: ComponentRenewalFrequency;
   renewalStartDate: string;

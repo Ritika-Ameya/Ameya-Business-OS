@@ -95,18 +95,21 @@ export function CanvasBreakdownDialog({
 }) {
   const header = kind ? HEADERS[kind] : null;
   const toCollect = sum([summary.expected.amount, summary.carried.amount]);
+  const innovex = sum([summary.expected.innovex, summary.carried.innovex]);
+  const ritika = sum([summary.expected.ritika, summary.carried.ritika]);
+  const accountSplit = `Ameya Innovex ${formatCurrency(innovex)} · Ritika (Non-GST) ${formatCurrency(ritika)}.`;
 
   const description: Record<BreakdownKind, string> = {
     outstanding: `Everything still to collect for ${periodLabel}: ${formatCurrency(toCollect)} across ${
       summary.expected.count + summary.carried.count
-    } receipts.`,
+    } receipts. ${accountSplit}`,
     expected: `${summary.expected.count} unpaid ${
       summary.expected.count === 1 ? "receipt" : "receipts"
-    } dated in ${periodLabel}.`,
+    } dated in ${periodLabel}. Ameya Innovex ${formatCurrency(summary.expected.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.expected.ritika)}.`,
     carried: `${summary.carried.count} unpaid ${
       summary.carried.count === 1 ? "receipt" : "receipts"
-    } from before ${firstMonth ? formatMonthLabel(firstMonth) : "this period"}, still waiting to be paid.`,
-    paid: `${summary.paid.count} ${summary.paid.count === 1 ? "payment" : "payments"} received in ${periodLabel}.`,
+    } from before ${firstMonth ? formatMonthLabel(firstMonth) : "this period"}, still waiting to be paid. Ameya Innovex ${formatCurrency(summary.carried.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.carried.ritika)}.`,
+    paid: `${summary.paid.count} ${summary.paid.count === 1 ? "payment" : "payments"} received in ${periodLabel}. Ameya Innovex ${formatCurrency(summary.paid.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.paid.ritika)}.`,
     renewals: `${renewals.length} ${renewals.length === 1 ? "plan renews" : "plans renew"} in or before ${periodLabel}.`,
   };
 

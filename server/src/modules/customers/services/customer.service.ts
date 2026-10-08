@@ -211,6 +211,7 @@ export class CustomerService extends BaseService {
       currentStageId: defaultStage.id,
       companyName: input.companyName.trim(),
       gstin: input.gstin.trim().toUpperCase(),
+      internationalClient: input.internationalClient,
       vatId: input.vatId.trim(),
       licenseNo: input.licenseNo.trim(),
       industryId: input.industryId,

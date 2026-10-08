@@ -14,6 +14,10 @@ import {
   isCollectionInvoice,
 } from '../../revenue/utils/invoiceCalculation.util';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
+import {
+  collectionAccountForExpected,
+  collectionAccountForPayment,
+} from '../../revenue/utils/collectionAccount.util';
 import type {
   CanvasCard,
   CanvasPaidEntry,
@@ -272,6 +276,11 @@ export const buildCanvasCards = (input: {
       origin: receipt.origin,
       installmentIndex: receipt.installmentIndex || 1,
       currency: receipt.currency || invoice?.currency || 'INR',
+      collectionAccount: collectionAccountForExpected({
+        internationalClient: Boolean(customer?.internationalClient),
+        gstPercent: gst.gstPercent,
+        billingType: invoice?.billingType,
+      }),
     });
   }
 
@@ -314,6 +323,11 @@ export const buildCanvasCards = (input: {
       origin: 'suggestion',
       installmentIndex: 1,
       currency: invoice.currency || 'INR',
+      collectionAccount: collectionAccountForExpected({
+        internationalClient: Boolean(customer?.internationalClient),
+        gstPercent: Number(invoice.taxPercent) || 0,
+        billingType: invoice.billingType,
+      }),
     });
   }
 
@@ -357,6 +371,10 @@ export const buildCanvasCards = (input: {
       origin: 'suggestion',
       installmentIndex: 1,
       currency: deal.currency || 'INR',
+      collectionAccount: collectionAccountForExpected({
+        internationalClient: Boolean(customer?.internationalClient),
+        gstPercent: Number(component.gstPercent) || 0,
+      }),
     });
   }
 
@@ -397,6 +415,7 @@ export const buildCanvasCards = (input: {
       origin: 'account',
       installmentIndex: 0,
       currency: 'INR',
+      collectionAccount: 'ritika',
     });
   }
 
@@ -489,9 +508,9 @@ export const buildPaidEntries = (input: {
   const invoiceById = new Map(input.invoices.map((invoice) => [invoice.id, invoice]));
   const entries: CanvasPaidEntry[] = [];
   for (const payment of input.payments) {
-    if (payment.status !== 'received') continue;
+    if (payment.status !== 'received' || payment.isDeleted) continue;
     const invoice = invoiceById.get(payment.invoiceId);
-    if (!invoice) continue;
+    if (!invoice || invoice.status === 'cancelled') continue;
     const paidAt = (payment.paidAt || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) continue;
     const customerId = payment.customerId || invoice.customerId;
@@ -503,6 +522,11 @@ export const buildPaidEntries = (input: {
       companyName: companyNameOf(customerById.get(customerId), invoice.customerName),
       amount: roundMoney(Number(payment.amount) || 0),
       paidAt,
+      collectionAccount: collectionAccountForPayment({
+        internationalClient: Boolean(customerById.get(customerId)?.internationalClient),
+        receivedAccount: payment.receivedAccount || '',
+        billingType: invoice.billingType,
+      }),
     });
   }
   return entries;

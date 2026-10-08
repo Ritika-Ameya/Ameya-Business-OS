@@ -106,6 +106,11 @@ export class InvoiceService extends BaseService {
     }
 
     const billingType = resolveBillingType(input.billingType, input.taxPercent);
+    if (customer.internationalClient && billingType === 'gst') {
+      throw new ValidationError(
+        'International clients are not billed with GST. Choose Non-GST. Collections still count in the Ameya Innovex account.',
+      );
+    }
     const isNonGst = billingType === 'non_gst';
     const fromComponents = await this.amountsFromSelectedComponents(
       input.componentIds,
@@ -182,6 +187,16 @@ export class InvoiceService extends BaseService {
 
     const billingType = input.billingType ?? existing.billingType;
     const billingChanged = billingType !== existing.billingType;
+    if (billingChanged && billingType === 'gst') {
+      const billedCustomer = await customerRepository.findById(
+        input.customerId ?? existing.customerId,
+      );
+      if (billedCustomer?.internationalClient) {
+        throw new ValidationError(
+          'International clients are not billed with GST. Collections still count in the Ameya Innovex account.',
+        );
+      }
+    }
     const billingChangeReason = (input.billingChangeReason ?? '').trim();
     if (billingChanged && normalizeInvoiceStatus(existing.status) === 'cancelled') {
       throw new ValidationError('Cancelled invoices cannot change GST');

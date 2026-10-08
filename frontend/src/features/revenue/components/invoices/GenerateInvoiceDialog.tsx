@@ -135,11 +135,14 @@ export function GenerateInvoiceDialog({
     return latest?.billingType ?? null;
   }, [invoices, customerId]);
 
-  const billingDefaultKey = open ? `${customerId}:${lastBillingType ?? "gst"}` : "";
+  const internationalClient = Boolean(selectedCustomer?.internationalClient);
+  const billingDefaultKey = open
+    ? `${customerId}:${internationalClient ? "international" : "domestic"}:${lastBillingType ?? "gst"}`
+    : "";
   const [appliedBillingDefaultKey, setAppliedBillingDefaultKey] = useState("");
   if (billingDefaultKey !== appliedBillingDefaultKey) {
     setAppliedBillingDefaultKey(billingDefaultKey);
-    if (open) setBillingType(lastBillingType ?? "gst");
+    if (open) setBillingType(internationalClient ? "non_gst" : (lastBillingType ?? "gst"));
   }
 
   const isNonGst = billingType === "non_gst";
@@ -544,9 +547,15 @@ export function GenerateInvoiceDialog({
 
               <div className="space-y-2">
                 <Label>GST on this invoice</Label>
-                <BillingTypeToggle value={billingType} onChange={setBillingType} />
+                <BillingTypeToggle
+                  value={internationalClient ? "non_gst" : billingType}
+                  onChange={setBillingType}
+                  disabled={internationalClient}
+                />
                 <p className="text-xs text-muted-foreground">
-                  {lastBillingType
+                  {internationalClient
+                    ? "International client. GST does not apply. The collection still counts under the Ameya Innovex account."
+                    : lastBillingType
                     ? `Suggested from this customer's last invoice (${
                         lastBillingType === "gst" ? "with GST" : "without GST"
                       }). Change it if this bill is different.`

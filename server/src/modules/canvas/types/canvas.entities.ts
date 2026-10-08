@@ -78,6 +78,8 @@ export interface CanvasCard {
   origin: ReceiptOrigin | 'suggestion' | 'account';
   installmentIndex: number;
   currency: string;
+  /** Display bucket only. Does not change the stored invoice or payment. */
+  collectionAccount: 'innovex' | 'ritika';
 }
 
 export interface CanvasAccountOption {
@@ -85,6 +87,7 @@ export interface CanvasAccountOption {
   companyName: string;
   recordType: 'opportunity' | 'customer';
   temperature: LeadTemperatureValue | '';
+  internationalClient: boolean;
 }
 
 export interface CanvasDealComponentOption {
@@ -132,6 +135,8 @@ export interface CanvasPaidEntry {
   companyName: string;
   amount: number;
   paidAt: string;
+  /** Display bucket only. Does not change the stored payment account. */
+  collectionAccount: 'innovex' | 'ritika';
 }
 
 export interface CanvasBoardPayload {

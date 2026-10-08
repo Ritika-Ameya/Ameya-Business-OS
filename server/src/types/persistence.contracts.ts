@@ -47,6 +47,7 @@ export const CUSTOMERS_CONTRACT: PersistenceContract = {
     'currentStageId',
     'companyName',
     'gstin',
+    'internationalClient',
     'vatId',
     'licenseNo',
     'industryId',

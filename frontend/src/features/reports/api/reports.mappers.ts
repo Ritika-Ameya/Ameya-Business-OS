@@ -112,6 +112,10 @@ export function formatRevenueReportStats(stats: {
   receivedGstAccount?: number;
   receivedOtherAccount?: number;
   gstBilled?: number;
+  financialYearCollection?: number;
+  financialYearLabel?: string;
+  financialYearInnovex?: number;
+  financialYearRitika?: number;
 }) {
   return {
     totalRevenue: formatInvoiceCurrency(stats.totalRevenue),
@@ -121,6 +125,10 @@ export function formatRevenueReportStats(stats: {
     receivedGstAccount: formatInvoiceCurrency(stats.receivedGstAccount ?? 0),
     receivedOtherAccount: formatInvoiceCurrency(stats.receivedOtherAccount ?? 0),
     gstBilled: formatInvoiceCurrency(stats.gstBilled ?? 0),
+    financialYearCollection: formatInvoiceCurrency(stats.financialYearCollection ?? 0),
+    financialYearLabel: stats.financialYearLabel || "Current financial year",
+    financialYearInnovex: formatInvoiceCurrency(stats.financialYearInnovex ?? 0),
+    financialYearRitika: formatInvoiceCurrency(stats.financialYearRitika ?? 0),
   };
 }
 

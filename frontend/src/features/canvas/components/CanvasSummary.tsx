@@ -43,8 +43,8 @@ function Tile({
       <span className="relative mt-2 block truncate text-lg font-bold tabular-nums leading-tight sm:text-xl">
         {formatCurrency(amount)}
       </span>
-      <span className="relative mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <span className="truncate">{detail}</span>
+      <span className="relative mt-0.5 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
+        <span className="line-clamp-2 whitespace-normal">{detail}</span>
         {badge}
       </span>
     </button>
@@ -70,6 +70,8 @@ export function CanvasSummary({
 }) {
   const toCollect = summary.expected.amount + summary.carried.amount;
   const toCollectExGst = summary.expected.exGst + summary.carried.exGst;
+  const innovex = summary.expected.innovex + summary.carried.innovex;
+  const ritika = summary.expected.ritika + summary.carried.ritika;
   const dueSoon = renewals.filter((item) => isRenewalDueSoon(item, today)).length;
 
   return (
@@ -91,11 +93,15 @@ export function CanvasSummary({
         <span className="relative mt-1.5 block text-2xl font-bold tabular-nums tracking-tight sm:text-3xl">
           {formatCurrency(toCollect)}
         </span>
-        <span className="relative mt-0.5 block text-xs text-white/80">
-          {Math.abs(toCollect - toCollectExGst) > 0.009
-            ? `${formatCurrency(toCollectExGst)} + GST ${formatCurrency(toCollect - toCollectExGst)} · `
-            : "No GST · "}
-          {items(summary.expected.count + summary.carried.count, "receipt", "receipts")}
+        <span className="relative mt-1 block space-y-0.5 text-xs leading-snug text-white/85">
+          <span className="block">Ameya Innovex {formatCurrency(innovex)}</span>
+          <span className="block">Ritika (Non-GST) {formatCurrency(ritika)}</span>
+          <span className="block text-white/70">
+            {Math.abs(toCollect - toCollectExGst) > 0.009
+              ? `${formatCurrency(toCollectExGst)} + GST ${formatCurrency(toCollect - toCollectExGst)} · `
+              : "No GST · "}
+            {items(summary.expected.count + summary.carried.count, "receipt", "receipts")}
+          </span>
         </span>
       </button>
 
@@ -121,7 +127,7 @@ export function CanvasSummary({
         icon={<CheckCircle2 className="size-4" />}
         label="Paid"
         amount={summary.paid.amount}
-        detail={items(summary.paid.count, "payment", "payments")}
+        detail={`${items(summary.paid.count, "payment", "payments")} · Innovex ${formatCurrency(summary.paid.innovex)} · Ritika ${formatCurrency(summary.paid.ritika)}`}
         tone={{ ring: "border-emerald-500/25 focus-visible:ring-emerald-400", icon: "bg-emerald-500/15 text-emerald-600", glow: "bg-emerald-400/20" }}
         onClick={() => onOpen("paid")}
       />

@@ -78,6 +78,10 @@ export interface RevenueReportStatsDto {
   receivedGstAccount?: number;
   receivedOtherAccount?: number;
   gstBilled?: number;
+  financialYearCollection?: number;
+  financialYearLabel?: string;
+  financialYearInnovex?: number;
+  financialYearRitika?: number;
 }
 
 export interface ExpenseReportStatsDto {

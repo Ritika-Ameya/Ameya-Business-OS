@@ -33,6 +33,7 @@ const emptyForm: CustomerFormData = {
   phone: "",
   email: "",
   gst: "",
+  internationalClient: false,
   vatId: "",
   licenseNo: "",
   billingAddress: "",
@@ -49,6 +50,7 @@ function formFromCustomer(customer?: Customer): CustomerFormData {
     phone: customer.phone,
     email: customer.email,
     gst: customer.gst ?? "",
+    internationalClient: Boolean(customer.internationalClient),
     vatId: customer.vatId ?? "",
     licenseNo: customer.licenseNo ?? "",
     billingAddress: customer.billingAddress ?? customer.address ?? "",
@@ -353,6 +355,30 @@ export function AddCustomerDialog({
                   {errors.email}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="international-client">International client</Label>
+              <Select
+                value={form.internationalClient ? "yes" : "no"}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, internationalClient: value === "yes" }))
+                }
+                disabled={saving}
+              >
+                <SelectTrigger id="international-client" className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="yes">Yes</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {form.internationalClient
+                  ? "GST does not apply. Collections count under the Ameya Innovex account, not Ritika."
+                  : "Domestic clients keep the existing GST or non-GST billing."}
+              </p>
             </div>
 
             <div className="space-y-2">

@@ -45,6 +45,10 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
             receivedGstAccount: "—",
             receivedOtherAccount: "—",
             gstBilled: "—",
+            financialYearCollection: "—",
+            financialYearLabel: "Current financial year",
+            financialYearInnovex: "—",
+            financialYearRitika: "—",
           },
     [data]
   );
@@ -90,20 +94,44 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
-          label="Received · GST account"
+          label="Total Collection"
+          value={stats.financialYearCollection}
+          icon={<CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />}
+          accent="bg-emerald-500/10"
+          period={`${stats.financialYearLabel} · Actual money received, 1 Apr–31 Mar`}
+        />
+        <StatCard
+          label="Ameya Innovex"
+          value={stats.financialYearInnovex}
+          icon={<Receipt className="size-5 text-emerald-600 dark:text-emerald-400" />}
+          accent="bg-emerald-500/10"
+          period="GST account · includes international clients"
+        />
+        <StatCard
+          label="Ritika"
+          value={stats.financialYearRitika}
+          icon={<Receipt className="size-5 text-sky-600 dark:text-sky-400" />}
+          accent="bg-sky-500/10"
+          period="Non-GST account · domestic clients only"
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <StatCard
+          label="Ameya Innovex · this view"
           value={stats.receivedGstAccount}
           icon={<Receipt className="size-5 text-emerald-600 dark:text-emerald-400" />}
           accent="bg-emerald-500/10"
-          period={period}
+          period={`${period} · payments on these invoices`}
         />
         <StatCard
-          label="Received · Other account"
+          label="Ritika · this view"
           value={stats.receivedOtherAccount}
           icon={<Receipt className="size-5 text-sky-600 dark:text-sky-400" />}
           accent="bg-sky-500/10"
-          period={period}
+          period={`${period} · payments on these invoices`}
         />
         <StatCard
           label="GST billed (payable)"
