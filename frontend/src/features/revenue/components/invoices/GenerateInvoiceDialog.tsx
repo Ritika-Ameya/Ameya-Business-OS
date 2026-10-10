@@ -31,9 +31,7 @@ import {
   type InvoiceAddressType,
 } from "@/features/settings/utils/app-config-utils";
 import { computeComponentLineTotal, computeComponentTaxable, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
-import { canvasApi } from "@/features/canvas/api/canvas.api";
-import { SOURCE_LABELS, type ReceiptSourceType } from "@/features/canvas/types/canvas";
-import { composeInvoiceNumber, formatBaseWithGst, formatInvoiceCurrency, formatInvoiceDate } from "@/features/revenue/utils/invoice-utils";
+import { composeInvoiceNumber, formatBaseWithGst, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
 import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
 import { BillingTypeToggle } from "@/features/revenue/components/invoices/BillingTypeToggle";
 import type {
@@ -94,17 +92,6 @@ export function GenerateInvoiceDialog({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [forecasts, setForecasts] = useState<
-    Array<{
-      id: string;
-      reason: string;
-      expectedAmount: number;
-      expectedDate: string;
-      sourceType: ReceiptSourceType;
-    }>
-  >([]);
-  const [selectedForecastIds, setSelectedForecastIds] = useState<string[]>([]);
-  const [forecastOpen, setForecastOpen] = useState(false);
 
   const customerId = context?.customerId ?? selectedCustomerId;
   const dealId = context?.dealId ?? selectedDealId;
@@ -135,11 +122,14 @@ export function GenerateInvoiceDialog({
     return latest?.billingType ?? null;
   }, [invoices, customerId]);
 
-  const billingDefaultKey = open ? `${customerId}:${lastBillingType ?? "gst"}` : "";
+  const internationalClient = Boolean(selectedCustomer?.internationalClient);
+  const billingDefaultKey = open
+    ? `${customerId}:${internationalClient ? "international" : "domestic"}:${lastBillingType ?? "gst"}`
+    : "";
   const [appliedBillingDefaultKey, setAppliedBillingDefaultKey] = useState("");
   if (billingDefaultKey !== appliedBillingDefaultKey) {
     setAppliedBillingDefaultKey(billingDefaultKey);
-    if (open) setBillingType(lastBillingType ?? "gst");
+    if (open) setBillingType(internationalClient ? "non_gst" : (lastBillingType ?? "gst"));
   }
 
   const isNonGst = billingType === "non_gst";
@@ -270,13 +260,6 @@ export function GenerateInvoiceDialog({
     setSaving(true);
     setError(null);
     try {
-      const openForecasts = await canvasApi.listDealForecasts(dealId);
-      if (openForecasts.length > 0) {
-        setForecasts(openForecasts);
-        setSelectedForecastIds([]);
-        setForecastOpen(true);
-        return;
-      }
       const invoice = await createInvoice({
         customerId,
         customerName: context?.customerName ?? selectedCustomer?.name,
@@ -307,13 +290,12 @@ export function GenerateInvoiceDialog({
   };
 
   return (
-    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Generate Invoice</DialogTitle>
           <DialogDescription>
-            Create a new invoice from selected deal components.
+            Create a new invoice from selected deal components. The canvas then shows this invoice, not the old forecast for the same components.
           </DialogDescription>
         </DialogHeader>
 
@@ -544,9 +526,15 @@ export function GenerateInvoiceDialog({
 
               <div className="space-y-2">
                 <Label>GST on this invoice</Label>
-                <BillingTypeToggle value={billingType} onChange={setBillingType} />
+                <BillingTypeToggle
+                  value={internationalClient ? "non_gst" : billingType}
+                  onChange={setBillingType}
+                  disabled={internationalClient}
+                />
                 <p className="text-xs text-muted-foreground">
-                  {lastBillingType
+                  {internationalClient
+                    ? "International client. GST not required. The collection counts in the Ameya Innovex GST account."
+                    : lastBillingType
                     ? `Suggested from this customer's last invoice (${
                         lastBillingType === "gst" ? "with GST" : "without GST"
                       }). Change it if this bill is different.`
@@ -643,118 +631,5 @@ export function GenerateInvoiceDialog({
         </form>
       </DialogContent>
     </Dialog>
-
-    <Dialog open={forecastOpen} onOpenChange={setForecastOpen}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Remove the old forecast</DialogTitle>
-          <DialogDescription>
-            This started as one forecast for the whole deal. The invoice uses the components you
-            selected. Select each old forecast. It is deleted only after you select it, then the
-            invoice is created. Cancel deletes nothing.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          {forecasts.map((forecast) => {
-            const selected = selectedForecastIds.includes(forecast.id);
-            return (
-              <button
-                key={forecast.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() =>
-                  setSelectedForecastIds((current) =>
-                    selected
-                      ? current.filter((id) => id !== forecast.id)
-                      : [...current, forecast.id]
-                  )
-                }
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left",
-                  selected ? "border-primary bg-primary/5" : "border-border"
-                )}
-              >
-                <span
-                  className={cn(
-                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded border",
-                    selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border"
-                  )}
-                >
-                  {selected ? <Check className="size-3" /> : null}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium tabular-nums">
-                    {formatInvoiceCurrency(forecast.expectedAmount)}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {SOURCE_LABELS[forecast.sourceType] || "Forecast"}
-                    {forecast.expectedDate ? ` · ${formatInvoiceDate(forecast.expectedDate)}` : ""}
-                    {forecast.reason ? ` · ${forecast.reason}` : ""}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {selectedForecastIds.length === forecasts.length
-            ? "Selected. These forecasts will be deleted and the invoice will be created."
-            : "Select each forecast. The invoice stays on hold until every old amount is selected."}
-        </p>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setForecastOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={saving || selectedForecastIds.length !== forecasts.length || forecasts.length === 0}
-            onClick={() => {
-              void (async () => {
-                setSaving(true);
-                setError(null);
-                try {
-                  for (const id of selectedForecastIds) {
-                    await canvasApi.dismiss(id);
-                  }
-                  setForecastOpen(false);
-                  const invoice = await createInvoice({
-                    customerId,
-                    customerName: context?.customerName ?? selectedCustomer?.name,
-                    dealId,
-                    dealTitle: context?.dealTitle ?? selectedDeal?.title,
-                    status: "due",
-                    issueDate: invoiceDate,
-                    dueDate,
-                    subtotal: summary.subtotal,
-                    taxPercent: summary.taxRate,
-                    tax: summary.tax,
-                    total: summary.total,
-                    componentIds: selectedComponents,
-                    notes: notes.trim(),
-                    nextActionDate,
-                    invoiceNumber: composeInvoiceNumber(finance.invoicePrefix, invoiceNumberRest),
-                    billingType,
-                  });
-                  onOpenChange(false);
-                  setSelectedComponents([]);
-                  onGenerate?.(invoice);
-                  void refreshDashboard({ silent: true });
-                } catch (err) {
-                  setError(getErrorMessage(err));
-                  setForecastOpen(false);
-                } finally {
-                  setSaving(false);
-                }
-              })();
-            }}
-          >
-            {saving ? "Removing…" : "Delete selected and create invoice"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    </>
   );
 }

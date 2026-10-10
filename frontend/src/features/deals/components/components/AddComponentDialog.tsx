@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
+import { DateInput } from "@/shared/ui/date-input";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import {
@@ -22,6 +23,7 @@ import { useDeals } from "@/features/deals/hooks/use-deals";
 import {
   PRIMARY_BILLING_PERIODS,
   amountFieldLabel,
+  primaryBillingPeriodLabels,
   applyBillingPeriod,
   componentBillingPeriodLabels,
   componentRenewalFrequencyLabels,
@@ -90,7 +92,6 @@ export function AddComponentDialog({
   const isCustomRenewal = form.renewalFrequency === "custom";
   const isLegacyFrequency =
     form.renewalFrequency === "quarterly" ||
-    form.renewalFrequency === "half-yearly" ||
     form.renewalFrequency === "biennial" ||
     form.renewalFrequency === "custom";
   const costSummary = computeComponentCostSummary(form);
@@ -290,13 +291,13 @@ export function AddComponentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] min-w-0 overflow-y-auto overflow-x-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Component" : "Add Component"}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Update this billable component and its renewal schedule."
-              : "Add a billable component as one time, per month, or per year."}
+              : "Add a billable component as one time, monthly, half-yearly, or yearly."}
           </DialogDescription>
         </DialogHeader>
 
@@ -331,16 +332,19 @@ export function AddComponentDialog({
 
             <div className="space-y-2 sm:col-span-2">
               <Label>Billing</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {PRIMARY_BILLING_PERIODS.map((period) => (
                   <Button
                     key={period}
                     type="button"
                     variant={billingPeriod === period ? "default" : "outline"}
-                    className={cn("rounded-xl", billingPeriod === period && "shadow-sm")}
+                    className={cn(
+                      "h-auto min-h-10 whitespace-normal rounded-xl px-2 py-2 text-sm",
+                      billingPeriod === period && "shadow-sm"
+                    )}
                     onClick={() => updateField("billingType", period)}
                   >
-                    {componentBillingPeriodLabels[period]}
+                    {primaryBillingPeriodLabels[period]}
                   </Button>
                 ))}
               </div>
@@ -503,12 +507,11 @@ export function AddComponentDialog({
                 First billing date
                 <span className="text-destructive"> *</span>
               </Label>
-              <Input
+              <DateInput
                 id="renewal-start-date"
-                type="date"
                 value={form.renewalStartDate}
                 onChange={(e) => updateField("renewalStartDate", e.target.value)}
-                className="rounded-xl"
+                className="w-full min-w-0 rounded-xl"
                 disabled={!renewalEnabled}
                 aria-invalid={Boolean(errors.renewalStartDate)}
               />
@@ -524,12 +527,11 @@ export function AddComponentDialog({
                   Next unpaid cycle
                   <span className="text-destructive"> *</span>
                 </Label>
-                <Input
+                <DateInput
                   id="renewal-date"
-                  type="date"
                   value={form.renewalDate}
                   onChange={(e) => updateField("renewalDate", e.target.value)}
-                  className="rounded-xl"
+                  className="w-full min-w-0 rounded-xl"
                   aria-invalid={Boolean(errors.renewalDate)}
                 />
                 {errors.renewalDate && (
@@ -541,7 +543,17 @@ export function AddComponentDialog({
             {renewalEnabled ? (
               <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-3 sm:col-span-2">
                 <div>
-                  <p className="text-sm font-medium">Payment cycles</p>
+                  <p className="text-sm font-medium">Payment cycle</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Renewal frequency:{" "}
+                    {form.renewalFrequency === "monthly" ||
+                    form.renewalFrequency === "half-yearly" ||
+                    form.renewalFrequency === "yearly"
+                      ? primaryBillingPeriodLabels[form.renewalFrequency]
+                      : form.renewalFrequency
+                        ? componentRenewalFrequencyLabels[form.renewalFrequency]
+                        : "—"}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     The table Status badge is always for the next unpaid cycle
                     {unpaidCycleDate ? ` (${formatComponentDate(unpaidCycleDate)})` : ""}.

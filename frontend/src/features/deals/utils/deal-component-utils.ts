@@ -242,7 +242,22 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export const PRIMARY_BILLING_PERIODS: BillingType[] = ["one-time", "monthly", "yearly"];
+export const PRIMARY_BILLING_PERIODS = [
+  "one-time",
+  "monthly",
+  "half-yearly",
+  "yearly",
+] as const satisfies readonly BillingType[];
+
+export const primaryBillingPeriodLabels: Record<
+  "one-time" | "monthly" | "half-yearly" | "yearly",
+  string
+> = {
+  "one-time": "One time",
+  monthly: "Monthly",
+  "half-yearly": "Half-yearly",
+  yearly: "Yearly",
+};
 
 export const componentBillingPeriodLabels: Record<BillingType, string> = {
   "one-time": "One time",

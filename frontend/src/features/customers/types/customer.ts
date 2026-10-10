@@ -18,6 +18,8 @@ export interface Customer {
   phone: string;
   email: string;
   gst?: string;
+  /** Explicit company flag. Missing means No. Not inferred from country. */
+  internationalClient?: boolean;
   vatId?: string;
   licenseNo?: string;
   /** @deprecated Use billingAddress */
@@ -45,6 +47,7 @@ export interface CustomerFormData {
   phone: string;
   email: string;
   gst: string;
+  internationalClient: boolean;
   vatId: string;
   licenseNo: string;
   billingAddress: string;

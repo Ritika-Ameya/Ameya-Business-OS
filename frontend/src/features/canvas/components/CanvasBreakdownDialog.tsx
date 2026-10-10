@@ -95,18 +95,21 @@ export function CanvasBreakdownDialog({
 }) {
   const header = kind ? HEADERS[kind] : null;
   const toCollect = sum([summary.expected.amount, summary.carried.amount]);
+  const innovex = sum([summary.expected.innovex, summary.carried.innovex]);
+  const ritika = sum([summary.expected.ritika, summary.carried.ritika]);
+  const accountSplit = `Ameya Innovex ${formatCurrency(innovex)} · Ritika (Non-GST) ${formatCurrency(ritika)}.`;
 
   const description: Record<BreakdownKind, string> = {
     outstanding: `Everything still to collect for ${periodLabel}: ${formatCurrency(toCollect)} across ${
       summary.expected.count + summary.carried.count
-    } receipts.`,
+    } receipts. ${accountSplit}`,
     expected: `${summary.expected.count} unpaid ${
       summary.expected.count === 1 ? "receipt" : "receipts"
-    } dated in ${periodLabel}.`,
+    } dated in ${periodLabel}. Ameya Innovex ${formatCurrency(summary.expected.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.expected.ritika)}.`,
     carried: `${summary.carried.count} unpaid ${
       summary.carried.count === 1 ? "receipt" : "receipts"
-    } from before ${firstMonth ? formatMonthLabel(firstMonth) : "this period"}, still waiting to be paid.`,
-    paid: `${summary.paid.count} ${summary.paid.count === 1 ? "payment" : "payments"} received in ${periodLabel}.`,
+    } from before ${firstMonth ? formatMonthLabel(firstMonth) : "this period"}, still waiting to be paid. Ameya Innovex ${formatCurrency(summary.carried.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.carried.ritika)}.`,
+    paid: `${summary.paid.count} ${summary.paid.count === 1 ? "payment" : "payments"} received in ${periodLabel}. Ameya Innovex ${formatCurrency(summary.paid.innovex)} · Ritika (Non-GST) ${formatCurrency(summary.paid.ritika)}.`,
     renewals: `${renewals.length} ${renewals.length === 1 ? "plan renews" : "plans renew"} in or before ${periodLabel}.`,
   };
 
@@ -285,8 +288,8 @@ function CardsBody({
         <p className="text-2xl font-bold tabular-nums">{formatCurrency(total.amount)}</p>
         <p className="text-xs text-muted-foreground">
           {Math.abs(total.amount - total.exGst) > 0.009
-            ? `${formatCurrency(total.exGst)} + GST ${formatCurrency(total.amount - total.exGst)} · `
-            : "No GST · "}
+            ? `Base ${formatCurrency(total.exGst)} + GST ${formatCurrency(total.amount - total.exGst)} on GST bills only · `
+            : "No GST on these receipts · "}
           {total.count} {total.count === 1 ? "item" : "items"}
         </p>
       </div>
@@ -359,7 +362,11 @@ function CardList({
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="text-right">
                       <p className="text-sm font-semibold tabular-nums">{formatCurrency(card.expectedAmount ?? 0)}</p>
-                      {Math.abs((card.expectedAmount ?? 0) - (card.amountExGst ?? card.expectedAmount ?? 0)) > 0.009 ? (
+                      {card.internationalClient ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          International client · GST not required
+                        </p>
+                      ) : Math.abs((card.expectedAmount ?? 0) - (card.amountExGst ?? card.expectedAmount ?? 0)) > 0.009 ? (
                         <p className="text-[11px] tabular-nums text-muted-foreground">
                           {formatCurrency(card.amountExGst ?? 0)} + GST{" "}
                           {formatCurrency((card.expectedAmount ?? 0) - (card.amountExGst ?? 0))}

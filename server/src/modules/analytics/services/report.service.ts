@@ -7,7 +7,10 @@ import {
   roundMoney,
 } from '../../expenses/utils/expenseCalculation.util';
 import type { ExpenseEntity } from '../../expenses/types/expense.entities';
+import { customerRepository } from '../../customers';
 import { invoiceRepository, paymentRepository } from '../../revenue';
+import { collectionAccountForPayment } from '../../revenue/utils/collectionAccount.util';
+import { currentFinancialYear, isInFinancialYear } from '../utils/financialYear.util';
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
 import type {
   ExpenseReportStats,
@@ -19,6 +22,7 @@ import type {
   ReportFilters,
   ReportInvoiceItem,
   ReportResult,
+  RevenueReportPayment,
   RevenueReportStats,
 } from '../types/analytics.types';
 import { getDaysOverdue } from '../utils/collectionAggregation.util';
@@ -209,7 +213,9 @@ export class ReportService extends BaseService {
 
   async getRevenueReport(
     filters: ReportFilters,
-  ): Promise<ReportResult<RevenueReportStats, ReportInvoiceItem>> {
+  ): Promise<
+    ReportResult<RevenueReportStats, ReportInvoiceItem> & { payments: RevenueReportPayment[] }
+  > {
     this.logInfo('Building revenue report');
     const invoices = await invoiceRepository.findAll();
     const filtered = filterInvoicesForReport(invoices, filters);
@@ -226,16 +232,57 @@ export class ReportService extends BaseService {
     const averageInvoiceValue =
       filtered.length > 0 ? Math.round(totalRevenue / filtered.length) : 0;
     const invoiceById = new Map(filtered.map((invoice) => [invoice.id, invoice]));
-    const payments = await paymentRepository.findAll();
-    const receivedGstAccount = roundMoney(
-      payments.reduce((sum, payment) => {
-        const invoice = invoiceById.get(payment.invoiceId);
-        if (!invoice || payment.status !== 'received') return sum;
-        const account =
-          payment.receivedAccount || (invoice.billingType === 'gst' ? 'gst' : 'other');
-        return account === 'gst' ? sum + Number(payment.amount || 0) : sum;
-      }, 0),
+    const allInvoices = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+    const [payments, customers] = await Promise.all([
+      paymentRepository.findAll(),
+      customerRepository.findAll(),
+    ]);
+    const internationalIds = new Set(
+      customers.filter((customer) => customer.internationalClient).map((customer) => customer.id),
     );
+    const financialYear = currentFinancialYear();
+    let periodInnovex = 0;
+    let periodRitika = 0;
+    let financialYearInnovex = 0;
+    let financialYearRitika = 0;
+    const paymentRows: RevenueReportPayment[] = [];
+    for (const payment of payments) {
+      if (payment.isDeleted || payment.status !== 'received') continue;
+      const invoice = allInvoices.get(payment.invoiceId);
+      if (!invoice || invoice.status === 'cancelled') continue;
+      const account = collectionAccountForPayment({
+        internationalClient: internationalIds.has(payment.customerId || invoice.customerId),
+        receivedAccount: payment.receivedAccount || '',
+        billingType: invoice.billingType,
+      });
+      const amount = Number(payment.amount) || 0;
+      const inFinancialYear = isInFinancialYear(payment.paidAt || '', financialYear);
+      const inView = invoiceById.has(invoice.id);
+      if (inFinancialYear) {
+        if (account === 'innovex') financialYearInnovex += amount;
+        else financialYearRitika += amount;
+      }
+      if (inView) {
+        if (account === 'innovex') periodInnovex += amount;
+        else periodRitika += amount;
+      }
+      if (inFinancialYear || inView) {
+        paymentRows.push({
+          id: payment.id,
+          invoiceId: invoice.id,
+          invoiceNo: invoice.invoiceNumber,
+          customerName: invoice.customerName,
+          amount: roundMoney(amount),
+          paidAt: payment.paidAt || '',
+          method: payment.method || '',
+          account,
+          inFinancialYear,
+          inView,
+        });
+      }
+    }
+    paymentRows.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+    const receivedGstAccount = roundMoney(periodInnovex);
     const gstBilled = roundMoney(
       filtered
         .filter((invoice) => invoice.billingType === 'gst' && invoice.status !== 'cancelled')
@@ -249,10 +296,15 @@ export class ReportService extends BaseService {
         outstanding,
         averageInvoiceValue,
         receivedGstAccount,
-        receivedOtherAccount: roundMoney(Math.max(0, collected - receivedGstAccount)),
+        receivedOtherAccount: roundMoney(periodRitika),
         gstBilled,
+        financialYearCollection: roundMoney(financialYearInnovex + financialYearRitika),
+        financialYearLabel: financialYear.label,
+        financialYearInnovex: roundMoney(financialYearInnovex),
+        financialYearRitika: roundMoney(financialYearRitika),
       },
       items: filtered.map(mapInvoiceItem),
+      payments: paymentRows,
     };
   }
 

@@ -1,6 +1,11 @@
 import { customerRepository } from '../../customers';
 import { dealComponentRepository, dealRepository } from '../../deals';
 import { computeComponentLineTotal } from '../../deals/utils/componentAmount.util';
+import {
+  alignComponentDueDatePatch,
+  getComponentCurrentDueDate,
+  hasRenewalFrequency,
+} from '../../deals/utils/renewalHelpers.util';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
 import { invoiceRepository, invoiceService, paymentRepository } from '../../revenue';
 import {
@@ -69,6 +74,7 @@ export class CanvasService extends BaseService {
           customer.recordType === 'opportunity'
             ? temperatureByCustomer.get(customer.id) ?? ''
             : '',
+        internationalClient: Boolean(customer.internationalClient),
       })),
       deals: snapshot.deals.map((deal) => ({
         id: deal.id,
@@ -281,8 +287,19 @@ export class CanvasService extends BaseService {
       }
     }
     const componentId = this.componentForNewReceipt(input, dealComponents);
+    const dueSync = input.componentId
+      ? await this.planComponentDueSync(
+          {
+            componentId,
+            invoiceId: input.invoiceId ?? '',
+            sourceType: input.sourceType,
+            status: 'expected',
+          },
+          input.expectedDate,
+        )
+      : null;
 
-    return expectedReceiptRepository.create({
+    const created = await expectedReceiptRepository.create({
       origin: 'manual',
       sourceType: input.sourceType,
       sourceRefType: componentId ? 'component' : this.refType(input),
@@ -299,6 +316,8 @@ export class CanvasService extends BaseService {
       reason: input.reason.trim(),
       status: 'expected',
     } as Omit<ExpectedReceiptEntity, 'id'>);
+    if (dueSync) await dealComponentRepository.update(dueSync.id, dueSync.patch);
+    return created;
   }
 
   async updateReceipt(input: UpdateReceiptInput): Promise<void> {
@@ -360,6 +379,11 @@ export class CanvasService extends BaseService {
   async dismiss(cardId: string): Promise<void> {
     const card = await this.requireCard(cardId);
     if (card.kind === 'account') return;
+    if (card.invoiceId || card.dealId || card.componentId) {
+      throw new ValidationError(
+        'A forecast linked to a deal, component, or invoice stays until that invoice replaces it.',
+      );
+    }
     if (card.origin === 'manual' && card.persistedId) {
       await expectedReceiptRepository.delete(card.persistedId);
       return;
@@ -494,6 +518,50 @@ export class CanvasService extends BaseService {
     return 'customer';
   }
 
+  /**
+   * A component-linked expected receipt (not an invoice installment) is the same
+   * cycle the deal shows. Changing its date moves only the unpaid due date.
+   */
+  private shouldSyncComponentDue(card: {
+    componentId: string;
+    invoiceId: string;
+    sourceType: string;
+    status: string;
+  }): boolean {
+    if (!card.componentId || card.invoiceId) return false;
+    if (card.sourceType === 'invoice_balance' || card.sourceType === 'invoice_installment') {
+      return false;
+    }
+    if (card.status === 'received' || card.status === 'cancelled' || card.status === 'superseded') {
+      return false;
+    }
+    return true;
+  }
+
+  private async planComponentDueSync(
+    card: {
+      componentId: string;
+      invoiceId: string;
+      sourceType: string;
+      status: string;
+    },
+    expectedDate: string | undefined,
+  ): Promise<{ id: string; patch: { renewalDate: string; renewalStartDate?: string } } | null> {
+    if (!expectedDate || !this.shouldSyncComponentDue(card)) return null;
+    const component = await dealComponentRepository.findById(card.componentId);
+    if (!component || !hasRenewalFrequency(component.renewalFrequency)) return null;
+    const next = expectedDate.slice(0, 10);
+    const current = getComponentCurrentDueDate(component).slice(0, 10);
+    if (current === next) return null;
+    const patch = alignComponentDueDatePatch(component, next);
+    if (!patch) {
+      throw new ValidationError(
+        `That date is on or before the last paid cycle (${(component.lastRenewedDate || '').slice(0, 10)}). The renewal cycle was not changed.`,
+      );
+    }
+    return { id: component.id, patch };
+  }
+
   private async persistCard(
     card: CanvasCard,
     patch: Partial<
@@ -504,6 +572,14 @@ export class CanvasService extends BaseService {
     >,
     origin: ExpectedReceiptEntity['origin'] = 'override',
   ): Promise<void> {
+    const dueSync =
+      origin === 'dismissed' || patch.status === 'cancelled'
+        ? null
+        : await this.planComponentDueSync(card, patch.expectedDate);
+    const commitDue = async () => {
+      if (dueSync) await dealComponentRepository.update(dueSync.id, dueSync.patch);
+    };
+
     if (card.persistedId && origin !== 'dismissed') {
       const next: Partial<ExpectedReceiptEntity> = {};
       if (patch.expectedAmount !== undefined) next.expectedAmount = patch.expectedAmount;
@@ -513,6 +589,7 @@ export class CanvasService extends BaseService {
       if (patch.status !== undefined) next.status = patch.status;
       if (patch.gstPercent !== undefined) next.gstPercent = patch.gstPercent;
       await expectedReceiptRepository.update(card.persistedId, next);
+      await commitDue();
       return;
     }
 
@@ -540,6 +617,7 @@ export class CanvasService extends BaseService {
         origin: origin === 'dismissed' ? 'dismissed' : existingMatch.origin,
         ...(patch.gstPercent !== undefined ? { gstPercent: patch.gstPercent } : {}),
       });
+      await commitDue();
       return;
     }
 
@@ -568,6 +646,7 @@ export class CanvasService extends BaseService {
       reason: patch.reason ?? card.reason,
       status: origin === 'dismissed' ? 'cancelled' : patch.status ?? 'expected',
     } as Omit<ExpectedReceiptEntity, 'id'>);
+    await commitDue();
   }
 }
 

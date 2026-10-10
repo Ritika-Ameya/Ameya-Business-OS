@@ -48,6 +48,9 @@ export interface CanvasCard {
   origin: "override" | "manual" | "installment" | "dismissed" | "suggestion" | "account";
   installmentIndex: number;
   currency: string;
+  /** Ameya Innovex (company / GST) or Ritika (domestic non-GST). Display only. */
+  collectionAccount?: "innovex" | "ritika";
+  internationalClient?: boolean;
   /** Set on screen only: the unpaid month this card was carried forward from. */
   carriedFrom?: string;
 }
@@ -79,6 +82,7 @@ export interface CanvasPaidEntry {
   companyName: string;
   amount: number;
   paidAt: string;
+  collectionAccount?: "innovex" | "ritika";
 }
 
 export interface CanvasAccountOption {
@@ -86,6 +90,7 @@ export interface CanvasAccountOption {
   companyName: string;
   recordType: "opportunity" | "customer";
   temperature: LeadTemperature;
+  internationalClient?: boolean;
 }
 
 export interface CanvasDealComponentOption {

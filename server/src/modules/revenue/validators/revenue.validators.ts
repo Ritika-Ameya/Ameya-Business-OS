@@ -94,6 +94,10 @@ export const invoiceDocumentCreateSchema = z.object({
   contentBase64: z.string().min(1, 'File content is required'),
 });
 
+export const invoiceExportSchema = z.object({
+  invoiceIds: z.array(z.string().min(1)).min(1).max(500),
+});
+
 export const invoiceIdParamSchema = z.object({
   id: z.string().min(1, 'ID is required'),
 });

@@ -11,6 +11,7 @@ export interface CustomerDto extends BaseEntityDto {
   currentStageId: string;
   companyName: string;
   gstin: string;
+  internationalClient?: boolean;
   vatId: string;
   licenseNo: string;
   industryId: string;
@@ -59,6 +60,7 @@ export interface CustomerCreateBody {
   phone: string;
   email?: string;
   gstin?: string;
+  internationalClient?: boolean;
   vatId?: string;
   licenseNo?: string;
   billingAddress?: string;

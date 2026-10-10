@@ -93,6 +93,7 @@ const customerFieldsSchema = z.object({
   currentStageId: optionalIdSchema,
   companyName: z.string().default(''),
   gstin: optionalGstinSchema,
+  internationalClient: z.boolean().optional().default(false),
   vatId: z.string().default(''),
   licenseNo: z.string().default(''),
   industryId: optionalIdSchema,
@@ -142,6 +143,7 @@ export const customerUpdateSchema = z.object({
     .transform((value) => value.trim().toUpperCase())
     .refine(isOptionalGstin, { message: 'Invalid GSTIN format' })
     .optional(),
+  internationalClient: z.boolean().optional(),
   vatId: z.string().optional(),
   licenseNo: z.string().optional(),
   industryId: z.string().optional(),

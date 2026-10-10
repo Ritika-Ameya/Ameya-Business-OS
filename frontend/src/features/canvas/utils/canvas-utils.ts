@@ -207,12 +207,24 @@ export interface CanvasTotal {
   count: number;
   amount: number;
   exGst: number;
+  innovex: number;
+  ritika: number;
 }
+
+export const collectionBucket = (input: {
+  collectionAccount?: "innovex" | "ritika";
+  gstPercent?: number | null;
+}): "innovex" | "ritika" => {
+  if (input.collectionAccount === "innovex" || input.collectionAccount === "ritika") {
+    return input.collectionAccount;
+  }
+  return (input.gstPercent ?? 0) > 0 ? "innovex" : "ritika";
+};
 
 export interface CanvasViewSummary {
   expected: CanvasTotal;
   carried: CanvasTotal;
-  paid: { count: number; amount: number };
+  paid: { count: number; amount: number; innovex: number; ritika: number };
   items: {
     expected: CanvasCard[];
     carried: CanvasCard[];
@@ -249,9 +261,9 @@ export const summarizeView = (
     scheduled.map((monthKey) => [monthKey, { monthKey, expected: 0, carried: 0, paid: 0 }])
   );
   const summary: CanvasViewSummary = {
-    expected: { count: 0, amount: 0, exGst: 0 },
-    carried: { count: 0, amount: 0, exGst: 0 },
-    paid: { count: 0, amount: 0 },
+    expected: { count: 0, amount: 0, exGst: 0, innovex: 0, ritika: 0 },
+    carried: { count: 0, amount: 0, exGst: 0, innovex: 0, ritika: 0 },
+    paid: { count: 0, amount: 0, innovex: 0, ritika: 0 },
     items: { expected: [], carried: [], paid: [] },
     byMonth: [],
   };
@@ -264,6 +276,8 @@ export const summarizeView = (
     bucket.count += 1;
     bucket.amount += card.expectedAmount ?? 0;
     bucket.exGst += card.amountExGst ?? card.expectedAmount ?? 0;
+    const bucketName = collectionBucket(card);
+    bucket[bucketName] += card.expectedAmount ?? 0;
     (card.carriedFrom ? summary.items.carried : summary.items.expected).push(card);
   }
 
@@ -287,6 +301,7 @@ export const summarizeView = (
     }
     summary.paid.count += 1;
     summary.paid.amount += entry.amount;
+    summary.paid[collectionBucket(entry)] += entry.amount;
     month.paid += entry.amount;
     summary.items.paid.push(entry);
   }
@@ -299,8 +314,12 @@ export const summarizeView = (
   for (const total of [summary.expected, summary.carried]) {
     total.amount = round2(total.amount);
     total.exGst = round2(total.exGst);
+    total.innovex = round2(total.innovex);
+    total.ritika = round2(total.ritika);
   }
   summary.paid.amount = round2(summary.paid.amount);
+  summary.paid.innovex = round2(summary.paid.innovex);
+  summary.paid.ritika = round2(summary.paid.ritika);
   summary.byMonth = [...byMonth.values()].map((month) => ({
     ...month,
     expected: round2(month.expected),

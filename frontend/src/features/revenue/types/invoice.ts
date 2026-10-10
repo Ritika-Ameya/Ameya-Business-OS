@@ -54,7 +54,14 @@ export interface Invoice {
 }
 
 export type InvoiceStatusFilter = "all" | InvoiceStatus;
-export type InvoiceDateFilter = "all" | "this-month" | "last-month" | "overdue";
+export type InvoiceDateFilter =
+  | "all"
+  | "this-month"
+  | "last-month"
+  | "overdue"
+  | "custom"
+  | `fy-${number}`
+  | `fy-${number}-q${1 | 2 | 3 | 4}`;
 export type InvoiceNumberSort = "asc" | "desc";
 
 export interface InvoiceFilters {
@@ -62,6 +69,8 @@ export interface InvoiceFilters {
   customer: string;
   date: InvoiceDateFilter;
   billingType: "all" | InvoiceBillingType;
+  dateFrom: string;
+  dateTo: string;
 }
 
 export interface GenerateInvoiceContext {

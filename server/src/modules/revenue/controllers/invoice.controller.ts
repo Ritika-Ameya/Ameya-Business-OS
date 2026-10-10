@@ -11,6 +11,7 @@ import { getRouteParam } from '../../../utils/routeParams.util';
 import { invoiceService } from '../services/invoice.service';
 import {
   invoiceCancelSchema,
+  invoiceExportSchema,
   invoiceCreateSchema,
   invoiceDocumentCreateSchema,
   invoiceFileParamsSchema,
@@ -29,6 +30,25 @@ const getSearchParams = (query: Record<string, unknown>) => ({
 });
 
 export class InvoiceController {
+  readonly exportFiles = [
+    validate({ body: invoiceExportSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const archive = await invoiceService.exportInvoiceFiles(req.body.invoiceIds);
+      res.setHeader('Content-Type', archive.mimeType);
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${archive.filename.replace(/"/g, '')}"`,
+      );
+      res.status(HTTP_STATUS.OK).send(archive.content);
+    }),
+  ];
+
+  readonly listAttached = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const ids = await invoiceService.listInvoiceIdsWithFiles();
+    ApiResponse.success(res, ids, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+  });
+
   readonly list = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const query = req.query as Record<string, unknown>;
     const parsed = parseQueryParams(query);

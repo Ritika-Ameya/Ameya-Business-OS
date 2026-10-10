@@ -6,17 +6,23 @@ import {
   deriveFileType,
   uploadDocumentToDrive,
 } from '../../../services/documentUpload.service';
+import { googleDriveService } from '../../../integrations';
 import { NotFoundError, ValidationError } from '../../../utils/AppError';
 import { assertForeignKeys } from '../../../utils/foreignKey.util';
 import { assertUniqueField } from '../../../utils/uniqueness.util';
 import { applyFilters } from '../../../utils/filtering.util';
 import { applySort } from '../../../utils/sorting.util';
 import { paginateArray } from '../../../utils/pagination.util';
+import { zipStore } from '../utils/zipStore.util';
 import { invoiceRepository, paymentRepository } from './revenue.repository';
+import { expectedReceiptRepository } from '../../canvas/services/canvas.repository';
 import { customerRepository, documentRepository } from '../../customers';
 import type { DocumentEntity } from '../../customers';
 import { dealRepository, dealComponentRepository } from '../../deals';
-import { computeComponentTaxable } from '../../deals/utils/componentAmount.util';
+import {
+  computeComponentLineTotal,
+  computeComponentTaxable,
+} from '../../deals/utils/componentAmount.util';
 import type {
   InvoiceBillingType,
   InvoiceEntity,
@@ -55,6 +61,11 @@ import { toISOString } from '../../../utils/date.util';
 import { tryAdvanceComponentRenewal } from '../../deals/utils/renewalHelpers.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
+
+const safeZipName = (value: string): string => {
+  const cleaned = value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').trim();
+  return cleaned.slice(0, 80) || 'file';
+};
 const DEFAULT_GST_PERCENT = 18;
 
 export class InvoiceService extends BaseService {
@@ -106,6 +117,11 @@ export class InvoiceService extends BaseService {
     }
 
     const billingType = resolveBillingType(input.billingType, input.taxPercent);
+    if (customer.internationalClient && billingType === 'gst') {
+      throw new ValidationError(
+        'International client. GST not required. Choose Non-GST. Collections still count in the Ameya Innovex GST account.',
+      );
+    }
     const isNonGst = billingType === 'non_gst';
     const fromComponents = await this.amountsFromSelectedComponents(
       input.componentIds,
@@ -164,7 +180,83 @@ export class InvoiceService extends BaseService {
     } as Omit<InvoiceEntity, 'id'>);
 
     await this.syncCustomerOutstanding(created.customerId);
+    await this.retireForecastsCoveredByInvoice(created);
     return created;
+  }
+
+  /**
+   * A component forecast is the amount expected before a bill exists.
+   * Once that component is on an invoice, the invoice outstanding is what will
+   * be collected, including when GST was removed and the bill is lower.
+   */
+  private async retireForecastsCoveredByInvoice(invoice: InvoiceEntity): Promise<void> {
+    if (invoice.status === 'cancelled') return;
+    const componentIds = (invoice.componentIds ?? []).filter(Boolean);
+    const [components, receipts] = await Promise.all([
+      dealComponentRepository.findAll(),
+      expectedReceiptRepository.findAll(),
+    ]);
+    const componentById = new Map(components.map((component) => [component.id, component]));
+    const due = invoice.dueDate?.slice(0, 10) ?? '';
+    for (const receipt of receipts) {
+      if (receipt.status !== 'expected' || receipt.invoiceId) continue;
+      if (this.isReplacedDealForecast(receipt, invoice)) {
+        await expectedReceiptRepository.update(receipt.id, { status: 'superseded' });
+        continue;
+      }
+      if (!componentIds.includes(receipt.componentId)) continue;
+      if (!this.sameCollectionCycle(receipt.expectedDate, due)) continue;
+      const component = componentById.get(receipt.componentId);
+      if (!component) continue;
+      const taxable = computeComponentTaxable(component);
+      const invoiced = this.invoicedTaxable(invoice, receipt.componentId);
+      if (invoiced + 0.6 < taxable) continue;
+      const amount = Number(receipt.expectedAmount);
+      const gross = computeComponentLineTotal(component);
+      const matches =
+        Math.abs(amount - taxable) < 0.6 ||
+        Math.abs(amount - gross) < 0.6 ||
+        Math.abs(amount - Number(invoice.subtotal || 0)) < 0.6 ||
+        Math.abs(amount - Number(invoice.total || 0)) < 0.6;
+      if (!matches) continue;
+      await expectedReceiptRepository.update(receipt.id, { status: 'superseded' });
+    }
+  }
+
+  /** A hand-typed deal total is replaced by the invoice for that same deal and cycle. */
+  private isReplacedDealForecast(
+    receipt: { sourceType: string; dealId: string; componentId: string; expectedDate: string },
+    invoice: InvoiceEntity,
+  ): boolean {
+    if (receipt.sourceType !== 'deal_expected' || !invoice.dealId) return false;
+    if (receipt.dealId !== invoice.dealId) return false;
+    if (
+      receipt.componentId &&
+      !(invoice.componentIds ?? []).includes(receipt.componentId)
+    ) {
+      return false;
+    }
+    return this.sameCollectionCycle(receipt.expectedDate, invoice.dueDate);
+  }
+
+  private invoicedTaxable(invoice: InvoiceEntity, componentId: string): number {
+    const lines = (invoice.lineItems ?? []).filter((line) => line.componentId === componentId);
+    if (lines.length > 0) {
+      return lines.reduce((total, line) => total + Number(line.taxable || 0), 0);
+    }
+    const ids = (invoice.componentIds ?? []).filter(Boolean);
+    if (ids.length === 1 && ids[0] === componentId) return Number(invoice.subtotal || 0);
+    return 0;
+  }
+
+  private sameCollectionCycle(left?: string, right?: string): boolean {
+    const a = left?.slice(0, 10) ?? '';
+    const b = right?.slice(0, 10) ?? '';
+    if (!a || !b) return true;
+    const aTime = Date.parse(a);
+    const bTime = Date.parse(b);
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) return true;
+    return Math.abs(aTime - bTime) / 86_400_000 <= 21;
   }
 
   async update(id: string, input: InvoiceUpdateInput): Promise<InvoiceEntity> {
@@ -182,6 +274,16 @@ export class InvoiceService extends BaseService {
 
     const billingType = input.billingType ?? existing.billingType;
     const billingChanged = billingType !== existing.billingType;
+    if (billingChanged && billingType === 'gst') {
+      const billedCustomer = await customerRepository.findById(
+        input.customerId ?? existing.customerId,
+      );
+      if (billedCustomer?.internationalClient) {
+        throw new ValidationError(
+          'International client. GST not required. Collections still count in the Ameya Innovex GST account.',
+        );
+      }
+    }
     const billingChangeReason = (input.billingChangeReason ?? '').trim();
     if (billingChanged && normalizeInvoiceStatus(existing.status) === 'cancelled') {
       throw new ValidationError('Cancelled invoices cannot change GST');
@@ -505,6 +607,116 @@ export class InvoiceService extends BaseService {
     }
     await paymentRepository.deleteOrThrow(paymentId, 'Payment');
     return this.recalculateInvoice(invoiceId, { action: 'outstanding_updated' });
+  }
+
+  async listInvoiceIdsWithFiles(): Promise<string[]> {
+    const documents = await documentRepository.findAll();
+    return [
+      ...new Set(
+        documents
+          .filter(
+            (document) =>
+              document.entityType === DOCUMENT_ENTITY_TYPE &&
+              document.entityId &&
+              document.driveFileId,
+          )
+          .map((document) => document.entityId),
+      ),
+    ];
+  }
+
+  async exportInvoiceFiles(
+    invoiceIds: string[],
+  ): Promise<{ filename: string; content: Buffer; mimeType: string }> {
+    const uniqueIds = [...new Set(invoiceIds.map((id) => id.trim()).filter(Boolean))];
+    if (!googleDriveService.isConfigured()) {
+      throw new ValidationError('Google Drive is not configured');
+    }
+    const [invoices, documents] = await Promise.all([
+      invoiceRepository.findAll(),
+      documentRepository.findAll(),
+    ]);
+    const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+    const selected = uniqueIds
+      .map((id) => invoiceById.get(id))
+      .filter((invoice): invoice is NonNullable<typeof invoice> => Boolean(invoice));
+    if (selected.length === 0) {
+      throw new NotFoundError('No invoices found');
+    }
+
+    const files: Array<{ name: string; data: Buffer; mimeType: string }> = [];
+    const notes: string[] = [];
+    const usedNames = new Set<string>();
+
+    for (const invoice of selected) {
+      const folder = safeZipName(invoice.invoiceNumber || invoice.id);
+      const attached = documents.filter(
+        (document) =>
+          document.entityType === DOCUMENT_ENTITY_TYPE &&
+          document.entityId === invoice.id &&
+          document.driveFileId,
+      );
+      if (attached.length === 0) {
+        notes.push(`${invoice.invoiceNumber}: no file attached`);
+        continue;
+      }
+      for (const document of attached) {
+        try {
+          const downloaded = await googleDriveService.download(document.driveFileId);
+          const fileName = safeZipName(downloaded.name || document.name || 'file');
+          let path = `${folder}/${fileName}`;
+          let copy = 2;
+          while (usedNames.has(path)) {
+            const dot = fileName.lastIndexOf('.');
+            const stamped =
+              dot > 0
+                ? `${fileName.slice(0, dot)}-${copy}${fileName.slice(dot)}`
+                : `${fileName}-${copy}`;
+            path = `${folder}/${stamped}`;
+            copy += 1;
+          }
+          usedNames.add(path);
+          files.push({
+            name: path,
+            data: downloaded.content,
+            mimeType: downloaded.mimeType || 'application/octet-stream',
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Download failed';
+          notes.push(`${invoice.invoiceNumber}: ${document.name || document.driveFileId} — ${message}`);
+        }
+      }
+    }
+
+    if (files.length === 0) {
+      throw new ValidationError(
+        notes[0] ?? 'None of these invoices have an attached file.',
+      );
+    }
+    if (files.length === 1 && selected.length === 1) {
+      const only = files[0];
+      const slash = only.name.lastIndexOf('/');
+      return {
+        filename: slash >= 0 ? only.name.slice(slash + 1) : only.name,
+        content: only.data,
+        mimeType: only.mimeType,
+      };
+    }
+
+    if (notes.length > 0) {
+      files.push({
+        name: 'files-not-included.txt',
+        data: Buffer.from(`${notes.join('\n')}\n`, 'utf8'),
+        mimeType: 'text/plain',
+      });
+    }
+
+    const day = new Date().toISOString().slice(0, 10);
+    return {
+      filename: `invoices-${day}.zip`,
+      content: zipStore(files),
+      mimeType: 'application/zip',
+    };
   }
 
   async listFiles(invoiceId: string): Promise<DocumentEntity[]> {

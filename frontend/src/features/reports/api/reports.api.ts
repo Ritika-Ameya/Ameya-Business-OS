@@ -9,6 +9,7 @@ import type {
   ReportExpenseItemDto,
   ReportInvoiceItemDto,
   ReportResultDto,
+  RevenueReportPaymentDto,
   RevenueReportStatsDto,
 } from "@/features/reports/api/reports.dto";
 
@@ -31,7 +32,11 @@ function toQueryParams(filters: ReportFilters): Record<string, string> {
 
 export const reportsApi = {
   getRevenue: (filters: ReportFilters) =>
-    apiRequest<ReportResultDto<RevenueReportStatsDto, ReportInvoiceItemDto>>(
+    apiRequest<
+      ReportResultDto<RevenueReportStatsDto, ReportInvoiceItemDto> & {
+        payments?: RevenueReportPaymentDto[];
+      }
+    >(
       `${REPORTS_BASE}/revenue`,
       { params: toQueryParams(filters) }
     ),

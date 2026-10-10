@@ -369,6 +369,12 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                     <span className="break-all">{customer.email}</span>
                   </span>
                 )}
+                {customer.internationalClient ? (
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Receipt className="size-4 shrink-0" />
+                    <span>International client · GST not required · Ameya Innovex</span>
+                  </span>
+                ) : null}
                 {customer.gst && (
                   <span className="flex min-w-0 items-center gap-2">
                     <Receipt className="size-4 shrink-0" />

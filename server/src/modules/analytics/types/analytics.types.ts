@@ -113,6 +113,11 @@ export interface RevenueReportStats {
   receivedOtherAccount: number;
   /** GST charged on GST invoices; not income, it is owed to the government. */
   gstBilled: number;
+  /** Actual payments received from 1 April through 31 March. Not invoice totals. */
+  financialYearCollection: number;
+  financialYearLabel: string;
+  financialYearInnovex: number;
+  financialYearRitika: number;
 }
 
 export interface ExpenseReportStats {
@@ -139,6 +144,20 @@ export interface RenewalReportStats {
 export interface ReportResult<TStats, TItem> {
   stats: TStats;
   items: TItem[];
+}
+
+/** One received payment behind the revenue report's collection cards. */
+export interface RevenueReportPayment {
+  id: string;
+  invoiceId: string;
+  invoiceNo: string;
+  customerName: string;
+  amount: number;
+  paidAt: string;
+  method: string;
+  account: 'innovex' | 'ritika';
+  inFinancialYear: boolean;
+  inView: boolean;
 }
 
 export interface PendingCollectionRow {
