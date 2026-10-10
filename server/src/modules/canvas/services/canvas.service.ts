@@ -379,6 +379,11 @@ export class CanvasService extends BaseService {
   async dismiss(cardId: string): Promise<void> {
     const card = await this.requireCard(cardId);
     if (card.kind === 'account') return;
+    if (card.invoiceId || card.dealId || card.componentId) {
+      throw new ValidationError(
+        'A forecast linked to a deal, component, or invoice stays until that invoice replaces it.',
+      );
+    }
     if (card.origin === 'manual' && card.persistedId) {
       await expectedReceiptRepository.delete(card.persistedId);
       return;

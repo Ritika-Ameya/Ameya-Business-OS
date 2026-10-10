@@ -336,10 +336,10 @@ export function CanvasDrawer({
           ) : null}
           {card?.liveBalance != null ? (
             <p className="text-xs text-muted-foreground">
-              Invoice balance is {formatCurrency(card.liveBalance)} with GST
-              {card.gstPercent != null
-                ? ` and ${formatCurrency(splitInclusive(card.liveBalance, card.gstPercent).exclusive)} without GST`
-                : ""}
+              Invoice balance is {formatCurrency(card.liveBalance)}
+              {(card.gstPercent ?? 0) > 0
+                ? ` with GST (${formatCurrency(splitInclusive(card.liveBalance, card.gstPercent).exclusive)} before GST)`
+                : " without GST"}
               . Saving a different amount keeps that invoice balance unchanged.
             </p>
           ) : null}
@@ -420,9 +420,11 @@ export function CanvasDrawer({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {componentId
-                  ? "This receipt is the forecast for that component, so the canvas will not add a second card for the same amount."
-                  : "If this amount is one of the deal's components, choose it. Otherwise the canvas also shows that component's own forecast."}
+                {card?.invoiceId
+                  ? "This invoice is the amount to collect. The old forecast for the same cycle stays off the canvas."
+                  : componentId
+                    ? "This receipt is the forecast for that component, so the canvas will not add a second card for the same amount."
+                    : "If this amount is one of the deal's components, choose it. Otherwise the canvas also shows that component's own forecast."}
               </p>
             </Field>
           ) : null}
@@ -536,7 +538,11 @@ export function CanvasDrawer({
           <Button type="button" disabled={pending} onClick={save}>
             Save forecast
           </Button>
-          {card?.kind === "receipt" ? (
+          {card?.kind === "receipt" &&
+          !card.invoiceId &&
+          !card.dealId &&
+          !card.componentId &&
+          (card.status === "expected" || card.status === "overdue") ? (
             <Button
               type="button"
               variant="outline"

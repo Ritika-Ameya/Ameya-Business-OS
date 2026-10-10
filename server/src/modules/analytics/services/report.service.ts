@@ -22,6 +22,7 @@ import type {
   ReportFilters,
   ReportInvoiceItem,
   ReportResult,
+  RevenueReportPayment,
   RevenueReportStats,
 } from '../types/analytics.types';
 import { getDaysOverdue } from '../utils/collectionAggregation.util';
@@ -212,7 +213,9 @@ export class ReportService extends BaseService {
 
   async getRevenueReport(
     filters: ReportFilters,
-  ): Promise<ReportResult<RevenueReportStats, ReportInvoiceItem>> {
+  ): Promise<
+    ReportResult<RevenueReportStats, ReportInvoiceItem> & { payments: RevenueReportPayment[] }
+  > {
     this.logInfo('Building revenue report');
     const invoices = await invoiceRepository.findAll();
     const filtered = filterInvoicesForReport(invoices, filters);
@@ -242,6 +245,7 @@ export class ReportService extends BaseService {
     let periodRitika = 0;
     let financialYearInnovex = 0;
     let financialYearRitika = 0;
+    const paymentRows: RevenueReportPayment[] = [];
     for (const payment of payments) {
       if (payment.isDeleted || payment.status !== 'received') continue;
       const invoice = allInvoices.get(payment.invoiceId);
@@ -252,14 +256,32 @@ export class ReportService extends BaseService {
         billingType: invoice.billingType,
       });
       const amount = Number(payment.amount) || 0;
-      if (isInFinancialYear(payment.paidAt || '', financialYear)) {
+      const inFinancialYear = isInFinancialYear(payment.paidAt || '', financialYear);
+      const inView = invoiceById.has(invoice.id);
+      if (inFinancialYear) {
         if (account === 'innovex') financialYearInnovex += amount;
         else financialYearRitika += amount;
       }
-      if (!invoiceById.has(invoice.id)) continue;
-      if (account === 'innovex') periodInnovex += amount;
-      else periodRitika += amount;
+      if (inView) {
+        if (account === 'innovex') periodInnovex += amount;
+        else periodRitika += amount;
+      }
+      if (inFinancialYear || inView) {
+        paymentRows.push({
+          id: payment.id,
+          invoiceId: invoice.id,
+          invoiceNo: invoice.invoiceNumber,
+          customerName: invoice.customerName,
+          amount: roundMoney(amount),
+          paidAt: payment.paidAt || '',
+          method: payment.method || '',
+          account,
+          inFinancialYear,
+          inView,
+        });
+      }
     }
+    paymentRows.sort((a, b) => b.paidAt.localeCompare(a.paidAt));
     const receivedGstAccount = roundMoney(periodInnovex);
     const gstBilled = roundMoney(
       filtered
@@ -282,6 +304,7 @@ export class ReportService extends BaseService {
         financialYearRitika: roundMoney(financialYearRitika),
       },
       items: filtered.map(mapInvoiceItem),
+      payments: paymentRows,
     };
   }
 

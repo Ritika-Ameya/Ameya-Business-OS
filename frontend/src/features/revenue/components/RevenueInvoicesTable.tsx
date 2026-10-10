@@ -1,5 +1,5 @@
-import { ArrowDownAZ, ArrowUpAZ, Edit, Eye, MoreHorizontal, Receipt } from "lucide-react";
-import { useState } from "react";
+import { ArrowDownAZ, ArrowUpAZ, Download, Edit, Eye, MoreHorizontal, Receipt } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/table";
+import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   formatInvoiceCurrency,
@@ -46,6 +47,21 @@ export function RevenueInvoicesTable({
 }: RevenueInvoicesTableProps) {
   const { removeInvoice } = useRevenue();
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState("");
+  const [attachedIds, setAttachedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let active = true;
+    void invoicesApi.listAttachedIds().then((ids) => {
+      if (active) setAttachedIds(new Set(ids));
+    }).catch(() => {
+      if (active) setAttachedIds(new Set());
+    });
+    return () => {
+      active = false;
+    };
+  }, [invoices]);
 
   if (invoices.length === 0) {
     return (
@@ -63,6 +79,18 @@ export function RevenueInvoicesTable({
     onNumberSortChange(numberSort === "asc" ? "desc" : "asc");
   };
 
+  const handleDownload = async (invoice: Invoice) => {
+    setDownloadingId(invoice.id);
+    setDownloadError("");
+    try {
+      await invoicesApi.downloadFiles([invoice.id]);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "This invoice could not be downloaded.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const handleDelete = async (invoice: Invoice) => {
     const confirmed = window.confirm(
       `Delete invoice "${invoice.invoiceNo}"?\n\nRelated payments will also be removed.`
@@ -73,6 +101,11 @@ export function RevenueInvoicesTable({
 
   return (
     <>
+      {downloadError ? (
+        <p role="alert" className="mb-3 text-sm text-destructive">
+          {downloadError}
+        </p>
+      ) : null}
       <ResponsiveTableFrame>
         <Table>
           <TableHeader>
@@ -155,6 +188,17 @@ export function RevenueInvoicesTable({
                 </TableCell>
                 <TableCell className="pr-4 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    {attachedIds.has(invoice.id) ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Download invoice ${invoice.invoiceNo}`}
+                        disabled={downloadingId === invoice.id}
+                        onClick={() => void handleDownload(invoice)}
+                      >
+                        <Download />
+                      </Button>
+                    ) : null}
                     <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" asChild>
                       <Link
                         to={`/invoices/${invoice.id}`}
@@ -193,6 +237,14 @@ export function RevenueInvoicesTable({
                         >
                           Edit invoice
                         </DropdownMenuItem>
+                        {attachedIds.has(invoice.id) ? (
+                          <DropdownMenuItem
+                            disabled={downloadingId === invoice.id}
+                            onClick={() => void handleDownload(invoice)}
+                          >
+                            Download invoice
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"

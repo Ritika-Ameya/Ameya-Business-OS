@@ -2,6 +2,7 @@ import { computeComponentTaxable } from "@/features/deals/utils/deal-component-u
 import type { DealComponent } from "@/features/deals/types/deal-component";
 import type {
   Invoice,
+  InvoiceDateFilter,
   InvoiceFilters,
   InvoiceLineItem,
   InvoiceNumberSort,
@@ -65,6 +66,8 @@ export const defaultInvoiceFilters: InvoiceFilters = {
   customer: "all",
   date: "all",
   billingType: "all",
+  dateFrom: "",
+  dateTo: "",
 };
 
 export const invoiceBillingTypeLabels: Record<InvoiceFilters["billingType"], string> = {
@@ -82,12 +85,69 @@ export const invoiceStatusLabels: Record<InvoiceFilters["status"], string> = {
   cancelled: "Cancelled",
 };
 
-export const invoiceDateLabels: Record<InvoiceFilters["date"], string> = {
+/** Shared by collections, which only uses these four presets. */
+export const invoiceDateLabels = {
   all: "All Dates",
   "this-month": "This Month",
   "last-month": "Last Month",
   overdue: "Overdue",
-};
+} as const;
+
+const fyShort = (startYear: number): string =>
+  `FY ${startYear}–${String(startYear + 1).slice(2)}`;
+
+export function invoiceDateOptions(
+  invoices: Invoice[],
+  today = new Date()
+): Array<{ value: InvoiceDateFilter; label: string }> {
+  const currentStart = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const years = new Set<number>([currentStart]);
+  for (const invoice of invoices) {
+    const day = invoice.invoiceDate.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const year = Number(day.slice(0, 4));
+    const month = Number(day.slice(5, 7));
+    years.add(month >= 4 ? year : year - 1);
+  }
+  const options: Array<{ value: InvoiceDateFilter; label: string }> = [
+    { value: "all", label: "All Dates" },
+    { value: "this-month", label: "This Month" },
+    { value: "last-month", label: "Last Month" },
+    { value: "overdue", label: "Overdue" },
+  ];
+  for (const startYear of [...years].sort((a, b) => b - a)) {
+    const fy = fyShort(startYear);
+    options.push(
+      { value: `fy-${startYear}`, label: `${fy} (Apr–Mar)` },
+      { value: `fy-${startYear}-q1`, label: `Q1 ${fy} (Apr–Jun)` },
+      { value: `fy-${startYear}-q2`, label: `Q2 ${fy} (Jul–Sep)` },
+      { value: `fy-${startYear}-q3`, label: `Q3 ${fy} (Oct–Dec)` },
+      { value: `fy-${startYear}-q4`, label: `Q4 ${fy} (Jan–Mar)` }
+    );
+  }
+  options.push({ value: "custom", label: "Custom" });
+  return options;
+}
+
+function localDay(value: string): string {
+  return /^(\d{4}-\d{2}-\d{2})/.exec(value.trim())?.[1] ?? "";
+}
+
+function monthKeyOf(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function financialRange(filter: InvoiceDateFilter): { start: string; end: string } | null {
+  const match = /^fy-(\d{4})(?:-q([1-4]))?$/.exec(filter);
+  if (!match) return null;
+  const startYear = Number(match[1]);
+  const quarter = match[2] ? Number(match[2]) : 0;
+  if (quarter === 1) return { start: `${startYear}-04-01`, end: `${startYear}-06-30` };
+  if (quarter === 2) return { start: `${startYear}-07-01`, end: `${startYear}-09-30` };
+  if (quarter === 3) return { start: `${startYear}-10-01`, end: `${startYear}-12-31` };
+  if (quarter === 4) return { start: `${startYear + 1}-01-01`, end: `${startYear + 1}-03-31` };
+  return { start: `${startYear}-04-01`, end: `${startYear + 1}-03-31` };
+}
 
 export const invoiceStatusStyles: Record<InvoiceStatus, string> = {
   paid: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -152,7 +212,7 @@ export function filterInvoices(
     const matchesCustomer =
       filters.customer === "all" || invoice.customerId === filters.customer;
 
-    const invoiceDate = new Date(invoice.invoiceDate);
+    const invoiceDay = localDay(invoice.invoiceDate);
     const due = new Date(invoice.dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -164,16 +224,17 @@ export function filterInvoices(
       invoice.status !== "cancelled" &&
       invoice.status !== "paid";
 
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const fyRange = financialRange(filters.date);
     const matchesDate =
       filters.date === "all" ||
-      (filters.date === "this-month" &&
-        invoiceDate.getMonth() === now.getMonth() &&
-        invoiceDate.getFullYear() === now.getFullYear()) ||
-      (filters.date === "last-month" &&
-        invoiceDate.getMonth() === (now.getMonth() + 11) % 12 &&
-        invoiceDate.getFullYear() ===
-          (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear())) ||
-      (filters.date === "overdue" && isPastDue);
+      (filters.date === "this-month" && invoiceDay.startsWith(monthKeyOf(now))) ||
+      (filters.date === "last-month" && invoiceDay.startsWith(monthKeyOf(lastMonth))) ||
+      (filters.date === "overdue" && isPastDue) ||
+      (fyRange != null && invoiceDay >= fyRange.start && invoiceDay <= fyRange.end) ||
+      (filters.date === "custom" &&
+        (!filters.dateFrom || invoiceDay >= filters.dateFrom) &&
+        (!filters.dateTo || invoiceDay <= filters.dateTo));
 
     const matchesBillingType =
       filters.billingType === "all" || invoice.billingType === filters.billingType;

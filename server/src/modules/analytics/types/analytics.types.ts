@@ -146,6 +146,20 @@ export interface ReportResult<TStats, TItem> {
   items: TItem[];
 }
 
+/** One received payment behind the revenue report's collection cards. */
+export interface RevenueReportPayment {
+  id: string;
+  invoiceId: string;
+  invoiceNo: string;
+  customerName: string;
+  amount: number;
+  paidAt: string;
+  method: string;
+  account: 'innovex' | 'ritika';
+  inFinancialYear: boolean;
+  inView: boolean;
+}
+
 export interface PendingCollectionRow {
   id: string;
   customer: string;

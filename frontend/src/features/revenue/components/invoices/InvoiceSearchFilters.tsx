@@ -3,6 +3,7 @@ import {
   FilterField,
   FilterToolbar,
   filterControlClassName,
+  filterDateControlClassName,
 } from "@/shared/components/FilterToolbar";
 import { SearchField } from "@/shared/components/SearchField";
 import {
@@ -16,9 +17,10 @@ import {
   defaultInvoiceFilters,
   getUniqueCustomers,
   invoiceBillingTypeLabels,
-  invoiceDateLabels,
+  invoiceDateOptions,
   invoiceStatusLabels,
 } from "@/features/revenue/utils/invoice-utils";
+import { DateInput } from "@/shared/ui/date-input";
 import type { Invoice, InvoiceFilters } from "@/features/revenue/types/invoice";
 
 interface InvoiceSearchFiltersProps {
@@ -41,6 +43,8 @@ export function InvoiceSearchFilters({
     filters.status !== defaultInvoiceFilters.status ||
     filters.customer !== defaultInvoiceFilters.customer ||
     filters.date !== defaultInvoiceFilters.date ||
+    filters.dateFrom !== defaultInvoiceFilters.dateFrom ||
+    filters.dateTo !== defaultInvoiceFilters.dateTo ||
     filters.billingType !== defaultInvoiceFilters.billingType;
 
   const resetAll = () => {
@@ -122,14 +126,39 @@ export function InvoiceSearchFilters({
               <SelectValue placeholder="Select date" />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(invoiceDateLabels).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
+              {invoiceDateOptions(invoices).map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </FilterField>
+
+        {filters.date === "custom" ? (
+          <>
+            <FilterField label="From">
+              <DateInput
+                className={filterDateControlClassName}
+                aria-label="From date"
+                value={filters.dateFrom}
+                onChange={(event) =>
+                  onFiltersChange({ ...filters, dateFrom: event.target.value })
+                }
+              />
+            </FilterField>
+            <FilterField label="To">
+              <DateInput
+                className={filterDateControlClassName}
+                aria-label="To date"
+                value={filters.dateTo}
+                onChange={(event) =>
+                  onFiltersChange({ ...filters, dateTo: event.target.value })
+                }
+              />
+            </FilterField>
+          </>
+        ) : null}
 
         <FilterField label="GST">
           <Select

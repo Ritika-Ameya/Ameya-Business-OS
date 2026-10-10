@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Briefcase, CalendarClock, IndianRupee, Users } from "lucide-react";
 import { computeCustomerStats } from "@/features/customers/utils/customer-utils";
+import { getStageById, getStagesForRecordType } from "@/features/customers/utils/stage-utils";
 import { formatBaseWithGst } from "@/features/revenue/utils/invoice-utils";
 import {
   computeComponentLineTotal,
@@ -126,7 +127,16 @@ function BreakdownCard({
   );
 }
 
-function personRow(customer: Customer, value?: string): StatDetailRow {
+/** Same stage bucket the card counts the record under. */
+function stageNameFor(customer: Customer, stages: SettingsStage[]): string {
+  const applicable = getStagesForRecordType(stages, customer.recordType);
+  const stage = applicable.length
+    ? applicable.find((item) => item.id === customer.currentStageId)
+    : getStageById(stages, customer.currentStageId);
+  return stage?.name ?? "Other";
+}
+
+function personRow(customer: Customer, stages: SettingsStage[], value?: string): StatDetailRow {
   return {
     id: customer.id,
     title: customer.company || customer.name,
@@ -134,10 +144,26 @@ function personRow(customer: Customer, value?: string): StatDetailRow {
       customer.company && customer.name !== customer.company
         ? `Contact · ${customer.name}`
         : undefined,
-    detail: customer.status === "inactive" ? "Status · Inactive" : "Status · Active",
+    detail: `Stage · ${stageNameFor(customer, stages)}`,
     value,
     to: `/customers/${customer.id}`,
   };
+}
+
+function byStageOrder(records: Customer[], stages: SettingsStage[]): Customer[] {
+  const order = new Map(stages.map((stage, index) => [stage.id, stage.sequence ?? index]));
+  return [...records].sort(
+    (a, b) =>
+      (order.get(a.currentStageId ?? "") ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(b.currentStageId ?? "") ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
+function stageSummary(items: Array<{ name: string; count: number }>): string {
+  return items
+    .filter((item) => item.count > 0)
+    .map((item) => `${item.name} ${item.count}`)
+    .join(" · ");
 }
 
 export function CustomerStatsCards({
@@ -191,20 +217,26 @@ export function CustomerStatsCards({
     openCard === "customers"
       ? {
           title: "Customers",
-          description: `${customerRecords.length} customers. The amount is what each one still has to pay.`,
+          description: `${customerRecords.length} customers (${stageSummary(
+            stats.customerByStage.map((stage) => ({ name: stage.stageName, count: stage.count }))
+          )}). The amount is what each one still has to pay.`,
           nameLabel: "Customer",
           valueLabel: "Outstanding",
-          rows: customerRecords.map((customer) =>
-            personRow(customer, formatCurrency(customer.outstanding))
+          rows: byStageOrder(customerRecords, stages).map((customer) =>
+            personRow(customer, stages, formatCurrency(customer.outstanding))
           ),
           empty: "No customers yet.",
         }
       : openCard === "opportunities"
         ? {
             title: "Opportunities",
-            description: `${opportunityRecords.length} opportunities. These are not customers yet.`,
+            description: `${opportunityRecords.length} opportunities (${stageSummary(
+              stats.opportunityByStage.map((stage) => ({ name: stage.stageName, count: stage.count }))
+            )}). These are not customers yet.`,
             nameLabel: "Opportunity",
-            rows: opportunityRecords.map((customer) => personRow(customer)),
+            rows: byStageOrder(opportunityRecords, stages).map((customer) =>
+              personRow(customer, stages)
+            ),
             empty: "No opportunities yet.",
           }
         : openCard === "outstanding"
@@ -214,7 +246,7 @@ export function CustomerStatsCards({
               nameLabel: "Customer",
               valueLabel: "Outstanding",
               rows: outstandingRecords.map((customer) =>
-                personRow(customer, formatCurrency(customer.outstanding))
+                personRow(customer, stages, formatCurrency(customer.outstanding))
               ),
               empty: "Nothing is outstanding.",
             }

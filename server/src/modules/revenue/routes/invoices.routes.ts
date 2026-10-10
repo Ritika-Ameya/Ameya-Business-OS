@@ -5,6 +5,8 @@ import { invoiceController } from '../controllers/invoice.controller';
 const router = Router();
 
 router.get('/', invoiceController.list);
+router.get('/attachments', invoiceController.listAttached);
+router.post('/export', ...invoiceController.exportFiles);
 router.post('/', ...invoiceController.create);
 
 router.get('/payments', invoiceController.listAllPayments);

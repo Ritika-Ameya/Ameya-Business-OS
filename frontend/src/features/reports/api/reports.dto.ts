@@ -109,3 +109,16 @@ export interface ReportResultDto<TStats, TItem> {
   stats: TStats;
   items: TItem[];
 }
+
+export interface RevenueReportPaymentDto {
+  id: string;
+  invoiceId: string;
+  invoiceNo: string;
+  customerName: string;
+  amount: number;
+  paidAt: string;
+  method: string;
+  account: "innovex" | "ritika";
+  inFinancialYear: boolean;
+  inView: boolean;
+}

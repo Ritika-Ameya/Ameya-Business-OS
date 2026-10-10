@@ -1,3 +1,5 @@
+import { API_BASE_URL, DEV_API_KEY } from "@/shared/api/config";
+import { tokenStorage } from "@/features/auth/utils/token-storage";
 import { apiRequest } from "@/shared/api/client";
 import type { PaginatedData } from "@/shared/api/types";
 import type {
@@ -70,6 +72,8 @@ export const invoicesApi = {
       { method: "PUT", body }
     ),
 
+  listAttachedIds: () => apiRequest<string[]>(`${INVOICES_BASE}/attachments`),
+
   listFiles: (id: string) =>
     apiRequest<InvoiceDocumentDto[]>(`${INVOICES_BASE}/${id}/files`),
 
@@ -90,4 +94,37 @@ export const invoicesApi = {
 
   removeFile: (id: string, fileId: string) =>
     apiRequest<null>(`${INVOICES_BASE}/${id}/files/${fileId}`, { method: "DELETE" }),
+
+  downloadFiles: async (invoiceIds: string[]): Promise<void> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const token = tokenStorage.getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (DEV_API_KEY) headers["X-DEV-KEY"] = DEV_API_KEY;
+    const response = await fetch(`${API_BASE_URL}${INVOICES_BASE}/export`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ invoiceIds }),
+    });
+    if (!response.ok) {
+      let message = `Download failed (${response.status})`;
+      try {
+        const body = (await response.json()) as { message?: string };
+        if (body.message) message = body.message;
+      } catch {
+        // The body is not JSON.
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download =
+      /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ??
+      "invoices.zip";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  },
 };

@@ -229,9 +229,13 @@ export const buildCanvasCards = (input: {
     receipt.status === 'received' && receipt.origin !== 'dismissed';
   const coveredInvoices = new Set(
     activeReceipts
-      .filter((receipt) => !paidReceipt(receipt))
-      .map((receipt) => receipt.invoiceId)
-      .filter(Boolean),
+      .filter(
+        (receipt) =>
+          receipt.status === 'expected' &&
+          receipt.origin !== 'dismissed' &&
+          Boolean(receipt.invoiceId),
+      )
+      .map((receipt) => receipt.invoiceId),
   );
   const componentIdForReceipt = (receipt: ExpectedReceiptEntity): string =>
     receipt.componentId ||
@@ -283,6 +287,21 @@ export const buildCanvasCards = (input: {
       receipt.status === 'expected' &&
       openInvoicesForComponent(input.invoices, componentId).some((invoice) =>
         sameCollectionCycle(receipt.expectedDate, invoice.dueDate),
+      )
+    ) {
+      continue;
+    }
+    if (
+      !receipt.invoiceId &&
+      receipt.status === 'expected' &&
+      receipt.sourceType === 'deal_expected' &&
+      receipt.dealId &&
+      input.invoices.some(
+        (invoice) =>
+          isCollectionInvoice(invoice) &&
+          invoice.dealId === receipt.dealId &&
+          sameCollectionCycle(receipt.expectedDate, invoice.dueDate) &&
+          (!receipt.componentId || (invoice.componentIds ?? []).includes(receipt.componentId)),
       )
     ) {
       continue;
