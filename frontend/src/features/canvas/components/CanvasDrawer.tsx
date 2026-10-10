@@ -263,8 +263,8 @@ export function CanvasDrawer({
           <Field label="GST">
             {international ? (
               <p className="text-xs text-muted-foreground">
-                International client. GST does not apply. This collection is counted under Ameya
-                Innovex, not Ritika.
+                International client. GST not required. This collection counts in the Ameya Innovex
+                GST account, not Ritika.
               </p>
             ) : null}
             <div role="radiogroup" className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
@@ -307,7 +307,15 @@ export function CanvasDrawer({
             <Field label="GST">
               <Input
                 readOnly
-                value={amountReady ? (gstRate === 18 ? formatCurrency(gstValue) : "No GST") : ""}
+                value={
+                  amountReady
+                    ? gstRate === 18
+                      ? formatCurrency(gstValue)
+                      : international
+                        ? "GST not required"
+                        : "No GST"
+                    : ""
+                }
               />
             </Field>
             <Field label="Total">
@@ -321,7 +329,9 @@ export function CanvasDrawer({
             <p className="text-sm font-medium tabular-nums">
               {gstRate === 18
                 ? `${formatCurrency(baseValue)} + GST ${formatCurrency(gstValue)} = Total ${formatCurrency(totalValue)}`
-                : `${formatCurrency(baseValue)} · No GST`}
+                : international
+                  ? `${formatCurrency(baseValue)} · International client · GST not required`
+                  : `${formatCurrency(baseValue)} · No GST`}
             </p>
           ) : null}
           {card?.liveBalance != null ? (

@@ -13,10 +13,14 @@ import { applyFilters } from '../../../utils/filtering.util';
 import { applySort } from '../../../utils/sorting.util';
 import { paginateArray } from '../../../utils/pagination.util';
 import { invoiceRepository, paymentRepository } from './revenue.repository';
+import { expectedReceiptRepository } from '../../canvas/services/canvas.repository';
 import { customerRepository, documentRepository } from '../../customers';
 import type { DocumentEntity } from '../../customers';
 import { dealRepository, dealComponentRepository } from '../../deals';
-import { computeComponentTaxable } from '../../deals/utils/componentAmount.util';
+import {
+  computeComponentLineTotal,
+  computeComponentTaxable,
+} from '../../deals/utils/componentAmount.util';
 import type {
   InvoiceBillingType,
   InvoiceEntity,
@@ -108,7 +112,7 @@ export class InvoiceService extends BaseService {
     const billingType = resolveBillingType(input.billingType, input.taxPercent);
     if (customer.internationalClient && billingType === 'gst') {
       throw new ValidationError(
-        'International clients are not billed with GST. Choose Non-GST. Collections still count in the Ameya Innovex account.',
+        'International client. GST not required. Choose Non-GST. Collections still count in the Ameya Innovex GST account.',
       );
     }
     const isNonGst = billingType === 'non_gst';
@@ -169,7 +173,63 @@ export class InvoiceService extends BaseService {
     } as Omit<InvoiceEntity, 'id'>);
 
     await this.syncCustomerOutstanding(created.customerId);
+    await this.retireForecastsCoveredByInvoice(created);
     return created;
+  }
+
+  /**
+   * A component forecast is the amount expected before a bill exists.
+   * Once that component is on an invoice, the invoice outstanding is what will
+   * be collected, including when GST was removed and the bill is lower.
+   */
+  private async retireForecastsCoveredByInvoice(invoice: InvoiceEntity): Promise<void> {
+    const componentIds = (invoice.componentIds ?? []).filter(Boolean);
+    if (componentIds.length === 0 || invoice.status === 'cancelled') return;
+    const [components, receipts] = await Promise.all([
+      dealComponentRepository.findAll(),
+      expectedReceiptRepository.findAll(),
+    ]);
+    const componentById = new Map(components.map((component) => [component.id, component]));
+    const due = invoice.dueDate?.slice(0, 10) ?? '';
+    for (const receipt of receipts) {
+      if (receipt.status !== 'expected' || receipt.invoiceId) continue;
+      if (!componentIds.includes(receipt.componentId)) continue;
+      if (!this.sameCollectionCycle(receipt.expectedDate, due)) continue;
+      const component = componentById.get(receipt.componentId);
+      if (!component) continue;
+      const taxable = computeComponentTaxable(component);
+      const invoiced = this.invoicedTaxable(invoice, receipt.componentId);
+      if (invoiced + 0.6 < taxable) continue;
+      const amount = Number(receipt.expectedAmount);
+      const gross = computeComponentLineTotal(component);
+      const matches =
+        Math.abs(amount - taxable) < 0.6 ||
+        Math.abs(amount - gross) < 0.6 ||
+        Math.abs(amount - Number(invoice.subtotal || 0)) < 0.6 ||
+        Math.abs(amount - Number(invoice.total || 0)) < 0.6;
+      if (!matches) continue;
+      await expectedReceiptRepository.update(receipt.id, { status: 'superseded' });
+    }
+  }
+
+  private invoicedTaxable(invoice: InvoiceEntity, componentId: string): number {
+    const lines = (invoice.lineItems ?? []).filter((line) => line.componentId === componentId);
+    if (lines.length > 0) {
+      return lines.reduce((total, line) => total + Number(line.taxable || 0), 0);
+    }
+    const ids = (invoice.componentIds ?? []).filter(Boolean);
+    if (ids.length === 1 && ids[0] === componentId) return Number(invoice.subtotal || 0);
+    return 0;
+  }
+
+  private sameCollectionCycle(left?: string, right?: string): boolean {
+    const a = left?.slice(0, 10) ?? '';
+    const b = right?.slice(0, 10) ?? '';
+    if (!a || !b) return true;
+    const aTime = Date.parse(a);
+    const bTime = Date.parse(b);
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) return true;
+    return Math.abs(aTime - bTime) / 86_400_000 <= 21;
   }
 
   async update(id: string, input: InvoiceUpdateInput): Promise<InvoiceEntity> {
@@ -193,7 +253,7 @@ export class InvoiceService extends BaseService {
       );
       if (billedCustomer?.internationalClient) {
         throw new ValidationError(
-          'International clients are not billed with GST. Collections still count in the Ameya Innovex account.',
+          'International client. GST not required. Collections still count in the Ameya Innovex GST account.',
         );
       }
     }

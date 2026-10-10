@@ -554,7 +554,7 @@ export function GenerateInvoiceDialog({
                 />
                 <p className="text-xs text-muted-foreground">
                   {internationalClient
-                    ? "International client. GST does not apply. The collection still counts under the Ameya Innovex account."
+                    ? "International client. GST not required. The collection counts in the Ameya Innovex GST account."
                     : lastBillingType
                     ? `Suggested from this customer's last invoice (${
                         lastBillingType === "gst" ? "with GST" : "without GST"

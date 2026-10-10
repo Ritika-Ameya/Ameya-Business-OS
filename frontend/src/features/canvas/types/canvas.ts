@@ -50,6 +50,7 @@ export interface CanvasCard {
   currency: string;
   /** Ameya Innovex (company / GST) or Ritika (domestic non-GST). Display only. */
   collectionAccount?: "innovex" | "ritika";
+  internationalClient?: boolean;
   /** Set on screen only: the unpaid month this card was carried forward from. */
   carriedFrom?: string;
 }

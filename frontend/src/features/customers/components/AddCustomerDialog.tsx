@@ -376,7 +376,7 @@ export function AddCustomerDialog({
               </Select>
               <p className="text-xs text-muted-foreground">
                 {form.internationalClient
-                  ? "GST does not apply. Collections count under the Ameya Innovex account, not Ritika."
+                  ? "International client. GST not required. Collections count in the Ameya Innovex GST account, not Ritika."
                   : "Domestic clients keep the existing GST or non-GST billing."}
               </p>
             </div>

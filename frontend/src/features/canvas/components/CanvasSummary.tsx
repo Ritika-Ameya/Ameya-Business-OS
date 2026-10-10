@@ -70,6 +70,7 @@ export function CanvasSummary({
 }) {
   const toCollect = summary.expected.amount + summary.carried.amount;
   const toCollectExGst = summary.expected.exGst + summary.carried.exGst;
+  const gstOnBills = Math.round((toCollect - toCollectExGst) * 100) / 100;
   const innovex = summary.expected.innovex + summary.carried.innovex;
   const ritika = summary.expected.ritika + summary.carried.ritika;
   const dueSoon = renewals.filter((item) => isRenewalDueSoon(item, today)).length;
@@ -97,9 +98,10 @@ export function CanvasSummary({
           <span className="block">Ameya Innovex {formatCurrency(innovex)}</span>
           <span className="block">Ritika (Non-GST) {formatCurrency(ritika)}</span>
           <span className="block text-white/70">
-            {Math.abs(toCollect - toCollectExGst) > 0.009
-              ? `${formatCurrency(toCollectExGst)} + GST ${formatCurrency(toCollect - toCollectExGst)} · `
-              : "No GST · "}
+            {gstOnBills > 0.009
+              ? `Base ${formatCurrency(toCollectExGst)} + GST ${formatCurrency(gstOnBills)} on GST bills only`
+              : "No GST on these receipts"}
+            {" · "}
             {items(summary.expected.count + summary.carried.count, "receipt", "receipts")}
           </span>
         </span>

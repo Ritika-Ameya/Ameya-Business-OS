@@ -140,6 +140,46 @@ const gstFromComponent = (
   };
 };
 
+/** Forecast and invoice belong to the same cycle when their dates are within three weeks. */
+const sameCollectionCycle = (left?: string, right?: string): boolean => {
+  const a = left?.slice(0, 10) ?? '';
+  const b = right?.slice(0, 10) ?? '';
+  if (!a || !b) return true;
+  const aTime = Date.parse(a);
+  const bTime = Date.parse(b);
+  if (Number.isNaN(aTime) || Number.isNaN(bTime)) return true;
+  return Math.abs(aTime - bTime) / 86_400_000 <= 21;
+};
+
+const openInvoicesForComponent = (
+  invoices: InvoiceEntity[],
+  componentId: string,
+): InvoiceEntity[] =>
+  invoices.filter(
+    (invoice) =>
+      isCollectionInvoice(invoice) && (invoice.componentIds ?? []).includes(componentId),
+  );
+
+/** Taxable amount already on an open invoice. Unknown multi-component splits count as fully billed. */
+const invoicedTaxableForComponent = (invoices: InvoiceEntity[], componentId: string): number => {
+  let sum = 0;
+  let known = false;
+  for (const invoice of openInvoicesForComponent(invoices, componentId)) {
+    const lines = (invoice.lineItems ?? []).filter((line) => line.componentId === componentId);
+    if (lines.length > 0) {
+      known = true;
+      sum += lines.reduce((total, line) => total + Number(line.taxable || 0), 0);
+      continue;
+    }
+    const ids = (invoice.componentIds ?? []).filter(Boolean);
+    if (ids.length === 1 && ids[0] === componentId) {
+      known = true;
+      sum += Number(invoice.subtotal || 0);
+    }
+  }
+  return known ? roundMoney(sum) : Number.POSITIVE_INFINITY;
+};
+
 const sourceForComponent = (component: DealComponentEntity): ReceiptSourceType => {
   if (component.billingType === 'monthly') return 'subscription';
   if (component.billingType === 'yearly') return 'license';
@@ -236,6 +276,17 @@ export const buildCanvasCards = (input: {
     const status = displayStatus(receipt.status, expectedDate, input.today, invoice);
     if (status === 'superseded') continue;
     const componentId = componentIdForReceipt(receipt);
+    // Same-cycle forecast is replaced by the invoice. A later cycle stays visible.
+    if (
+      !receipt.invoiceId &&
+      componentId &&
+      receipt.status === 'expected' &&
+      openInvoicesForComponent(input.invoices, componentId).some((invoice) =>
+        sameCollectionCycle(receipt.expectedDate, invoice.dueDate),
+      )
+    ) {
+      continue;
+    }
     const component = componentId ? componentById.get(componentId) : undefined;
     const componentPercent = Number(component?.gstPercent) || 0;
     const chosenPercent = receipt.gstPercent;
@@ -281,6 +332,7 @@ export const buildCanvasCards = (input: {
         gstPercent: gst.gstPercent,
         billingType: invoice?.billingType,
       }),
+      internationalClient: Boolean(customer?.internationalClient),
     });
   }
 
@@ -328,6 +380,7 @@ export const buildCanvasCards = (input: {
         gstPercent: Number(invoice.taxPercent) || 0,
         billingType: invoice.billingType,
       }),
+      internationalClient: Boolean(customer?.internationalClient),
     });
   }
 
@@ -375,6 +428,63 @@ export const buildCanvasCards = (input: {
         internationalClient: Boolean(customer?.internationalClient),
         gstPercent: Number(component.gstPercent) || 0,
       }),
+      internationalClient: Boolean(customer?.internationalClient),
+    });
+  }
+
+  for (const component of input.components) {
+    if (!openInvoiceComponents.has(component.id)) continue;
+    const taxable = roundMoney(computeComponentTaxable(component));
+    const invoiced = invoicedTaxableForComponent(input.invoices, component.id);
+    const remainderBase = roundMoney(taxable - invoiced);
+    if (remainderBase <= 0.5 || !Number.isFinite(remainderBase)) continue;
+    const deal = dealById.get(component.dealId);
+    if (!deal?.customerId || !customerById.has(deal.customerId)) continue;
+    const customer = customerById.get(deal.customerId);
+    const recordType = customer?.recordType ?? 'customer';
+    const temperature =
+      recordType === 'opportunity' ? temperatureByCustomer.get(deal.customerId) ?? '' : '';
+    const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
+    const cashOnly = openInvoicesForComponent(input.invoices, component.id).every(
+      (invoice) => invoice.billingType === 'non_gst',
+    );
+    const gstPercent =
+      cashOnly || customer?.internationalClient ? 0 : Number(component.gstPercent) || 0;
+    const gstAmount = roundMoney((remainderBase * gstPercent) / 100);
+    const expectedAmount = roundMoney(remainderBase + gstAmount);
+    pushReceipt({
+      id: `sug-remainder-${component.id}`,
+      persistedId: null,
+      kind: 'receipt',
+      customerId: deal.customerId,
+      companyName: companyNameOf(customer, deal.customerName),
+      recordType,
+      temperature,
+      rowKey: rowFor(recordType, temperature),
+      monthKey: dueDate ? monthKeyFromDate(dueDate) : 'unscheduled',
+      expectedAmount,
+      amountExGst: remainderBase,
+      gstAmount,
+      gstPercent,
+      expectedDate: dueDate,
+      sourceType: sourceForComponent(component),
+      reason: `${component.name?.trim() || 'Component'} · not yet billed`,
+      dealId: deal.id,
+      dealTitle: deal.title,
+      invoiceId: '',
+      invoiceNumber: '',
+      componentId: component.id,
+      status: displayStatus('expected', dueDate, input.today),
+      liveBalance: null,
+      amountOverridden: false,
+      origin: 'suggestion',
+      installmentIndex: 1,
+      currency: deal.currency || 'INR',
+      collectionAccount: collectionAccountForExpected({
+        internationalClient: Boolean(customer?.internationalClient),
+        gstPercent,
+      }),
+      internationalClient: Boolean(customer?.internationalClient),
     });
   }
 
@@ -415,7 +525,8 @@ export const buildCanvasCards = (input: {
       origin: 'account',
       installmentIndex: 0,
       currency: 'INR',
-      collectionAccount: 'ritika',
+      collectionAccount: customer.internationalClient ? 'innovex' : 'ritika',
+      internationalClient: Boolean(customer.internationalClient),
     });
   }
 

@@ -80,6 +80,8 @@ export interface CanvasCard {
   currency: string;
   /** Display bucket only. Does not change the stored invoice or payment. */
   collectionAccount: 'innovex' | 'ritika';
+  /** Customer-level flag. International collections stay in the GST account, with no GST tax. */
+  internationalClient: boolean;
 }
 
 export interface CanvasAccountOption {
