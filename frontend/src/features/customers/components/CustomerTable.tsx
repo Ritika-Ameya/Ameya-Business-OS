@@ -37,6 +37,7 @@ interface CustomerTableProps {
   stages?: SettingsStage[];
   onEdit: (customer: Customer) => void;
   onDelete?: (customer: Customer) => void;
+  onOpenSchedule?: (customer: Customer) => void;
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
@@ -48,6 +49,7 @@ export function CustomerTable({
   stages = [],
   onEdit,
   onDelete,
+  onOpenSchedule,
   isFiltered = false,
   isEmpty = false,
   onAdd,
@@ -87,7 +89,7 @@ export function CustomerTable({
             <TableHead className="hidden md:table-cell">Phone</TableHead>
             <TableHead>Outstanding</TableHead>
             <TableHead>Active Deals</TableHead>
-            <TableHead className="hidden sm:table-cell">Next Renewal</TableHead>
+            <TableHead className="hidden sm:table-cell">Next due</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
           </TableRow>
@@ -127,8 +129,23 @@ export function CustomerTable({
               <TableCell className="text-muted-foreground">
                 {customer.activeDeals}
               </TableCell>
-              <TableCell className="hidden text-muted-foreground sm:table-cell">
-                {formatDate(customer.nextRenewal)}
+              <TableCell className="hidden sm:table-cell">
+                {customer.nextDueDate ? (
+                  <button
+                    type="button"
+                    className="rounded-lg py-1 text-left transition-colors hover:text-primary"
+                    onClick={() => onOpenSchedule?.(customer)}
+                  >
+                    <p className="font-medium tabular-nums">{formatDate(customer.nextDueDate)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {customer.nextDueKind === "renewal" ? "Renewal" : "First payment"}
+                      {customer.nextDueName ? ` · ${customer.nextDueName}` : ""}
+                      {(customer.dueCount ?? 0) > 1 ? ` · +${(customer.dueCount ?? 0) - 1}` : ""}
+                    </p>
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell>
                 {(() => {

@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { canvasApi } from "@/features/canvas/api/canvas.api";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -32,7 +33,7 @@ import {
 } from "@/features/settings/utils/app-config-utils";
 import { computeComponentLineTotal, computeComponentTaxable, formatComponentDate, getComponentCurrentDueDate, hasComponentRenewal, previewRenewalCyclePayment } from "@/features/deals/utils/deal-component-utils";
 import { composeInvoiceNumber, formatBaseWithGst, formatInvoiceCurrency } from "@/features/revenue/utils/invoice-utils";
-import { addLocalDaysIso, cn, toLocalIsoDate } from "@/shared/utils";
+import { addLocalDaysIso, cn, formatCurrency, formatDate, toLocalIsoDate } from "@/shared/utils";
 import { BillingTypeToggle } from "@/features/revenue/components/invoices/BillingTypeToggle";
 import type {
   GenerateInvoiceContext,
@@ -64,7 +65,7 @@ export function GenerateInvoiceDialog({
   const { finance } = useAppConfig();
   const { customers } = useCustomers();
   const { deals, getComponentsByDeal } = useDeals();
-  const { createInvoice, invoices } = useRevenue();
+  const { createInvoice, invoices, loadPaymentsForInvoice } = useRevenue();
   const { refreshDashboard } = useDashboard();
   const defaultTax = getDefaultTaxPercentage(finance);
   const customerLocked = Boolean(context?.customerId);
@@ -92,6 +93,22 @@ export function GenerateInvoiceDialog({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cycleByComponent, setCycleByComponent] = useState<Record<string, string>>({});
+  const [taggedPayments, setTaggedPayments] = useState<string[]>([]);
+  const [receiptPayments, setReceiptPayments] = useState<
+    Array<{
+      key: string;
+      receiptId: string;
+      index: number;
+      dealId: string;
+      componentId: string;
+      reason: string;
+      paymentDate: string;
+      amount: number;
+      tdsAmount: number;
+      tdsSettles: boolean;
+    }>
+  >([]);
 
   const customerId = context?.customerId ?? selectedCustomerId;
   const dealId = context?.dealId ?? selectedDealId;
@@ -100,6 +117,46 @@ export function GenerateInvoiceDialog({
     () => (dealId ? getComponentsByDeal(dealId) : []),
     [dealId, getComponentsByDeal]
   );
+
+  useEffect(() => {
+    if (!open || !customerId) {
+      setReceiptPayments([]);
+      return;
+    }
+    let cancelled = false;
+    canvasApi
+      .listCustomerReceiptPayments(customerId)
+      .then((rows) => {
+        if (cancelled) return;
+        setReceiptPayments(
+          rows.map((row) => ({
+            key: `${row.receiptId}|${row.index}`,
+            receiptId: row.receiptId,
+            index: row.index,
+            dealId: row.dealId,
+            componentId: row.componentId,
+            reason: row.reason,
+            paymentDate: row.paymentDate,
+            amount: row.amount,
+            tdsAmount: row.tdsAmount,
+            tdsSettles: row.tdsSettles,
+          }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setReceiptPayments([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, customerId]);
+
+  const taggablePayments = useMemo(() => {
+    const componentIds = new Set(dealComponents.map((component) => component.id));
+    return receiptPayments.filter(
+      (payment) => payment.dealId === dealId || componentIds.has(payment.componentId)
+    );
+  }, [dealComponents, dealId, receiptPayments]);
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === customerId),
@@ -170,6 +227,31 @@ export function GenerateInvoiceDialog({
     };
   }, [dealComponents, selectedComponents, gstPercent, isNonGst]);
 
+  const taggedRows = taggablePayments.filter((payment) => taggedPayments.includes(payment.key));
+  const taggedSettled =
+    Math.round(
+      taggedRows.reduce(
+        (sum, payment) => sum + payment.amount + (payment.tdsSettles ? payment.tdsAmount : 0),
+        0
+      ) * 100
+    ) / 100;
+  const remaining = Math.max(0, Math.round((summary.total - taggedSettled) * 100) / 100);
+  const paidCycleOnly =
+    selectedComponents.length > 0 &&
+    selectedComponents.every((id) => {
+      const component = dealComponents.find((row) => row.id === id);
+      if (!component) return false;
+      const dueIso = getComponentCurrentDueDate(component).slice(0, 10);
+      const paidCycle = (component.lastRenewedDate || "").slice(0, 10);
+      if (!paidCycle || !dueIso || paidCycle === dueIso) return false;
+      return (cycleByComponent[id] || dueIso) === paidCycle;
+    });
+  const fullyCovered = taggedRows.length > 0 && remaining <= 0.5;
+  const hideDueDate = paidCycleOnly && fullyCovered;
+  const dueDateForSave = hideDueDate
+    ? taggedRows.map((payment) => payment.paymentDate).sort().at(-1) || invoiceDate
+    : dueDate;
+
   const selectedGstKey = useMemo(() => {
     const selected = dealComponents.filter((component) =>
       selectedComponents.includes(component.id)
@@ -217,6 +299,8 @@ export function GenerateInvoiceDialog({
       setInvoiceNumberRest("");
       setNotes("");
       setError(null);
+      setCycleByComponent({});
+      setTaggedPayments([]);
       const nextCustomerId = context?.customerId ?? customers[0]?.id ?? "";
       setSelectedCustomerId(nextCustomerId);
       setSelectedDealId(context?.dealId || firstDealForCustomer(nextCustomerId));
@@ -236,8 +320,12 @@ export function GenerateInvoiceDialog({
       setError("Customer and deal are required.");
       return;
     }
-    if (!invoiceDate || !dueDate) {
-      setError("Invoice date and due date are required.");
+    if (!invoiceDate || !dueDateForSave) {
+      setError(
+        hideDueDate
+          ? "Invoice date is required."
+          : "Invoice date and due date are required."
+      );
       return;
     }
     if (!nextActionDate) {
@@ -246,6 +334,11 @@ export function GenerateInvoiceDialog({
     }
     if (selectedComponents.length === 0) {
       setError("Select at least one component.");
+      return;
+    }
+    const tagged = taggedRows;
+    if (taggedSettled > summary.total + 0.5) {
+      setError("The payments you tagged are more than this invoice.");
       return;
     }
     const invoiceNumber = composeInvoiceNumber(
@@ -262,24 +355,40 @@ export function GenerateInvoiceDialog({
     try {
       const invoice = await createInvoice({
         customerId,
-        customerName: context?.customerName ?? selectedCustomer?.name,
+        customerName:
+          context?.customerName ||
+          selectedCustomer?.company?.trim() ||
+          selectedCustomer?.name,
         dealId,
         dealTitle: context?.dealTitle ?? selectedDeal?.title,
         status: "due",
         issueDate: invoiceDate,
-        dueDate,
+        dueDate: dueDateForSave,
         subtotal: summary.subtotal,
         taxPercent: summary.taxRate,
         tax: summary.tax,
         total: summary.total,
         componentIds: selectedComponents,
+        billedCycles: selectedComponents.map((id) => {
+          const component = dealComponents.find((row) => row.id === id);
+          const nextDue = component ? getComponentCurrentDueDate(component) : "";
+          return { componentId: id, cycleDate: (cycleByComponent[id] || nextDue).slice(0, 10) };
+        }).filter((cycle) => /^\d{4}-\d{2}-\d{2}$/.test(cycle.cycleDate)),
+        linkPayments: tagged.map((payment) => ({
+          receiptId: payment.receiptId,
+          index: payment.index,
+        })),
         notes: notes.trim(),
         nextActionDate,
         invoiceNumber,
         billingType,
       });
+      if (tagged.length > 0) {
+        await loadPaymentsForInvoice(invoice.id);
+      }
       onOpenChange(false);
       setSelectedComponents([]);
+      setTaggedPayments([]);
       onGenerate?.(invoice);
       void refreshDashboard({ silent: true });
     } catch (err) {
@@ -327,7 +436,9 @@ export function GenerateInvoiceDialog({
                       <SelectContent>
                         {customers.map((customer) => (
                           <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
+                            {customer.company?.trim() && customer.name?.trim() && customer.company.trim() !== customer.name.trim()
+                              ? `${customer.company.trim()} · ${customer.name.trim()}`
+                              : customer.company?.trim() || customer.name?.trim() || "Untitled customer"}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -408,15 +519,135 @@ export function GenerateInvoiceDialog({
                     dealComponents.map((component) => {
                       const isSelected = selectedComponents.includes(component.id);
                       const dueIso = getComponentCurrentDueDate(component);
+                      const paidCycle = (component.lastRenewedDate || "").slice(0, 10);
+                      const canBillPaidCycle = Boolean(
+                        paidCycle && dueIso && paidCycle !== dueIso.slice(0, 10)
+                      );
+                      const chosenCycle = cycleByComponent[component.id] || dueIso;
+                      const billingPaidCycle = canBillPaidCycle && chosenCycle === paidCycle;
                       const paymentPreview = previewRenewalCyclePayment(component);
                       return (
-                        <button
+                        <div
                           key={component.id}
-                          type="button"
-                          onClick={() => toggleComponent(component.id)}
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                            "rounded-lg border px-3 py-2.5 transition-colors",
                             isSelected
+                              ? "border-primary bg-primary/5"
+                              : "border-transparent hover:bg-muted/50"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleComponent(component.id)}
+                            className="flex w-full items-center gap-3 text-left"
+                          >
+                            <div
+                              className={cn(
+                                "flex size-5 shrink-0 items-center justify-center rounded border",
+                                isSelected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border"
+                              )}
+                            >
+                              {isSelected && <Check className="size-3" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium">{component.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {component.category}
+                                {hasComponentRenewal(component.renewalFrequency) && chosenCycle
+                                  ? ` · Invoice for cycle ${formatComponentDate(chosenCycle)}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <span className="max-w-[14rem] shrink-0 text-right text-sm font-medium leading-snug">
+                              {formatBaseWithGst(
+                                computeComponentTaxable(component),
+                                isNonGst
+                                  ? 0
+                                  : computeComponentLineTotal(component) -
+                                      computeComponentTaxable(component),
+                              )}
+                            </span>
+                          </button>
+                          {isSelected && canBillPaidCycle ? (
+                            <div className="mt-2 flex flex-wrap gap-2 pl-8">
+                              <button
+                                type="button"
+                                className={cn(
+                                  "rounded-lg border px-2 py-1 text-xs",
+                                  !billingPaidCycle
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border"
+                                )}
+                                onClick={() =>
+                                  setCycleByComponent((prev) => ({ ...prev, [component.id]: dueIso }))
+                                }
+                              >
+                                Next cycle · {formatComponentDate(dueIso)}
+                              </button>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "rounded-lg border px-2 py-1 text-xs",
+                                  billingPaidCycle
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border"
+                                )}
+                                onClick={() =>
+                                  setCycleByComponent((prev) => ({
+                                    ...prev,
+                                    [component.id]: paidCycle,
+                                  }))
+                                }
+                              >
+                                Paid cycle · {formatComponentDate(paidCycle)}
+                              </button>
+                            </div>
+                          ) : null}
+                          {isSelected && paymentPreview && !billingPaidCycle ? (
+                            <p className="mt-1 pl-8 text-xs text-muted-foreground">
+                              When this invoice is fully paid, that cycle is marked paid
+                              and next due becomes {formatComponentDate(paymentPreview.nextDueDate)}.
+                            </p>
+                          ) : null}
+                          {isSelected && billingPaidCycle ? (
+                            <p className="mt-1 pl-8 text-xs text-muted-foreground">
+                              This bills the cycle already marked paid. Next renewal stays{" "}
+                              {formatComponentDate(dueIso)}.
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {taggablePayments.length > 0 ? (
+                <div className="space-y-2">
+                  <Label>Payments already recorded</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Tick a payment to put it on this invoice. It leaves the forecast and stays
+                    counted once. The next renewal does not move.
+                  </p>
+                  <div className="space-y-2 rounded-xl border border-border/70 p-2">
+                    {taggablePayments.map((payment) => {
+                      const checked = taggedPayments.includes(payment.key);
+                      return (
+                        <button
+                          key={payment.key}
+                          type="button"
+                          onClick={() =>
+                            setTaggedPayments((prev) =>
+                              prev.includes(payment.key)
+                                ? prev.filter((key) => key !== payment.key)
+                                : [...prev, payment.key]
+                            )
+                          }
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left",
+                            checked
                               ? "border-primary bg-primary/5"
                               : "border-transparent hover:bg-muted/50"
                           )}
@@ -424,43 +655,30 @@ export function GenerateInvoiceDialog({
                           <div
                             className={cn(
                               "flex size-5 shrink-0 items-center justify-center rounded border",
-                              isSelected
+                              checked
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border"
                             )}
                           >
-                            {isSelected && <Check className="size-3" />}
+                            {checked && <Check className="size-3" />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium">{component.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {component.category}
-                              {hasComponentRenewal(component.renewalFrequency) && dueIso
-                                ? ` · Invoice for cycle ${formatComponentDate(dueIso)}`
-                                : ""}
+                            <p className="truncate text-sm font-medium">
+                              {payment.reason || "Recorded payment"}
                             </p>
-                            {isSelected && paymentPreview ? (
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                When this invoice is fully paid, that cycle is marked paid
-                                and next due becomes {formatComponentDate(paymentPreview.nextDueDate)}.
-                              </p>
-                            ) : null}
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(payment.paymentDate)}
+                            </p>
                           </div>
-                          <span className="max-w-[14rem] shrink-0 text-right text-sm font-medium leading-snug">
-                            {formatBaseWithGst(
-                              computeComponentTaxable(component),
-                              isNonGst
-                                ? 0
-                                : computeComponentLineTotal(component) -
-                                    computeComponentTaxable(component),
-                            )}
+                          <span className="shrink-0 text-sm font-medium tabular-nums">
+                            {formatCurrency(payment.amount)}
                           </span>
                         </button>
                       );
-                    })
-                  )}
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="invoice-number">
@@ -485,7 +703,7 @@ export function GenerateInvoiceDialog({
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className={cn("grid gap-4", hideDueDate ? "" : "sm:grid-cols-2")}>
                 <div className="space-y-2">
                   <Label htmlFor="invoice-date">Invoice Date</Label>
                   <Input
@@ -496,17 +714,43 @@ export function GenerateInvoiceDialog({
                     className="rounded-xl"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="due-date">Due Date</Label>
-                  <Input
-                    id="due-date"
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="rounded-xl"
-                  />
-                </div>
+                {hideDueDate ? null : (
+                  <div className="space-y-2">
+                    <Label htmlFor="due-date">
+                      {paidCycleOnly && taggedRows.length > 0 ? "Remaining due on" : "Due Date"}
+                    </Label>
+                    <Input
+                      id="due-date"
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="rounded-xl"
+                    />
+                    {paidCycleOnly && taggedRows.length > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {formatInvoiceCurrency(remaining)} is still left. This date is only for that amount.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
+              {paidCycleOnly && taggedRows.length > 0 ? (
+                <div className="space-y-1 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Already paid
+                  </p>
+                  {taggedRows.map((payment) => (
+                    <p key={payment.key} className="text-sm">
+                      Paid on {formatDate(payment.paymentDate)} · {formatCurrency(payment.amount)}
+                    </p>
+                  ))}
+                  {hideDueDate ? (
+                    <p className="text-xs text-muted-foreground">
+                      Nothing is left on this invoice, so there is no due date.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="next-follow-up-date">Next Follow-up Date</Label>
@@ -600,6 +844,18 @@ export function GenerateInvoiceDialog({
                     </div>
                   </div>
                 </div>
+                {taggedRows.length > 0 ? (
+                  <div className="mt-4 space-y-2 border-t border-border/70 pt-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Already paid</span>
+                      <span className="font-medium">{formatInvoiceCurrency(taggedSettled)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Still to collect</span>
+                      <span className="font-medium">{formatInvoiceCurrency(remaining)}</span>
+                    </div>
+                  </div>
+                ) : null}
                 <p className="mt-4 text-xs text-muted-foreground">
                   {selectedComponents.length > 0
                     ? `${selectedComponents.length} component(s) selected`

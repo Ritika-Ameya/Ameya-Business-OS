@@ -54,6 +54,8 @@ export interface PaymentDto extends BaseEntityDto {
   transactionId: string;
   notes: string;
   receivedAccount?: PaymentAccount | "";
+  tdsAmount?: number;
+  tdsSettles?: boolean;
 }
 
 export interface InvoiceDocumentDto extends BaseEntityDto {
@@ -85,6 +87,8 @@ export interface InvoiceCreateBody {
   nextActionDate?: string;
   invoiceNumber: string;
   billingType?: InvoiceBillingType;
+  billedCycles?: Array<{ componentId: string; cycleDate: string }>;
+  linkPayments?: Array<{ receiptId: string; index: number }>;
 }
 
 export interface InvoiceUpdateBody extends Partial<InvoiceCreateBody> {
@@ -105,4 +109,6 @@ export interface PaymentCreateBody {
   receivedAccount?: PaymentAccount;
   /** Client paid only the base amount: the server turns the invoice into non-GST first. */
   removeGstReason?: string;
+  tdsAmount?: number;
+  tdsSettles?: boolean;
 }

@@ -39,6 +39,13 @@ export interface ExpectedReceiptEntity extends CanvasEntityBase {
   expectedDate: string;
   reason: string;
   status: ReceiptStoredStatus;
+  /**
+   * Cash recorded on this forecast without rewriting expectedAmount.
+   * One line per receipt: date|cash|account|tds|yes. Blank on older rows.
+   */
+  receivedLog: string;
+  /** When set, the linked invoice balance stays off the canvas. The invoice row is kept. */
+  suppressInvoice: boolean;
 }
 
 export interface LeadTemperatureEntity extends CanvasEntityBase {
@@ -49,6 +56,27 @@ export interface LeadTemperatureEntity extends CanvasEntityBase {
 export type CanvasRowKey = 'unclassified' | 'hot' | 'warm' | 'cold' | 'customer';
 
 export type CanvasDisplayStatus = 'expected' | 'overdue' | 'received' | 'cancelled' | 'superseded';
+
+export interface CanvasForecastPayment {
+  date: string;
+  /** Cash that reached the bank. */
+  amount: number;
+  tdsAmount: number;
+  tdsSettles: boolean;
+  /** Still expected on this forecast after this payment. */
+  remainingAfter: number;
+}
+
+/** Shown on a forecast that still has a balance after one or more payments. */
+export interface CanvasForecastHistory {
+  /** Day the expected receipt was created. Blank when the sheet has no created date. */
+  createdOn: string;
+  /** Amount saved on the forecast. Payments do not rewrite this. */
+  originalAmount: number;
+  payments: CanvasForecastPayment[];
+  /** Balance still on the forecast. */
+  remaining: number;
+}
 
 export interface CanvasCard {
   id: string;
@@ -82,6 +110,8 @@ export interface CanvasCard {
   collectionAccount: 'innovex' | 'ritika';
   /** Customer-level flag. International collections stay in the GST account, with no GST tax. */
   internationalClient: boolean;
+  /** Present once part of this forecast has been received and a balance is still expected. */
+  history?: CanvasForecastHistory;
 }
 
 export interface CanvasAccountOption {
@@ -139,6 +169,8 @@ export interface CanvasPaidEntry {
   paidAt: string;
   /** Display bucket only. Does not change the stored payment account. */
   collectionAccount: 'innovex' | 'ritika';
+  tdsAmount?: number;
+  tdsSettles?: boolean;
 }
 
 export interface CanvasBoardPayload {

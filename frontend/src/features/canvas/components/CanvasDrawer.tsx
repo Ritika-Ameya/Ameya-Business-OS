@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { canvasApi } from "@/features/canvas/api/canvas.api";
+import { ForecastHistory } from "@/features/canvas/components/ForecastHistory";
 import { splitInclusive } from "@/features/canvas/components/GstAmount";
 import { customersApi } from "@/features/customers/api/customers.api";
 import {
@@ -72,6 +73,7 @@ export function CanvasDrawer({
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [confirmConvert, setConfirmConvert] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [temperature, setTemperature] = useState<"" | "hot" | "warm" | "cold">("");
 
   useEffect(() => {
@@ -241,6 +243,10 @@ export function CanvasDrawer({
               Unpaid from {formatMonthLabel(card.carriedFrom)}. It stays here as carried forward until it
               is paid or moved to another month.
             </p>
+          ) : null}
+
+          {card?.history && card.history.payments.length > 0 ? (
+            <ForecastHistory history={card.history} />
           ) : null}
 
           {creating || card?.kind === "account" ? (
@@ -539,15 +545,12 @@ export function CanvasDrawer({
             Save forecast
           </Button>
           {card?.kind === "receipt" &&
-          !card.invoiceId &&
-          !card.dealId &&
-          !card.componentId &&
           (card.status === "expected" || card.status === "overdue") ? (
             <Button
               type="button"
               variant="outline"
               disabled={pending}
-              onClick={() => void run(() => canvasApi.dismiss(card.id))}
+              onClick={() => setConfirmRemove(true)}
             >
               Remove from forecast
             </Button>
@@ -556,6 +559,33 @@ export function CanvasDrawer({
       </aside>
       ) : null}
 
+      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove from forecast</DialogTitle>
+            <DialogDescription>
+              This takes the expected amount off the canvas. The row is kept as cancelled, so nothing
+              is deleted. An invoice that already exists stays in Revenue.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={pending || !card}
+              onClick={() => {
+                if (!card) return;
+                setConfirmRemove(false);
+                void run(() => canvasApi.dismiss(card.id));
+              }}
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={confirmConvert} onOpenChange={setConfirmConvert}>
         <DialogContent>
           <DialogHeader>

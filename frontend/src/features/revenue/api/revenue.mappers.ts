@@ -60,6 +60,8 @@ export function mapPaymentFromDto(dto: PaymentDto): Payment {
     status: dto.status,
     notes: dto.notes || undefined,
     receivedAccount: dto.receivedAccount || undefined,
+    tdsAmount: dto.tdsAmount || undefined,
+    tdsSettles: Boolean(dto.tdsSettles),
   };
 }
 
@@ -74,6 +76,8 @@ export function mapPaymentFormToBody(data: PaymentFormData): PaymentCreateBody {
     notes: data.notes.trim(),
     status: "received",
     receivedAccount: data.receivedAccount,
+    tdsAmount: Number.parseFloat(data.tdsAmount.replace(/,/g, "")) || 0,
+    tdsSettles: data.tdsSettles,
   };
 }
 

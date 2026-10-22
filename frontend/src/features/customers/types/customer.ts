@@ -34,7 +34,13 @@ export interface Customer {
   timeline: CustomerTimelineEntry[];
   outstanding: number;
   activeDeals: number;
+  /** Earliest date that is a real renewal: a later cycle after one payment. */
   nextRenewal?: string;
+  /** Soonest dated component, including a first bill that has not been paid. */
+  nextDueDate?: string;
+  nextDueKind?: "first" | "renewal";
+  nextDueName?: string;
+  dueCount?: number;
   businessSince?: string;
   lastPayment?: string;
   businessValue: number;

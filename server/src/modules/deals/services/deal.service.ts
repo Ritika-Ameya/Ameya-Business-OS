@@ -43,9 +43,14 @@ import {
 import {
   hasRenewalFrequency,
   resolveComponentRenewalDate,
+  todayLocalIso,
   tryAdvanceComponentRenewal,
   tryRollbackComponentRenewal,
 } from '../utils/renewalHelpers.util';
+import {
+  recordComponentCycleCash,
+  reverseComponentCycleCash,
+} from '../../canvas/utils/componentCycleCash.util';
 import { migrateDealRenewalsToComponents } from '../utils/renewalMigration.util';
 import { createDealTimelineEntry, prependDealTimelineEntry } from '../utils/timeline.util';
 
@@ -353,14 +358,14 @@ export class DealService extends BaseService {
     const existing = await this.getById(dealId);
 
     const renewalFrequency = input.renewalFrequency || 'none';
-    const renewalStartDate = hasRenewalFrequency(renewalFrequency)
-      ? input.renewalStartDate.trim()
-      : '';
-    const renewalDate = resolveComponentRenewalDate({
-      renewalFrequency,
-      renewalStartDate,
-      renewalDate: input.renewalDate,
-    });
+    const renewalStartDate = (input.renewalStartDate || '').trim();
+    const renewalDate = hasRenewalFrequency(renewalFrequency)
+      ? resolveComponentRenewalDate({
+          renewalFrequency,
+          renewalStartDate,
+          renewalDate: input.renewalDate,
+        })
+      : renewalStartDate;
 
     const component = await dealComponentRepository.create({
       dealId,
@@ -427,11 +432,10 @@ export class DealService extends BaseService {
     }
 
     const renewalFrequency = input.renewalFrequency ?? component.renewalFrequency ?? 'none';
-    const renewalStartDate = hasRenewalFrequency(renewalFrequency)
-      ? (input.renewalStartDate !== undefined
-          ? input.renewalStartDate.trim()
-          : component.renewalStartDate)
-      : '';
+    const renewalStartDate =
+      input.renewalStartDate !== undefined
+        ? input.renewalStartDate.trim()
+        : component.renewalStartDate;
     const renewalDate = hasRenewalFrequency(renewalFrequency)
       ? resolveComponentRenewalDate({
           renewalFrequency,
@@ -439,7 +443,9 @@ export class DealService extends BaseService {
           renewalDate:
             input.renewalDate !== undefined ? input.renewalDate : component.renewalDate,
         })
-      : '';
+      : input.renewalStartDate !== undefined
+        ? input.renewalStartDate.trim()
+        : (component.renewalDate || component.renewalStartDate || '').trim();
 
     const lastRenewedDate = component.lastRenewedDate || '';
     const mergedForAdvance = {
@@ -457,27 +463,37 @@ export class DealService extends BaseService {
       ? tryAdvanceComponentRenewal(mergedForAdvance)
       : null;
 
+    const patch: Partial<DealComponentEntity> = {
+      renewalFrequency,
+      renewalStartDate,
+      renewalDate: advanced?.renewalDate ?? renewalDate,
+      lastRenewedDate: advanced?.lastRenewedDate ?? lastRenewedDate,
+      status: advanced?.status ?? input.status ?? component.status,
+    };
+    if (input.name !== undefined) patch.name = input.name.trim();
+    if (input.category !== undefined) patch.category = input.category.trim();
+    if (input.description !== undefined) patch.description = input.description.trim();
+    if (input.gstPercent !== undefined) patch.gstPercent = input.gstPercent;
+    if (input.quantity !== undefined) patch.quantity = input.quantity;
+    if (input.discount !== undefined) patch.discount = input.discount;
+    if (input.amount !== undefined) patch.amount = input.amount;
+    if (input.billingType !== undefined) patch.billingType = input.billingType;
+
     const updated = await dealComponentRepository.updateOrThrow(
       componentId,
-      {
-        ...input,
-        name: input.name?.trim(),
-        category: input.category?.trim(),
-        description: input.description?.trim(),
-        gstPercent: input.gstPercent ?? component.gstPercent ?? 0,
-        quantity: input.quantity ?? component.quantity ?? 1,
-        discount: input.discount ?? component.discount ?? 0,
-        renewalFrequency,
-        renewalStartDate,
-        renewalDate: advanced?.renewalDate ?? renewalDate,
-        lastRenewedDate: advanced?.lastRenewedDate ?? lastRenewedDate,
-        status: advanced?.status ?? input.status ?? component.status,
-      } as Partial<DealComponentEntity>,
+      patch,
       'Component',
     );
 
     if (advanced) {
       const deal = await this.getById(dealId);
+      await recordComponentCycleCash({
+        component: updated,
+        customerId: deal.customerId,
+        currency: deal.currency || 'INR',
+        paidForDate: advanced.lastRenewedDate,
+        paymentDate: todayLocalIso(),
+      });
       await dealRepository.updateOrThrow(
         dealId,
         {
@@ -515,6 +531,7 @@ export class DealService extends BaseService {
       );
     }
 
+    const paidForDate = component.lastRenewedDate.trim();
     const updated = await dealComponentRepository.updateOrThrow(
       componentId,
       {
@@ -524,6 +541,7 @@ export class DealService extends BaseService {
       },
       'Component',
     );
+    await reverseComponentCycleCash(componentId, paidForDate);
 
     const deal = await this.getById(dealId);
     await dealRepository.updateOrThrow(

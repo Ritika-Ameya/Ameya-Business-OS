@@ -67,6 +67,7 @@ export function getPaymentMethodLabel(
   methods: SettingsPaymentMethod[]
 ): string {
   if (!slug) return "—";
+  if (slug === "component") return "Component";
   return methods.find((method) => method.slug === slug)?.name ?? slug;
 }
 

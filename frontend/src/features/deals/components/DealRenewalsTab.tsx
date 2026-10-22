@@ -73,10 +73,13 @@ export function DealRenewalsTab({ deal }: DealRenewalsTabProps) {
                       {componentRenewalFrequencyLabels[component.renewalFrequency]}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {lastRenewed ? formatComponentDate(lastRenewed) : "—"}
+                      {lastRenewed ? formatComponentDate(lastRenewed) : "No payment yet"}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {formatComponentDate(dueDate)}
+                      {lastRenewed ? null : (
+                        <p className="text-xs">First payment due</p>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {formatBaseWithGst(

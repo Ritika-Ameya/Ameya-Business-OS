@@ -9,25 +9,20 @@ import {
   Wallet,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import type { ReactNode } from "react";
 import { DealComponentsTab } from "./components/DealComponentsTab";
 import { DealDocumentsTab } from "./DealDocumentsTab";
 import { DealInvoicesTab } from "@/features/revenue/components/invoices/DealInvoicesTab";
 import { DealNotesTab } from "./DealNotesTab";
 import { DealOverviewTab } from "./DealOverviewTab";
+import { DealPaymentsTab } from "./DealPaymentsTab";
 import { DealRenewalsTab } from "./DealRenewalsTab";
 import { DealTimelineTab } from "./DealTimelineTab";
-import { PlaceholderCard } from "./PlaceholderCard";
 import { useDeals } from "@/features/deals/hooks/use-deals";
 
 interface DealWorkspaceTabsProps {
   dealId: string;
   activeTab: string;
   onTabChange: (tab: string) => void;
-}
-
-function TabPlaceholderGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{children}</div>;
 }
 
 export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorkspaceTabsProps) {
@@ -91,24 +86,7 @@ export function DealWorkspaceTabs({ dealId, activeTab, onTabChange }: DealWorksp
       </TabsContent>
 
       <TabsContent value="payments" className="mt-0">
-        <TabPlaceholderGrid>
-          <PlaceholderCard
-            icon={Wallet}
-            title="Payment History"
-            description="Recorded payments"
-            message="Payment records will appear here once received."
-            accent="bg-emerald-500/10"
-            iconColor="text-emerald-600 dark:text-emerald-400"
-          />
-          <PlaceholderCard
-            icon={Receipt}
-            title="Outstanding"
-            description="Amount due"
-            message="Outstanding balance will be shown here."
-            accent="bg-amber-500/10"
-            iconColor="text-amber-600 dark:text-amber-400"
-          />
-        </TabPlaceholderGrid>
+        {activeTab === "payments" ? <DealPaymentsTab deal={deal} /> : null}
       </TabsContent>
 
       <TabsContent value="renewals" className="mt-0">

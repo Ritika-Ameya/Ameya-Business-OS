@@ -175,6 +175,8 @@ export const PAYMENTS_CONTRACT: PersistenceContract = {
     'transactionId',
     'notes',
     'receivedAccount',
+    'tdsAmount',
+    'tdsSettles',
   ]),
 };
 

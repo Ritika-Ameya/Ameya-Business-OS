@@ -14,12 +14,14 @@ import {
   isCollectionInvoice,
 } from '../../revenue/utils/invoiceCalculation.util';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
+import { parseReceivedLog, settledByEntry, settledFromLog } from './receivedLog.util';
 import {
   collectionAccountForExpected,
   collectionAccountForPayment,
 } from '../../revenue/utils/collectionAccount.util';
 import type {
   CanvasCard,
+  CanvasForecastHistory,
   CanvasPaidEntry,
   CanvasRenewalReminder,
   ExpectedReceiptEntity,
@@ -181,8 +183,12 @@ const invoicedTaxableForComponent = (invoices: InvoiceEntity[], componentId: str
 };
 
 const sourceForComponent = (component: DealComponentEntity): ReceiptSourceType => {
+  if (!hasRenewalFrequency(component.renewalFrequency) || component.billingType === 'one-time') {
+    return 'other';
+  }
   if (component.billingType === 'monthly') return 'subscription';
   if (component.billingType === 'yearly') return 'license';
+  if (component.billingType === 'half-yearly') return 'subscription';
   return 'renewal';
 };
 
@@ -253,6 +259,42 @@ export const buildCanvasCards = (input: {
       })
       .filter(Boolean),
   );
+  const suppressedInvoices = new Set(
+    input.receipts
+      .filter((receipt) => receipt.suppressInvoice && receipt.invoiceId)
+      .map((receipt) => receipt.invoiceId),
+  );
+  const stillOpen = (receipt: ExpectedReceiptEntity): number =>
+    roundMoney(Math.max(0, Number(receipt.expectedAmount || 0) - settledFromLog(receipt.receivedLog)));
+  const displayAmountById = new Map<string, number>();
+  const receiptsByInvoice = new Map<string, ExpectedReceiptEntity[]>();
+  for (const receipt of activeReceipts) {
+    if (receipt.origin === 'dismissed' || receipt.status !== 'expected') continue;
+    if (!receipt.invoiceId) {
+      displayAmountById.set(receipt.id, stillOpen(receipt));
+      continue;
+    }
+    const list = receiptsByInvoice.get(receipt.invoiceId) ?? [];
+    list.push(receipt);
+    receiptsByInvoice.set(receipt.invoiceId, list);
+  }
+  for (const [invoiceId, list] of receiptsByInvoice) {
+    const invoice = invoiceById.get(invoiceId);
+    let left = invoice
+      ? effectiveInvoiceOutstanding(invoice)
+      : list.reduce((sum, receipt) => sum + stillOpen(receipt), 0);
+    const ordered = [...list].sort(
+      (a, b) =>
+        a.expectedDate.localeCompare(b.expectedDate) ||
+        (a.installmentIndex || 0) - (b.installmentIndex || 0),
+    );
+    for (const receipt of ordered) {
+      const show = roundMoney(Math.min(stillOpen(receipt), Math.max(0, left)));
+      displayAmountById.set(receipt.id, show);
+      left = roundMoney(left - show);
+    }
+  }
+
   const openInvoiceComponents = new Set<string>();
   for (const invoice of input.invoices) {
     if (!isCollectionInvoice(invoice)) continue;
@@ -278,7 +320,11 @@ export const buildCanvasCards = (input: {
       recordType === 'opportunity' ? temperatureByCustomer.get(receipt.customerId) ?? '' : '';
     const expectedDate = receipt.expectedDate?.slice(0, 10) ?? '';
     const status = displayStatus(receipt.status, expectedDate, input.today, invoice);
-    if (status === 'superseded') continue;
+    if (status === 'superseded' || status === 'cancelled') continue;
+    const shownAmount =
+      displayAmountById.get(receipt.id) ??
+      roundMoney(Math.max(0, Number(receipt.expectedAmount || 0) - settledFromLog(receipt.receivedLog)));
+    if (shownAmount <= 0.009) continue;
     const componentId = componentIdForReceipt(receipt);
     // Same-cycle forecast is replaced by the invoice. A later cycle stays visible.
     if (
@@ -310,11 +356,11 @@ export const buildCanvasCards = (input: {
     const componentPercent = Number(component?.gstPercent) || 0;
     const chosenPercent = receipt.gstPercent;
     const gst = invoice
-      ? gstFromInvoice(invoice, receipt.expectedAmount)
+      ? gstFromInvoice(invoice, shownAmount)
       : chosenPercent != null
-        ? gstFromInclusive(receipt.expectedAmount, chosenPercent)
+        ? gstFromInclusive(shownAmount, chosenPercent)
         : gstFromInclusive(
-            receipt.expectedAmount,
+            shownAmount,
             componentPercent > 0
               ? componentPercent
               : gstPercentMatchingDealPrice(receipt, input.components),
@@ -330,7 +376,7 @@ export const buildCanvasCards = (input: {
       temperature,
       rowKey: rowFor(recordType, temperature),
       monthKey: expectedDate ? monthKeyFromDate(expectedDate) : 'unscheduled',
-      expectedAmount: roundMoney(receipt.expectedAmount),
+      expectedAmount: shownAmount,
       ...gst,
       expectedDate,
       sourceType: receipt.sourceType,
@@ -359,6 +405,7 @@ export const buildCanvasCards = (input: {
     if (!isCollectionInvoice(invoice)) continue;
     if (effectiveInvoiceOutstanding(invoice) <= 0) continue;
     if (coveredInvoices.has(invoice.id)) continue;
+    if (suppressedInvoices.has(invoice.id)) continue;
     if (invoice.customerId && !customerById.has(invoice.customerId)) continue;
     const customer = customerById.get(invoice.customerId);
     const recordType = customer?.recordType ?? 'customer';
@@ -404,14 +451,18 @@ export const buildCanvasCards = (input: {
   }
 
   for (const component of input.components) {
-    if (!hasRenewalFrequency(component.renewalFrequency)) continue;
+    const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) continue;
+    const recurring = hasRenewalFrequency(component.renewalFrequency);
+    // One-time stays off the canvas until a first billing date is saved.
+    if (!recurring && !(component.renewalStartDate || component.renewalDate || '').trim()) {
+      continue;
+    }
     if (coveredComponents.has(component.id)) continue;
     if (openInvoiceComponents.has(component.id)) continue;
     const deal = dealById.get(component.dealId);
     if (!deal?.customerId) continue;
     if (!customerById.has(deal.customerId)) continue;
-    const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
-    if (!dueDate) continue;
     const customer = customerById.get(deal.customerId);
     const recordType = customer?.recordType ?? 'customer';
     const temperature =
@@ -431,7 +482,7 @@ export const buildCanvasCards = (input: {
       ...gstFromComponent(component),
       expectedDate: dueDate,
       sourceType,
-      reason: component.name?.trim() || 'Renewal',
+      reason: component.name?.trim() || (recurring ? 'Renewal' : 'One-time'),
       dealId: deal.id,
       dealTitle: deal.title,
       invoiceId: '',
@@ -633,6 +684,7 @@ export const buildPaidEntries = (input: {
   customers: CustomerEntity[];
   invoices: InvoiceEntity[];
   payments: PaymentEntity[];
+  receipts?: ExpectedReceiptEntity[];
 }): CanvasPaidEntry[] => {
   const customerById = new Map(input.customers.map((customer) => [customer.id, customer]));
   const invoiceById = new Map(input.invoices.map((invoice) => [invoice.id, invoice]));
@@ -652,6 +704,8 @@ export const buildPaidEntries = (input: {
       companyName: companyNameOf(customerById.get(customerId), invoice.customerName),
       amount: roundMoney(Number(payment.amount) || 0),
       paidAt,
+      tdsAmount: roundMoney(Number(payment.tdsAmount) || 0),
+      tdsSettles: Boolean(payment.tdsSettles),
       collectionAccount: collectionAccountForPayment({
         internationalClient: Boolean(customerById.get(customerId)?.internationalClient),
         receivedAccount: payment.receivedAccount || '',
@@ -659,5 +713,166 @@ export const buildPaidEntries = (input: {
       }),
     });
   }
+  for (const receipt of input.receipts ?? []) {
+    if (receipt.isDeleted || receipt.invoiceId) continue;
+    const customer = customerById.get(receipt.customerId);
+    for (const entry of parseReceivedLog(receipt.receivedLog)) {
+      entries.push({
+        id: `${receipt.id}-${entry.date}-${entry.amount}`,
+        invoiceId: '',
+        invoiceNumber: '',
+        customerId: receipt.customerId,
+        companyName: companyNameOf(customer),
+        amount: entry.amount,
+        paidAt: entry.date,
+        tdsAmount: entry.tdsAmount,
+        tdsSettles: entry.tdsSettles,
+        collectionAccount: collectionAccountForExpected({
+          internationalClient: Boolean(customer?.internationalClient),
+          gstPercent: entry.account === 'gst' ? 18 : 0,
+          billingType: entry.account === 'other' ? 'non_gst' : 'gst',
+        }),
+      });
+    }
+  }
   return entries;
+};
+
+const dateOnly = (value: string | undefined): string => {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec((value ?? '').trim());
+  return match ? match[1] : '';
+};
+
+interface HistoryStep {
+  date: string;
+  amount: number;
+  tdsAmount: number;
+  tdsSettles: boolean;
+  order: number;
+}
+
+/**
+ * Attaches the payment story to a forecast that still has a balance.
+ * The stored expected amount stays as it was created. Each payment is listed
+ * with its date, and the card amount stays the remaining balance.
+ */
+export const withForecastHistory = (input: {
+  cards: CanvasCard[];
+  receipts: ExpectedReceiptEntity[];
+  invoices: InvoiceEntity[];
+  payments: PaymentEntity[];
+}): CanvasCard[] => {
+  const receiptById = new Map(input.receipts.map((receipt) => [receipt.id, receipt]));
+  const invoiceById = new Map(input.invoices.map((invoice) => [invoice.id, invoice]));
+  const openReceiptsByInvoice = new Map<string, ExpectedReceiptEntity[]>();
+  for (const receipt of input.receipts) {
+    if (receipt.isDeleted || receipt.status !== 'expected' || !receipt.invoiceId) continue;
+    const list = openReceiptsByInvoice.get(receipt.invoiceId) ?? [];
+    list.push(receipt);
+    openReceiptsByInvoice.set(receipt.invoiceId, list);
+  }
+  const paymentsByInvoice = new Map<string, PaymentEntity[]>();
+  for (const payment of input.payments) {
+    if (payment.isDeleted || payment.status !== 'received' || !payment.invoiceId) continue;
+    const list = paymentsByInvoice.get(payment.invoiceId) ?? [];
+    list.push(payment);
+    paymentsByInvoice.set(payment.invoiceId, list);
+  }
+
+  const fromPayment = (payment: PaymentEntity, order: number): HistoryStep | null => {
+    const date = dateOnly(payment.paidAt);
+    const amount = roundMoney(Number(payment.amount) || 0);
+    if (!date || amount <= 0) return null;
+    return {
+      date,
+      amount,
+      tdsAmount: roundMoney(Math.max(0, Number(payment.tdsAmount) || 0)),
+      tdsSettles: Boolean(payment.tdsSettles),
+      order,
+    };
+  };
+
+  return input.cards.map((card) => {
+    if (card.kind !== 'receipt') return card;
+    const receipt = card.persistedId ? receiptById.get(card.persistedId) : undefined;
+    const steps: HistoryStep[] = [];
+    let createdOn = '';
+    let originalAmount = 0;
+
+    if (receipt) {
+      createdOn = dateOnly(receipt.createdAt);
+      originalAmount = roundMoney(Number(receipt.expectedAmount) || 0);
+      parseReceivedLog(receipt.receivedLog).forEach((entry, index) => {
+        steps.push({
+          date: entry.date,
+          amount: entry.amount,
+          tdsAmount: entry.tdsAmount,
+          tdsSettles: entry.tdsSettles,
+          order: index,
+        });
+      });
+      if (steps.length === 0 && receipt.invoiceId) {
+        const open = openReceiptsByInvoice.get(receipt.invoiceId) ?? [];
+        const sole = open.length === 1 && open[0]?.id === receipt.id;
+        (paymentsByInvoice.get(receipt.invoiceId) ?? []).forEach((payment, index) => {
+          const named = (payment.notes || '').includes(`Business Canvas receipt ${receipt.id}`);
+          if (!named && !sole) return;
+          const step = fromPayment(payment, index);
+          if (step) steps.push(step);
+        });
+      }
+    } else if (card.invoiceId && card.id.startsWith('sug-invoice-')) {
+      const invoice = invoiceById.get(card.invoiceId);
+      if (!invoice) return card;
+      createdOn = dateOnly(invoice.createdAt);
+      originalAmount = roundMoney(Number(invoice.total) || 0);
+      (paymentsByInvoice.get(invoice.id) ?? []).forEach((payment, index) => {
+        const step = fromPayment(payment, index);
+        if (step) steps.push(step);
+      });
+    }
+
+    if (steps.length === 0) return card;
+    steps.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
+
+    let left = originalAmount;
+    const payments = steps.map((step) => {
+      const settled = roundMoney(step.amount + (step.tdsSettles ? step.tdsAmount : 0));
+      left = roundMoney(Math.max(0, left - settled));
+      return {
+        date: step.date,
+        amount: step.amount,
+        tdsAmount: step.tdsAmount,
+        tdsSettles: step.tdsSettles,
+        remainingAfter: left,
+      };
+    });
+    const remaining = roundMoney(Math.max(0, Number(card.expectedAmount) || 0));
+    // Skip when these payments do not explain the balance still on this card.
+    if (Math.abs(left - remaining) > 0.5) return card;
+    if (originalAmount <= 0) {
+      originalAmount = roundMoney(
+        remaining +
+          payments.reduce(
+            (sum, payment) =>
+              sum + settledByEntry({
+                date: payment.date,
+                amount: payment.amount,
+                account: 'gst',
+                tdsAmount: payment.tdsAmount,
+                tdsSettles: payment.tdsSettles,
+                mode: '',
+              }),
+            0,
+          ),
+      );
+    }
+    const history: CanvasForecastHistory = {
+      createdOn,
+      originalAmount,
+      payments,
+      remaining,
+    };
+    return { ...card, history };
+  });
 };

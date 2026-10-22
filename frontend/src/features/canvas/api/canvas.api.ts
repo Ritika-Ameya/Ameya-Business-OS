@@ -10,6 +10,30 @@ const BASE = "/canvas";
 export const canvasApi = {
   getBoard: () => apiRequest<CanvasBoard>(BASE),
 
+  listCustomerReceiptPayments: (customerId: string) =>
+    apiRequest<
+      Array<{
+        receiptId: string;
+        index: number;
+        customerId: string;
+        dealId: string;
+        dealTitle: string;
+        componentId: string;
+        reason: string;
+        paymentDate: string;
+        amount: number;
+        mode: string;
+        tdsAmount: number;
+        tdsSettles: boolean;
+        status: "received";
+      }>
+    >(`${BASE}/customers/${customerId}/receipt-payments`),
+
+  removeReceiptPayment: (receiptId: string, index: number) =>
+    apiRequest<{ removed: boolean }>(`${BASE}/receipts/${receiptId}/payments/${index}`, {
+      method: "DELETE",
+    }),
+
   listDealForecasts: (dealId: string) =>
     apiRequest<
       Array<{
@@ -67,7 +91,7 @@ export const canvasApi = {
 
   markPaid: (body: {
     cardId: string;
-    invoiceId: string;
+    invoiceId?: string;
     amount: number;
     paymentDate: string;
     mode: string;
@@ -75,6 +99,8 @@ export const canvasApi = {
     notes?: string;
     removeGstReason?: string;
     receivedAccount?: "gst" | "other";
+    tdsAmount?: number;
+    tdsSettles?: boolean;
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts/mark-paid`, { method: "POST", body }),
 
   getLeadTemperature: (customerId: string) =>

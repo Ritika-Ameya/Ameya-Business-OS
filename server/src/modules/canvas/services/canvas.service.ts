@@ -7,6 +7,12 @@ import {
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
 import { roundMoney } from '../../expenses/utils/expenseCalculation.util';
+import {
+  formatReceivedLog,
+  parseReceivedLog,
+  settledByEntry,
+  settledFromLog,
+} from '../utils/receivedLog.util';
 import { invoiceRepository, invoiceService, paymentRepository } from '../../revenue';
 import {
   effectiveInvoiceOutstanding,
@@ -32,6 +38,7 @@ import {
   buildCanvasCards,
   buildPaidEntries,
   buildRenewalReminders,
+  withForecastHistory,
   componentIdMatchingDealTotal,
   shiftDateToMonth,
 } from '../utils/canvasBoard.util';
@@ -64,7 +71,12 @@ export class CanvasService extends BaseService {
     return {
       today: snapshot.today,
       dragHint: DRAG_HINT,
-      cards: snapshot.cards,
+      cards: withForecastHistory({
+        cards: snapshot.cards,
+        receipts: snapshot.receipts,
+        invoices: snapshot.invoices,
+        payments,
+      }),
       accounts: snapshot.customers.map((customer) => ({
         id: customer.id,
         companyName:
@@ -103,6 +115,7 @@ export class CanvasService extends BaseService {
         customers: snapshot.customers,
         invoices: snapshot.invoices,
         payments,
+        receipts: snapshot.receipts,
       }),
     };
   }
@@ -133,6 +146,11 @@ export class CanvasService extends BaseService {
     }
     if (card.status === 'cancelled' || card.status === 'superseded') {
       throw new ValidationError('A cancelled expected receipt cannot be marked paid.');
+    }
+
+    if (!input.invoiceId) {
+      await this.recordForecastPayment(card, input);
+      return;
     }
 
     const invoice = snapshot.invoices.find((item) => item.id === input.invoiceId);
@@ -188,6 +206,8 @@ export class CanvasService extends BaseService {
         currency: invoice.currency || 'INR',
         removeGstReason: gstRemoved ? removeGstReason : undefined,
         receivedAccount: input.receivedAccount,
+        tdsAmount: roundMoney(Math.max(0, Number(input.tdsAmount) || 0)),
+        tdsSettles: Boolean(input.tdsSettles),
       });
     }
 
@@ -209,7 +229,7 @@ export class CanvasService extends BaseService {
     if (stored) {
       await expectedReceiptRepository.update(stored.id, {
         ...link,
-        ...(settled ? { status: 'received' as const } : { expectedAmount: remaining }),
+        ...(settled ? { status: 'received' as const } : {}),
       });
       return;
     }
@@ -378,24 +398,168 @@ export class CanvasService extends BaseService {
 
   async dismiss(cardId: string): Promise<void> {
     const card = await this.requireCard(cardId);
-    if (card.kind === 'account') return;
-    if (card.invoiceId || card.dealId || card.componentId) {
-      throw new ValidationError(
-        'A forecast linked to a deal, component, or invoice stays until that invoice replaces it.',
-      );
+    if (card.kind !== 'receipt') return;
+    if (card.status === 'received') {
+      throw new ValidationError('Money already received stays on the canvas as Received.');
     }
-    if (card.origin === 'manual' && card.persistedId) {
-      await expectedReceiptRepository.delete(card.persistedId);
-      return;
-    }
+    const hideInvoice = Boolean(card.invoiceId);
     if (card.persistedId) {
       await expectedReceiptRepository.update(card.persistedId, {
         origin: 'dismissed',
         status: 'cancelled',
+        ...(hideInvoice ? { suppressInvoice: true } : {}),
       });
       return;
     }
     await this.persistCard(card, { status: 'cancelled' }, 'dismissed');
+    if (hideInvoice) {
+      const created = (await expectedReceiptRepository.findAll()).find(
+        (receipt) =>
+          receipt.origin === 'dismissed' &&
+          receipt.status === 'cancelled' &&
+          receipt.invoiceId === card.invoiceId &&
+          !receipt.suppressInvoice,
+      );
+      if (created) {
+        await expectedReceiptRepository.update(created.id, { suppressInvoice: true });
+      }
+    }
+  }
+
+  /** Cash marked on a forecast, with no invoice. Shown on the customer's payment tab. */
+  async listCustomerReceiptPayments(customerId: string): Promise<
+    Array<{
+      receiptId: string;
+      index: number;
+      customerId: string;
+      dealId: string;
+      dealTitle: string;
+      componentId: string;
+      reason: string;
+      paymentDate: string;
+      amount: number;
+      mode: string;
+      tdsAmount: number;
+      tdsSettles: boolean;
+      status: 'received';
+    }>
+  > {
+    const customer = await customerRepository.findById(customerId);
+    if (!customer) throw new NotFoundError('Account not found');
+    const [receipts, deals] = await Promise.all([
+      expectedReceiptRepository.findAll(),
+      dealRepository.findAll(),
+    ]);
+    const dealTitle = new Map(deals.map((deal) => [deal.id, deal.title]));
+    const rows: Array<{
+      receiptId: string;
+      index: number;
+      customerId: string;
+      dealId: string;
+      dealTitle: string;
+      componentId: string;
+      reason: string;
+      paymentDate: string;
+      amount: number;
+      mode: string;
+      tdsAmount: number;
+      tdsSettles: boolean;
+      status: 'received';
+    }> = [];
+    for (const receipt of receipts) {
+      if (receipt.isDeleted || receipt.customerId !== customerId || receipt.invoiceId) continue;
+      parseReceivedLog(receipt.receivedLog).forEach((entry, index) => {
+        rows.push({
+          receiptId: receipt.id,
+          index,
+          customerId,
+          dealId: receipt.dealId || '',
+          dealTitle: dealTitle.get(receipt.dealId) || '',
+          componentId: receipt.componentId || '',
+          reason: receipt.reason || '',
+          paymentDate: entry.date,
+          amount: entry.amount,
+          mode: entry.mode,
+          tdsAmount: entry.tdsAmount,
+          tdsSettles: entry.tdsSettles,
+          status: 'received',
+        });
+      });
+    }
+    rows.sort((a, b) => b.paymentDate.localeCompare(a.paymentDate) || b.index - a.index);
+    return rows;
+  }
+
+  /**
+   * Removes one cash line recorded on a forecast. The receipt row stays.
+   * A fully received forecast opens again for whatever cash is no longer recorded.
+   */
+  async removeReceiptPayment(receiptId: string, index: number): Promise<void> {
+    const receipt = await expectedReceiptRepository.findById(receiptId);
+    if (!receipt || receipt.isDeleted) throw new NotFoundError('Expected receipt not found');
+    const entries = parseReceivedLog(receipt.receivedLog);
+    if (!Number.isInteger(index) || index < 0 || index >= entries.length) {
+      throw new NotFoundError('Payment not found');
+    }
+    const nextEntries = entries.filter((_, entryIndex) => entryIndex !== index);
+    const settled = roundMoney(nextEntries.reduce((sum, entry) => sum + settledByEntry(entry), 0));
+    const expected = roundMoney(Number(receipt.expectedAmount) || 0);
+    const reopen = receipt.status === 'received' && settled < expected - 0.001;
+    await expectedReceiptRepository.update(receiptId, {
+      receivedLog: formatReceivedLog(nextEntries),
+      ...(reopen ? { status: 'expected' as const } : {}),
+    });
+  }
+
+  /** Records cash against the forecast itself. The original expected amount is kept. */
+  private async recordForecastPayment(
+    card: CanvasCard,
+    input: MarkReceiptPaidInput,
+  ): Promise<void> {
+    const tdsAmount = roundMoney(Math.max(0, Number(input.tdsAmount) || 0));
+    const tdsSettles = Boolean(input.tdsSettles) && tdsAmount > 0;
+    const account = input.receivedAccount === 'other' ? 'other' : 'gst';
+    let stored = card.persistedId
+      ? await expectedReceiptRepository.findById(card.persistedId)
+      : null;
+    if (!stored) {
+      await this.persistCard(card, {}, 'override');
+      stored = (await expectedReceiptRepository.findAll()).find(
+        (receipt) =>
+          receipt.status === 'expected' &&
+          receipt.customerId === card.customerId &&
+          receipt.expectedDate.slice(0, 10) === card.expectedDate &&
+          roundMoney(receipt.expectedAmount) === roundMoney(card.expectedAmount ?? 0),
+      ) ?? null;
+    }
+    if (!stored) {
+      throw new ValidationError('This forecast could not be saved before recording the payment.');
+    }
+    const already = settledFromLog(stored.receivedLog);
+    const expected = roundMoney(Number(stored.expectedAmount) || 0);
+    const open = roundMoney(Math.max(0, expected - already));
+    const settling = roundMoney(input.amount + (tdsSettles ? tdsAmount : 0));
+    if (settling > open + 0.001) {
+      throw new ValidationError(
+        `Amount cannot be more than the ${open} still expected on this forecast.`,
+      );
+    }
+    const nextLog = formatReceivedLog([
+      ...parseReceivedLog(stored.receivedLog),
+      {
+        date: input.paymentDate,
+        amount: roundMoney(input.amount),
+        account,
+        tdsAmount,
+        tdsSettles,
+        mode: input.mode.trim(),
+      },
+    ]);
+    const fullyReceived = roundMoney(already + settling) >= expected - 0.001;
+    await expectedReceiptRepository.update(stored.id, {
+      receivedLog: nextLog,
+      ...(fullyReceived ? { status: 'received' as const } : {}),
+    });
   }
 
   async splitInvoice(input: SplitReceiptInput): Promise<void> {
@@ -439,6 +603,7 @@ export class CanvasService extends BaseService {
     deals: Awaited<ReturnType<typeof dealRepository.findAll>>;
     components: Awaited<ReturnType<typeof dealComponentRepository.findAll>>;
     invoices: Awaited<ReturnType<typeof invoiceRepository.findAll>>;
+    receipts: ExpectedReceiptEntity[];
   }> {
     const today = toLocalDateOnly(new Date());
     const [customers, deals, components, invoices, loadedReceipts, loadedTemperatures] =
@@ -478,6 +643,7 @@ export class CanvasService extends BaseService {
       deals,
       components,
       invoices,
+      receipts,
       cards: buildCanvasCards({
         customers,
         deals,
@@ -549,7 +715,9 @@ export class CanvasService extends BaseService {
   ): Promise<{ id: string; patch: { renewalDate: string; renewalStartDate?: string } } | null> {
     if (!expectedDate || !this.shouldSyncComponentDue(card)) return null;
     const component = await dealComponentRepository.findById(card.componentId);
-    if (!component || !hasRenewalFrequency(component.renewalFrequency)) return null;
+    if (!component) return null;
+    const hasDate = Boolean((component.renewalStartDate || component.renewalDate || '').trim());
+    if (!hasRenewalFrequency(component.renewalFrequency) && !hasDate) return null;
     const next = expectedDate.slice(0, 10);
     const current = getComponentCurrentDueDate(component).slice(0, 10);
     if (current === next) return null;

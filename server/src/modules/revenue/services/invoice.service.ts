@@ -44,6 +44,7 @@ import {
 } from '../utils/invoiceSearch.util';
 import {
   applyBalance,
+  computeReceived,
   buildLineItem,
   computeTaxAmount,
   lineItemsMatchSubtotal,
@@ -58,7 +59,11 @@ import {
 } from '../utils/invoiceCalculation.util';
 import { createInvoiceTimelineEntry, prependInvoiceTimeline } from '../utils/timeline.util';
 import { toISOString } from '../../../utils/date.util';
-import { tryAdvanceComponentRenewal } from '../../deals/utils/renewalHelpers.util';
+import {
+  getComponentCurrentDueDate,
+  tryAdvanceComponentRenewal,
+} from '../../deals/utils/renewalHelpers.util';
+import { formatReceivedLog, parseReceivedLog } from '../../canvas/utils/receivedLog.util';
 
 const DOCUMENT_ENTITY_TYPE = 'invoice';
 
@@ -123,10 +128,14 @@ export class InvoiceService extends BaseService {
       );
     }
     const isNonGst = billingType === 'non_gst';
+    const cycleByComponent = new Map(
+      (input.billedCycles ?? []).map((cycle) => [cycle.componentId, cycle.cycleDate.slice(0, 10)]),
+    );
     const fromComponents = await this.amountsFromSelectedComponents(
       input.componentIds,
       input.taxPercent,
       billingType,
+      cycleByComponent,
     );
     const { subtotal, taxPercent, tax, total, lineItems } = fromComponents ?? {
       ...resolveCreateAmounts({
@@ -181,7 +190,7 @@ export class InvoiceService extends BaseService {
 
     await this.syncCustomerOutstanding(created.customerId);
     await this.retireForecastsCoveredByInvoice(created);
-    return created;
+    return this.attachReceiptPayments(created, input.linkPayments ?? []);
   }
 
   /**
@@ -205,7 +214,10 @@ export class InvoiceService extends BaseService {
         continue;
       }
       if (!componentIds.includes(receipt.componentId)) continue;
-      if (!this.sameCollectionCycle(receipt.expectedDate, due)) continue;
+      const cycle =
+        (invoice.lineItems ?? []).find((line) => line.componentId === receipt.componentId)?.cycleDate ||
+        due;
+      if (!this.sameCollectionCycle(receipt.expectedDate, cycle)) continue;
       const component = componentById.get(receipt.componentId);
       if (!component) continue;
       const taxable = computeComponentTaxable(component);
@@ -301,9 +313,10 @@ export class InvoiceService extends BaseService {
     const totalChanged = roundMoney(total) !== roundMoney(existing.total);
     const payments = totalChanged ? await this.listPaymentsForInvoice(id) : [];
     const balance = totalChanged ? applyBalance({ ...existing, total }, payments) : null;
-    if (balance && total < balance.received - 0.001) {
-      throw new ValidationError('Invoice total cannot be less than the amount already received', [
-        `Received so far is ${roundMoney(balance.received)}`,
+    const settled = totalChanged ? computeReceived(payments) : 0;
+    if (balance && total < settled - 0.001) {
+      throw new ValidationError('Invoice total cannot be less than the amount already settled', [
+        `Cash in the account is ${roundMoney(balance.received)}. Cash plus settled TDS is ${roundMoney(settled)}.`,
       ]);
     }
 
@@ -482,6 +495,7 @@ export class InvoiceService extends BaseService {
   async addPayment(
     invoiceId: string,
     input: PaymentCreateInput,
+    options?: { skipRenewalAdvance?: boolean },
   ): Promise<{ payment: PaymentEntity; invoice: InvoiceEntity }> {
     let invoice = await this.getById(invoiceId);
     if (normalizeInvoiceStatus(invoice.status) === 'cancelled') {
@@ -498,8 +512,11 @@ export class InvoiceService extends BaseService {
 
     const existingPayments = await this.listPaymentsForInvoice(invoiceId);
     const { outstanding: nextOutstanding } = applyBalance(invoice, existingPayments);
+    const tdsAmount = roundMoney(Math.max(0, Number(input.tdsAmount) || 0));
+    const tdsSettles = Boolean(input.tdsSettles) && tdsAmount > 0;
+    const settled = roundMoney(input.amount + (tdsSettles ? tdsAmount : 0));
 
-    if (input.status === 'received' && input.amount > nextOutstanding + 0.001) {
+    if (input.status === 'received' && settled > nextOutstanding + 0.001) {
       throw new ValidationError('Payment cannot exceed outstanding balance', [
         `Outstanding balance is ${nextOutstanding}`,
       ]);
@@ -509,6 +526,8 @@ export class InvoiceService extends BaseService {
       invoiceId,
       customerId: invoice.customerId,
       amount: roundMoney(input.amount),
+      tdsAmount,
+      tdsSettles,
       currency: input.currency.trim() || invoice.currency || 'INR',
       method: input.mode.trim(),
       status: input.status,
@@ -521,10 +540,16 @@ export class InvoiceService extends BaseService {
         input.receivedAccount ?? (invoice.billingType === 'gst' ? 'gst' : 'other'),
     } as Omit<PaymentEntity, 'id'>);
 
-    const invoiceUpdated = await this.recalculateInvoice(invoiceId, {
-      action: 'payment_recorded',
-      notes: `Payment of ${payment.amount} recorded`,
-    });
+    const invoiceUpdated = await this.recalculateInvoice(
+      invoiceId,
+      {
+        action: 'payment_recorded',
+        notes: tdsAmount > 0
+          ? `Payment of ${payment.amount} recorded${tdsSettles ? ` · TDS ${tdsAmount} counted toward the invoice` : ` · TDS ${tdsAmount} noted, not counted`}`
+          : `Payment of ${payment.amount} recorded`,
+      },
+      options,
+    );
 
     return { payment, invoice: invoiceUpdated };
   }
@@ -563,6 +588,8 @@ export class InvoiceService extends BaseService {
       currency:
         input.currency !== undefined ? input.currency.trim() : existing.currency,
       receivedAccount: input.receivedAccount ?? existing.receivedAccount,
+      tdsAmount: input.tdsAmount !== undefined ? roundMoney(Math.max(0, input.tdsAmount)) : existing.tdsAmount,
+      tdsSettles: input.tdsSettles !== undefined ? Boolean(input.tdsSettles) : existing.tdsSettles,
     };
 
     const otherPayments = (await this.listPaymentsForInvoice(invoiceId)).filter(
@@ -588,6 +615,8 @@ export class InvoiceService extends BaseService {
         notes: candidate.notes,
         currency: candidate.currency,
         receivedAccount: candidate.receivedAccount,
+        tdsAmount: candidate.tdsAmount,
+        tdsSettles: candidate.tdsSettles,
       } as Partial<PaymentEntity>,
       'Payment',
     );
@@ -840,6 +869,7 @@ export class InvoiceService extends BaseService {
     componentIds: string[] | undefined,
     taxPercent: number | undefined,
     billingType: InvoiceBillingType,
+    cycleByComponent?: Map<string, string>,
   ): Promise<{
     subtotal: number;
     taxPercent: number;
@@ -873,6 +903,7 @@ export class InvoiceService extends BaseService {
         name: component.name,
         taxable: computeComponentTaxable(component),
         gstPercent: uniformPercent ?? Number(component.gstPercent || 0),
+        cycleDate: cycleByComponent?.get(component.id),
       }),
     );
     return { ...totalsFromLineItems(lineItems), lineItems };
@@ -890,6 +921,86 @@ export class InvoiceService extends BaseService {
     return Number(fromComponents) || DEFAULT_GST_PERCENT;
   }
 
+  /**
+   * Moves cash already recorded on a forecast onto this invoice.
+   * The forecast line is removed so Received counts the invoice payment once.
+   * Linking does not move the component's next renewal.
+   */
+  private async attachReceiptPayments(
+    invoice: InvoiceEntity,
+    links: Array<{ receiptId: string; index: number }>,
+  ): Promise<InvoiceEntity> {
+    if (links.length === 0) return invoice;
+    const receipts = await expectedReceiptRepository.findAll();
+    const planned: Array<{
+      receiptId: string;
+      index: number;
+      entry: ReturnType<typeof parseReceivedLog>[number];
+    }> = [];
+    const seen = new Set<string>();
+    for (const link of links) {
+      const key = `${link.receiptId}:${link.index}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const receipt = receipts.find((row) => row.id === link.receiptId && !row.isDeleted);
+      if (!receipt) throw new ValidationError('That payment could not be found');
+      if (receipt.invoiceId) throw new ValidationError('That payment is already on an invoice');
+      if (receipt.customerId !== invoice.customerId) {
+        throw new ValidationError('That payment belongs to a different customer');
+      }
+      const onDeal = Boolean(receipt.dealId) && receipt.dealId === invoice.dealId;
+      const onComponent =
+        Boolean(receipt.componentId) && (invoice.componentIds ?? []).includes(receipt.componentId);
+      if (!onDeal && !onComponent) {
+        throw new ValidationError('That payment is not for this deal');
+      }
+      const entry = parseReceivedLog(receipt.receivedLog)[link.index];
+      if (!entry) throw new ValidationError('That payment could not be found');
+      planned.push({ receiptId: receipt.id, index: link.index, entry });
+    }
+
+    let latest = invoice;
+    for (const item of planned) {
+      const result = await this.addPayment(
+        latest.id,
+        {
+          paymentDate: item.entry.date,
+          amount: item.entry.amount,
+          mode: item.entry.mode || 'component',
+          referenceNumber: '',
+          receivedBy: '',
+          transactionId: '',
+          notes: 'Linked from a payment already recorded',
+          status: 'received',
+          currency: invoice.currency || 'INR',
+          receivedAccount: item.entry.account,
+          tdsAmount: item.entry.tdsAmount,
+          tdsSettles: item.entry.tdsSettles,
+        },
+        { skipRenewalAdvance: true },
+      );
+      latest = result.invoice;
+    }
+
+    const indexesByReceipt = new Map<string, number[]>();
+    for (const item of planned) {
+      const list = indexesByReceipt.get(item.receiptId) ?? [];
+      list.push(item.index);
+      indexesByReceipt.set(item.receiptId, list);
+    }
+    for (const [receiptId, indexes] of indexesByReceipt) {
+      const receipt = receipts.find((row) => row.id === receiptId);
+      if (!receipt) continue;
+      const drop = new Set(indexes);
+      const next = parseReceivedLog(receipt.receivedLog).filter((_, index) => !drop.has(index));
+      await expectedReceiptRepository.update(receiptId, {
+        receivedLog: formatReceivedLog(next),
+        ...(next.length === 0 ? { status: 'superseded' as const, invoiceId: invoice.id } : {}),
+      });
+    }
+    return latest;
+  }
+
   private async listPaymentsForInvoice(invoiceId: string): Promise<PaymentEntity[]> {
     const payments = await paymentRepository.findAll();
     return payments.filter((payment) => payment.invoiceId === invoiceId);
@@ -898,6 +1009,7 @@ export class InvoiceService extends BaseService {
   private async recalculateInvoice(
     invoiceId: string,
     timelineEvent?: { action: 'payment_recorded' | 'outstanding_updated'; notes?: string },
+    options?: { skipRenewalAdvance?: boolean },
   ): Promise<InvoiceEntity> {
     const invoice = await this.getById(invoiceId);
     const payments = await this.listPaymentsForInvoice(invoiceId);
@@ -926,7 +1038,7 @@ export class InvoiceService extends BaseService {
     );
 
     await this.syncCustomerOutstanding(updated.customerId);
-    if (updated.status === 'paid') {
+    if (updated.status === 'paid' && !options?.skipRenewalAdvance) {
       await this.advanceLinkedComponentRenewals(updated);
     }
     return updated;
@@ -939,6 +1051,11 @@ export class InvoiceService extends BaseService {
       if (!componentId?.trim()) continue;
       const component = await dealComponentRepository.findById(componentId);
       if (!component) continue;
+      const billedCycle = (invoice.lineItems ?? [])
+        .find((line) => line.componentId === componentId)
+        ?.cycleDate?.slice(0, 10);
+      const currentDue = getComponentCurrentDueDate(component).slice(0, 10);
+      if (billedCycle && currentDue && billedCycle !== currentDue) continue;
       const advanced = tryAdvanceComponentRenewal(component);
       if (!advanced) continue;
       await dealComponentRepository.updateOrThrow(

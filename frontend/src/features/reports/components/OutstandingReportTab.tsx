@@ -71,7 +71,7 @@ export function OutstandingReportTab({ filters }: OutstandingReportTabProps) {
       case "amount":
         return {
           title: "Outstanding Amount",
-          description: `${formatInvoiceCurrency(total)} = invoice total minus money received, across ${countLabel(rows.length, "pending invoice")} in ${period}.`,
+          description: `${formatInvoiceCurrency(total)} = still due on ${countLabel(rows.length, "pending invoice")} in ${period}. Cash in the bank is separate. TDS marked as settled reduces this balance.`,
           rows: rows.map(toRow),
           empty: "Nothing outstanding in this view.",
           nameLabel: "Invoice",

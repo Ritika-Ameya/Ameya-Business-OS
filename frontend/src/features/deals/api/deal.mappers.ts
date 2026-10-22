@@ -78,13 +78,15 @@ function parseAmount(value: string): number {
 
 export function mapComponentFormToBody(data: ComponentFormData): DealComponentCreateBody {
   const renewalFrequency = (data.renewalFrequency || "none") as ComponentRenewalFrequency;
-  const renewalStartDate =
-    renewalFrequency !== "none" ? data.renewalStartDate.trim() : "";
-  const renewalDate = resolveComponentRenewalDate({
-    renewalFrequency,
-    renewalStartDate,
-    renewalDate: data.renewalDate,
-  });
+  const renewalStartDate = data.renewalStartDate.trim();
+  const renewalDate =
+    renewalFrequency !== "none"
+      ? resolveComponentRenewalDate({
+          renewalFrequency,
+          renewalStartDate,
+          renewalDate: data.renewalDate,
+        })
+      : renewalStartDate;
 
   return {
     name: data.name.trim(),

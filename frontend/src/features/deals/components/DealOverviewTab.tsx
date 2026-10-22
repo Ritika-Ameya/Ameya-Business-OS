@@ -132,7 +132,9 @@ export function DealOverviewTab({ deal }: DealOverviewTabProps) {
                     <p className="text-xs font-normal text-muted-foreground">
                       Paid {formatComponentDate(component.lastRenewedDate)}
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="text-xs font-normal text-muted-foreground">First payment due</p>
+                  )}
                 </dd>
               </div>
             ))

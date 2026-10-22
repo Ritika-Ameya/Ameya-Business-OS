@@ -23,6 +23,10 @@ export interface Payment {
   notes?: string;
   /** Missing on payments recorded before the account was tracked. */
   receivedAccount?: PaymentAccount;
+  /** Tax the client deducted. It is not the cash that reached the bank. */
+  tdsAmount?: number;
+  /** When true, this TDS was counted toward the bill. */
+  tdsSettles?: boolean;
 }
 
 export interface PaymentFormData {
@@ -34,4 +38,6 @@ export interface PaymentFormData {
   transactionId: string;
   notes: string;
   receivedAccount: PaymentAccount;
+  tdsAmount: string;
+  tdsSettles: boolean;
 }

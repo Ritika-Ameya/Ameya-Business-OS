@@ -13,6 +13,7 @@ import {
   dealIdParamSchema,
   dismissReceiptSchema,
   markReceiptPaidSchema,
+  receiptPaymentParamsSchema,
   scheduleReceiptSchema,
   setTemperatureSchema,
   splitReceiptSchema,
@@ -93,6 +94,27 @@ export class CanvasController {
       await canvasService.updateReceipt(req.body);
       const board = await canvasService.getBoard();
       ApiResponse.updated(res, board, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly listCustomerReceiptPayments = [
+    validate({ params: customerIdParamSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const payments = await canvasService.listCustomerReceiptPayments(
+        getRouteParam(req.params.customerId),
+      );
+      ApiResponse.success(res, payments, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+    }),
+  ];
+
+  readonly removeReceiptPayment = [
+    validate({ params: receiptPaymentParamsSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      await canvasService.removeReceiptPayment(
+        getRouteParam(req.params.receiptId),
+        Number(req.params.index),
+      );
+      ApiResponse.success(res, { removed: true }, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
     }),
   ];
 

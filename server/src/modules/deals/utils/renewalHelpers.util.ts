@@ -204,7 +204,10 @@ export const alignComponentDueDatePatch = (
   },
   nextDate: string,
 ): { renewalDate: string; renewalStartDate?: string } | null => {
-  if (!hasRenewalFrequency(component.renewalFrequency)) return null;
+  const oneTime = !hasRenewalFrequency(component.renewalFrequency);
+  const hasDate = Boolean((component.renewalStartDate || component.renewalDate || '').trim());
+  if (oneTime && !hasDate) return null;
+  if (!oneTime && !hasRenewalFrequency(component.renewalFrequency)) return null;
   const next = nextDate.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(next)) return null;
 
@@ -214,6 +217,9 @@ export const alignComponentDueDatePatch = (
   const lastPaid = (component.lastRenewedDate || '').slice(0, 10);
   if (lastPaid && next <= lastPaid) return null;
 
+  if (oneTime) {
+    return { renewalDate: next, renewalStartDate: next };
+  }
   const start = (component.renewalStartDate || '').slice(0, 10);
   if (!lastPaid && start && currentDue === start) {
     return { renewalDate: next, renewalStartDate: next };

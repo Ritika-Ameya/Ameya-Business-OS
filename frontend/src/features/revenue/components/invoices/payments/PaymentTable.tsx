@@ -23,6 +23,7 @@ import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import {
   formatPaymentCurrency,
   formatPaymentDate,
+  formatTdsDeductionNote,
 } from "@/features/revenue/utils/payment-utils";
 import { PAYMENT_ACCOUNT_LABELS, type Payment } from "@/features/revenue/types/payment";
 
@@ -72,6 +73,11 @@ export function PaymentTable({
                 </TableCell>
                 <TableCell className="font-medium">
                   {formatPaymentCurrency(payment.amount)}
+                  {formatTdsDeductionNote(payment.tdsAmount, payment.tdsSettles) ? (
+                    <p className="text-xs font-normal text-muted-foreground">
+                      {formatTdsDeductionNote(payment.tdsAmount, payment.tdsSettles)}
+                    </p>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   <PaymentModeBadge mode={payment.mode} />

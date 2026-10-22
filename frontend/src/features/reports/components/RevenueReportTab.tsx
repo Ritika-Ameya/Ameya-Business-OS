@@ -132,7 +132,7 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
         const list = invoices.filter((invoice) => invoice.received > 0);
         return {
           title: "Collected",
-          description: `${formatInvoiceCurrency(sumBy(list, (i) => i.received))} = money received so far on ${countLabel(list.length, "invoice")} in ${period}.`,
+          description: `${formatInvoiceCurrency(sumBy(list, (i) => i.received))} = cash that reached the bank on ${countLabel(list.length, "invoice")} in ${period}. TDS is not included.`,
           rows: list.map((invoice) =>
             invoiceRow(invoice, invoice.received, `Invoice total ${formatInvoiceCurrency(invoice.amount)}`)
           ),
@@ -145,12 +145,12 @@ export function RevenueReportTab({ filters }: RevenueReportTabProps) {
         const list = invoices.filter((invoice) => invoice.outstanding > 0);
         return {
           title: "Outstanding",
-          description: `${formatInvoiceCurrency(sumBy(list, (i) => i.outstanding))} = invoice total minus money received, across ${countLabel(list.length, "invoice")} in ${period}.`,
+          description: `${formatInvoiceCurrency(sumBy(list, (i) => i.outstanding))} = still due on ${countLabel(list.length, "invoice")} in ${period}. Cash in the bank is separate. TDS marked as settled reduces this balance.`,
           rows: list.map((invoice) =>
             invoiceRow(
               invoice,
               invoice.outstanding,
-              `Total ${formatInvoiceCurrency(invoice.amount)} − received ${formatInvoiceCurrency(invoice.received)}`
+              `Total ${formatInvoiceCurrency(invoice.amount)} · cash in bank ${formatInvoiceCurrency(invoice.received)}`
             )
           ),
           empty: "Nothing outstanding in this view.",

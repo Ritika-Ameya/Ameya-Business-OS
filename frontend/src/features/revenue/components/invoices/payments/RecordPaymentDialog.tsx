@@ -30,6 +30,7 @@ import {
   PaidWithoutGstPrompt,
 } from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
 import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
+import { TdsDeductionFields } from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
 import type {
   Payment,
   PaymentAccount,
@@ -46,6 +47,8 @@ const emptyForm: PaymentFormData = {
   transactionId: "",
   notes: "",
   receivedAccount: "gst",
+  tdsAmount: "",
+  tdsSettles: false,
 };
 
 interface RecordPaymentDialogProps {
@@ -77,6 +80,8 @@ function formFromPayment(
     receivedBy: payment.receivedBy || "",
     transactionId: payment.transactionId || "",
     notes: payment.notes || "",
+    tdsAmount: "",
+    tdsSettles: false,
     receivedAccount: payment.receivedAccount ?? defaultAccount,
   };
 }
@@ -128,8 +133,10 @@ export function RecordPaymentDialog({
       setError("Enter a valid payment amount.");
       return;
     }
-    if (!isEditing && maxAmount != null && amount > maxAmount + 0.001) {
-      setError("Payment cannot exceed outstanding balance.");
+    const tds = Number.parseFloat(form.tdsAmount.replace(/,/g, ""));
+    const countedTds = form.tdsSettles && Number.isFinite(tds) && tds > 0 ? tds : 0;
+    if (!isEditing && maxAmount != null && amount + countedTds > maxAmount + 0.001) {
+      setError("Cash plus counted TDS cannot exceed the outstanding balance.");
       return;
     }
     const convertToNonGst = showGstPrompt && removeGst;
@@ -245,6 +252,16 @@ export function RecordPaymentDialog({
               <ReceivedAccountToggle
                 value={form.receivedAccount}
                 onChange={(value) => updateField("receivedAccount", value)}
+                disabled={saving}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <TdsDeductionFields
+                tdsAmount={form.tdsAmount}
+                onTdsAmountChange={(value) => updateField("tdsAmount", value)}
+                settles={form.tdsSettles}
+                onSettlesChange={(value) => updateField("tdsSettles", value)}
                 disabled={saving}
               />
             </div>

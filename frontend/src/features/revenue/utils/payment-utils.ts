@@ -1,9 +1,19 @@
 import { getPaymentMethodLabel } from "@/features/settings/utils/app-config-utils";
 import type { SettingsPaymentMethod } from "@/features/settings/types/settings";
 import type { Payment, PaymentStatus } from "@/features/revenue/types/payment";
+import { formatCurrency } from "@/shared/utils/format-currency";
 
 export { formatCurrency as formatPaymentCurrency } from "@/shared/utils/format-currency";
 export { formatDate as formatPaymentDate } from "@/shared/utils/format-date";
+
+/** Shown beside the cash so a deducted TDS stays visible after the payment is saved. */
+export function formatTdsDeductionNote(amount: number | undefined, settles: boolean | undefined): string {
+  if (!amount || amount <= 0.009) return "";
+  const money = formatCurrency(amount);
+  return settles
+    ? `TDS ${money} deducted, counted on the bill`
+    : `TDS ${money} deducted`;
+}
 
 export function getPaymentsByInvoiceId(
   payments: Payment[],

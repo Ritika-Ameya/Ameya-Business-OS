@@ -3,6 +3,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DealSearchFilters } from "@/features/deals/components/DealSearchFilters";
 import { DealStatsCards } from "@/features/deals/components/DealStatsCards";
+import { BillingScheduleDialog } from "@/features/deals/components/BillingScheduleDialog";
 import { DealTable } from "@/features/deals/components/DealTable";
 import { EditDealDialog } from "@/features/deals/components/EditDealDialog";
 import { PageHeader } from "@/shared/components/PageHeader";
@@ -18,6 +19,7 @@ export function DealsPage() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<DealFilters>(defaultDealFilters);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
+  const [scheduleDeal, setScheduleDeal] = useState<Deal | null>(null);
 
   const deferredQuery = useDeferredValue(query);
   const isSearching = query !== deferredQuery;
@@ -89,11 +91,23 @@ export function DealsPage() {
           onAdd={() => navigate("/deals/new")}
           onResetFilters={resetFilters}
           onEdit={setEditingDeal}
+          onOpenSchedule={setScheduleDeal}
           onDelete={(deal) => {
             void handleDelete(deal);
           }}
         />
       )}
+
+      <BillingScheduleDialog
+        open={Boolean(scheduleDeal)}
+        onOpenChange={(open) => {
+          if (!open) setScheduleDeal(null);
+        }}
+        title={scheduleDeal?.title || "Payments due"}
+        subtitle={scheduleDeal?.customerName}
+        customerId={scheduleDeal?.customerId}
+        dealId={scheduleDeal?.id}
+      />
 
       <EditDealDialog
         deal={editingDeal}

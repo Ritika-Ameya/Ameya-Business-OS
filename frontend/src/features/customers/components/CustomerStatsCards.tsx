@@ -7,7 +7,7 @@ import {
   computeComponentLineTotal,
   computeComponentTaxable,
   getComponentCurrentDueDate,
-  hasComponentRenewal,
+  isRecordedRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import type { Deal } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
@@ -181,19 +181,12 @@ export function CustomerStatsCards({
   const outstandingRecords = customerRecords
     .filter((customer) => customer.outstanding > 0.009)
     .sort((a, b) => b.outstanding - a.outstanding);
-  const renewingCustomers = customerRecords.filter((customer) =>
-    isRenewalThisMonth(customer.nextRenewal)
-  );
-  const renewingIds = new Set(renewingCustomers.map((customer) => customer.id));
   const dealById = new Map(deals.map((deal) => [deal.id, deal]));
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const renewalRows: StatDetailRow[] = components
     .filter((component) => {
-      if (!hasComponentRenewal(component.renewalFrequency)) return false;
-      const due = getComponentCurrentDueDate(component);
-      if (!isRenewalThisMonth(due)) return false;
-      const deal = dealById.get(component.dealId);
-      return Boolean(deal && renewingIds.has(deal.customerId));
+      if (!isRecordedRenewal(component)) return false;
+      return isRenewalThisMonth(getComponentCurrentDueDate(component));
     })
     .map((component) => {
       const deal = dealById.get(component.dealId);
@@ -203,7 +196,7 @@ export function CustomerStatsCards({
         id: component.id,
         title: component.name,
         subtitle: customer?.company || customer?.name || deal?.customerName || "—",
-        detail: `Deal · ${deal?.title || "—"} · due ${formatDate(getComponentCurrentDueDate(component))}`,
+        detail: `Next renewal · ${deal?.title || "—"} · ${formatDate(getComponentCurrentDueDate(component))}`,
         value: formatBaseWithGst(
           taxable,
           computeComponentLineTotal(component) - taxable
@@ -253,7 +246,10 @@ export function CustomerStatsCards({
           : openCard === "renewals"
             ? {
                 title: "Renewals this month",
-                description: `${renewingCustomers.length} ${renewingCustomers.length === 1 ? "customer has" : "customers have"} a plan due in ${thisMonthPeriod()}. Each amount is the base price plus GST. The figure in brackets is the total.`,
+                description:
+                  renewalRows.length === 0
+                    ? `Nothing is due again in ${thisMonthPeriod()}. A first payment is not counted as a renewal.`
+                    : `${renewalRows.length} ${renewalRows.length === 1 ? "plan was" : "plans were"} already paid once and ${renewalRows.length === 1 ? "is" : "are"} due again in ${thisMonthPeriod()}. A first payment is not a renewal. Each amount is the base price plus GST.`,
                 nameLabel: "Plan",
                 valueLabel: "Expected",
                 rows: renewalRows,
@@ -309,7 +305,7 @@ export function CustomerStatsCards({
         />
         <StatCard
           label="Renewals This Month"
-          value={String(stats.renewalsThisMonth)}
+          value={String(renewalRows.length)}
           icon={<CalendarClock className="size-5 text-teal-600 dark:text-teal-400" />}
           accent="bg-teal-500/15"
           barClass="accent-bar-teal"

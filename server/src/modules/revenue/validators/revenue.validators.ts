@@ -28,6 +28,24 @@ export const invoiceCreateSchema = z.object({
   invoiceNumber: z.string().trim().min(1, 'Invoice number is required'),
   nextActionDate: z.string().default(''),
   billingType: invoiceBillingTypeSchema.optional(),
+  /** Which cycle each selected component is billed for. */
+  billedCycles: z
+    .array(
+      z.object({
+        componentId: z.string().min(1),
+        cycleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    )
+    .default([]),
+  /** Cash already recorded on a forecast, to move onto this invoice. */
+  linkPayments: z
+    .array(
+      z.object({
+        receiptId: z.string().min(1),
+        index: z.number().int().nonnegative(),
+      }),
+    )
+    .default([]),
 });
 
 /**
@@ -82,6 +100,10 @@ export const paymentCreateSchema = z.object({
   receivedAccount: paymentAccountSchema.optional(),
   /** Client paid the base amount only: turn the invoice into a non-GST invoice first. */
   removeGstReason: z.string().trim().max(2000).optional(),
+  /** Tax deducted by the client. It is not cash in the bank. */
+  tdsAmount: z.coerce.number().min(0).optional().default(0),
+  /** Count the TDS toward the invoice balance, so the remainder can become paid. */
+  tdsSettles: z.boolean().optional().default(false),
 });
 
 export const paymentUpdateSchema = paymentCreateSchema.omit({ removeGstReason: true }).partial();

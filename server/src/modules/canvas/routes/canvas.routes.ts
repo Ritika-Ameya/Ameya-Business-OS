@@ -5,6 +5,8 @@ import { canvasController } from '../controllers/canvas.controller';
 const router = Router();
 
 router.get('/', canvasController.getBoard);
+router.get('/customers/:customerId/receipt-payments', ...canvasController.listCustomerReceiptPayments);
+router.delete('/receipts/:receiptId/payments/:index', ...canvasController.removeReceiptPayment);
 router.get('/deals/:dealId/forecasts', ...canvasController.listDealForecasts);
 router.put('/temperatures/:customerId', ...canvasController.setTemperature);
 router.get('/lead-temperatures/:customerId', ...canvasController.getLeadTemperature);

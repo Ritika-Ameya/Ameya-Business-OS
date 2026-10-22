@@ -1,4 +1,5 @@
 import { type DragEvent } from "react";
+import { ForecastHistory } from "@/features/canvas/components/ForecastHistory";
 import { SOURCE_LABELS, type CanvasCard, type CanvasRowKey } from "@/features/canvas/types/canvas";
 import { formatMonthLabel } from "@/features/canvas/utils/canvas-utils";
 import { cn, formatCurrency, formatDate } from "@/shared/utils";
@@ -28,7 +29,7 @@ export function CanvasCardView({
   const detail = card.reason || card.invoiceNumber || card.dealTitle;
   const overdue = card.status === "overdue";
   const paid = card.status === "received";
-  const statusLabel = paid ? "Paid" : card.status;
+  const statusLabel = paid ? "Received" : card.status;
   const exGst = card.amountExGst ?? card.expectedAmount;
   const showExGst = card.expectedAmount != null && exGst != null && Math.abs(card.expectedAmount - exGst) > 0.009;
 
@@ -99,6 +100,9 @@ export function CanvasCardView({
       ) : null}
       {detail && card.kind === "receipt" ? (
         <p className="mt-0.5 truncate text-[11px] text-foreground/70">{detail}</p>
+      ) : null}
+      {card.history && card.history.payments.length > 0 ? (
+        <ForecastHistory history={card.history} compact />
       ) : null}
     </button>
   );
