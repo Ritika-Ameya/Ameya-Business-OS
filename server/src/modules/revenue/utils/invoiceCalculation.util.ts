@@ -18,10 +18,12 @@ export const buildLineItem = (input: {
   name: string;
   taxable: number;
   gstPercent: number;
+  cycleDate?: string;
 }): InvoiceLineItem => {
   const taxable = roundMoney(input.taxable);
   const gstPercent = Number(input.gstPercent) || 0;
   const gstAmount = computeTaxAmount(taxable, gstPercent);
+  const cycleDate = (input.cycleDate ?? '').slice(0, 10);
   return {
     componentId: input.componentId,
     name: input.name,
@@ -29,6 +31,7 @@ export const buildLineItem = (input: {
     gstPercent,
     gstAmount,
     total: roundMoney(taxable + gstAmount),
+    ...(cycleDate ? { cycleDate } : {}),
   };
 };
 
@@ -43,6 +46,7 @@ export const repriceLineItems = (
       name: line.name,
       taxable: line.taxable,
       gstPercent,
+      cycleDate: line.cycleDate,
     }),
   );
 
@@ -73,11 +77,26 @@ export const resolveBillingType = (
 export const computeOutstanding = (total: number, received: number): number =>
   Math.max(0, Number(total || 0) - Number(received || 0));
 
-/** Sum of payments with status `received`. */
-export const computeReceived = (payments: PaymentEntity[]): number =>
+/** Cash plus TDS, when the user chose to count that TDS as settled on the bill. */
+export const paymentSettledAmount = (
+  payment: Pick<PaymentEntity, 'amount' | 'tdsAmount' | 'tdsSettles'>,
+): number =>
+  Number(payment.amount || 0) + (payment.tdsSettles ? Number(payment.tdsAmount || 0) : 0);
+
+/** Cash that reached the bank. TDS is never included. */
+export const computeCashReceived = (payments: PaymentEntity[]): number =>
   payments
     .filter((payment) => payment.status === 'received')
     .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+/**
+ * Amount that settles the bill: bank cash, plus TDS only when it was marked as settled.
+ * This is used for outstanding and paid status. It is not the Received figure.
+ */
+export const computeReceived = (payments: PaymentEntity[]): number =>
+  payments
+    .filter((payment) => payment.status === 'received')
+    .reduce((sum, payment) => sum + paymentSettledAmount(payment), 0);
 
 /**
  * Resolve subtotal / tax / total for invoice create.
@@ -219,19 +238,19 @@ export const applyBalance = (
   invoice: InvoiceEntity,
   payments: PaymentEntity[],
 ): Pick<InvoiceEntity, 'received' | 'outstanding' | 'status'> => {
-  const status = resolveInvoiceStatus(invoice, computeReceived(payments));
+  const settled = computeReceived(payments);
+  const cash = computeCashReceived(payments);
+  const status = resolveInvoiceStatus(invoice, settled);
   if (status === 'cancelled') {
     return {
-      received: computeReceived(payments),
+      received: cash,
       outstanding: 0,
       status: 'cancelled',
     };
   }
-  const received = computeReceived(payments);
-  const outstanding = computeOutstanding(invoice.total, received);
   return {
-    received,
-    outstanding,
+    received: cash,
+    outstanding: computeOutstanding(invoice.total, settled),
     status,
   };
 };

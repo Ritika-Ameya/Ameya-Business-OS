@@ -35,7 +35,7 @@ export function DealComponentsTab({ dealId }: DealComponentsTabProps) {
   const handleUndoLastPayment = async (component: DealComponent) => {
     if (!component.lastRenewedDate) return;
     const confirmed = window.confirm(
-      `Mark ${component.lastRenewedDate} as unpaid again? Next unpaid cycle will go back to that date.`
+      `Mark ${component.lastRenewedDate} as unpaid again? That cycle's amount leaves Business Canvas Received, and the next unpaid cycle goes back to that date.`
     );
     if (!confirmed) return;
     await undoComponentRenewal(dealId, component.id);

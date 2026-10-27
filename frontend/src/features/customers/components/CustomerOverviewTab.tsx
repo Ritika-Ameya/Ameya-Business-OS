@@ -9,7 +9,7 @@ import {
 import { useDeals } from "@/features/deals/hooks/use-deals";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
-import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
+import { getCustomerBillingSchedule } from "@/features/customers/utils/customer-workspace-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
 import type { Customer } from "@/features/customers/types/customer";
 
@@ -26,8 +26,8 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
   const activeDealsCount = deals.filter(
     (deal) => deal.customerId === customer.id && deal.status !== "completed"
   ).length;
-  const renewals = getCustomerRenewals(customer.id, deals, components);
-  const upcomingRenewals = renewals.slice(0, 3);
+  const billingDue = getCustomerBillingSchedule(customer.id, deals, components);
+  const shownDue = billingDue.slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -101,27 +101,34 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
                 <CalendarClock className="size-4 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <CardTitle>Renewal Summary</CardTitle>
-                <CardDescription>Upcoming renewals</CardDescription>
+                <CardTitle>Payments due</CardTitle>
+                <CardDescription>
+                  {billingDue.length === 0
+                    ? "No dated components"
+                    : `${billingDue.length} ${billingDue.length === 1 ? "component" : "components"}`}
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {upcomingRenewals.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No component renewals scheduled</p>
+            {shownDue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No payment date set</p>
             ) : (
-              upcomingRenewals.map((renewal) => (
-                <div key={renewal.id} className="flex justify-between gap-3 text-sm">
-                  <span className="min-w-0 truncate text-muted-foreground">
-                    {renewal.componentName}
+              shownDue.map((item) => (
+                <div key={item.id} className="flex justify-between gap-3 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate">{item.componentName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.firstPayment ? "First payment due" : "Next renewal"}
+                    </span>
                   </span>
-                  <span className="shrink-0 font-medium">{formatDate(renewal.dueDate)}</span>
+                  <span className="shrink-0 font-medium">{formatDate(item.dueDate)}</span>
                 </div>
               ))
             )}
-            {renewals.length > 3 ? (
+            {billingDue.length > shownDue.length ? (
               <p className="text-xs text-muted-foreground">
-                +{renewals.length - 3} more on Renewals tab
+                +{billingDue.length - shownDue.length} more
               </p>
             ) : null}
           </CardContent>

@@ -24,11 +24,11 @@ const buildUrl = (path: string, params?: RequestOptions["params"]): string => {
   return url.toString();
 };
 
-let refreshPromise: Promise<boolean> | null = null;
+let refreshPromise: Promise<"ok" | "invalid" | "unavailable"> | null = null;
 
-async function tryRefreshToken(): Promise<boolean> {
+async function tryRefreshToken(): Promise<"ok" | "invalid" | "unavailable"> {
   const refreshToken = tokenStorage.getRefreshToken();
-  if (!refreshToken) return false;
+  if (!refreshToken) return "invalid";
 
   try {
     const response = await fetch(buildUrl("/auth/refresh"), {
@@ -37,19 +37,20 @@ async function tryRefreshToken(): Promise<boolean> {
       body: JSON.stringify({ refreshToken }),
     });
 
-    if (!response.ok) return false;
+    if (response.status === 401 || response.status === 403) return "invalid";
+    if (!response.ok) return "unavailable";
 
     const payload = (await response.json()) as ApiResponseBody<{
       accessToken: string;
       refreshToken: string;
     }>;
 
-    if (!payload.success) return false;
+    if (!payload.success) return "invalid";
 
     tokenStorage.setTokens(payload.data.accessToken, payload.data.refreshToken);
-    return true;
+    return "ok";
   } catch {
-    return false;
+    return "unavailable";
   }
 }
 
@@ -128,13 +129,13 @@ export async function apiRequest<T>(
       }
 
       const refreshed = await refreshPromise;
-      if (refreshed) {
+      if (refreshed === "ok") {
         return doRequest<T>(path, options);
       }
-
-      // Refresh failed — redirect to login
-      tokenStorage.clear();
-      window.location.href = "/login";
+      if (refreshed === "invalid") {
+        tokenStorage.clear();
+        window.location.href = "/login";
+      }
     }
     throw err;
   }

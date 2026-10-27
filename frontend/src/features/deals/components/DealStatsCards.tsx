@@ -9,8 +9,8 @@ import { formatBaseWithGst } from "@/features/revenue/utils/invoice-utils";
 import {
   computeComponentLineTotal,
   computeComponentTaxable,
-  hasComponentRenewal,
   getComponentCurrentDueDate,
+  isRecordedRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import type { Deal } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
@@ -39,7 +39,7 @@ export function DealStatsCards({ deals, components = [] }: DealStatsCardsProps) 
   const dealById = new Map(deals.map((deal) => [deal.id, deal]));
   const renewals = components.filter(
     (component) =>
-      hasComponentRenewal(component.renewalFrequency) &&
+      isRecordedRenewal(component) &&
       isRenewalThisMonth(getComponentCurrentDueDate(component))
   );
   const renewalRows: StatDetailRow[] = renewals.map((component) => {
@@ -49,7 +49,7 @@ export function DealStatsCards({ deals, components = [] }: DealStatsCardsProps) 
       id: component.id,
       title: component.name,
       subtitle: deal?.customerName || "—",
-      detail: `Deal · ${deal?.title || "—"} · due ${formatDate(getComponentCurrentDueDate(component))}`,
+      detail: `Next renewal · ${deal?.title || "—"} · ${formatDate(getComponentCurrentDueDate(component))}`,
       value: formatBaseWithGst(taxable, computeComponentLineTotal(component) - taxable),
       to: deal ? `/deals/${deal.id}` : undefined,
     };
@@ -94,7 +94,10 @@ export function DealStatsCards({ deals, components = [] }: DealStatsCardsProps) 
           : openCard === "renewals"
             ? {
                 title: "Renewals this month",
-                description: `${renewals.length} ${renewals.length === 1 ? "plan" : "plans"} due in ${thisMonthPeriod()}. Each amount is the base price plus GST. The figure in brackets is the total.`,
+                description:
+                  renewals.length === 0
+                    ? `Nothing is due again in ${thisMonthPeriod()}. A first payment is not counted as a renewal.`
+                    : `${renewals.length} ${renewals.length === 1 ? "plan was" : "plans were"} already paid once and ${renewals.length === 1 ? "is" : "are"} due again in ${thisMonthPeriod()}. A first payment is not a renewal. Each amount is the base price plus GST.`,
                 nameLabel: "Plan",
                 valueLabel: "Expected",
                 rows: renewalRows,

@@ -69,6 +69,8 @@ export const expectedReceiptMapper = createBaseEntityMapper<ExpectedReceiptEntit
     expectedDate: str(record, 'expectedDate').slice(0, 10),
     reason: str(record, 'reason'),
     status: asStatus(str(record, 'status', 'expected')),
+    receivedLog: str(record, 'receivedLog'),
+    suppressInvoice: str(record, 'suppressInvoice') === 'yes',
   }),
   (entity) => ({
     origin: rowStr(entity, 'origin'),
@@ -86,6 +88,8 @@ export const expectedReceiptMapper = createBaseEntityMapper<ExpectedReceiptEntit
     expectedDate: rowStr(entity, 'expectedDate'),
     reason: rowStr(entity, 'reason'),
     status: rowStr(entity, 'status'),
+    receivedLog: rowStr(entity, 'receivedLog'),
+    suppressInvoice: entity.suppressInvoice ? 'yes' : '',
   }),
 );
 

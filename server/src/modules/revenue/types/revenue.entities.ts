@@ -23,6 +23,8 @@ export interface InvoiceLineItem {
   gstPercent: number;
   gstAmount: number;
   total: number;
+  /** Cycle this line bills. Blank on older invoices. */
+  cycleDate?: string;
 }
 
 export interface InvoiceEntity extends RevenueEntityBase {
@@ -71,6 +73,10 @@ export interface PaymentEntity extends RevenueEntityBase {
   notes: string;
   /** Empty on payments recorded before the account was tracked. */
   receivedAccount: PaymentAccount | '';
+  /** Tax deducted by the client. Not cash in the bank. Blank on older rows. */
+  tdsAmount: number;
+  /** When true, cash plus TDS both reduce the invoice balance. */
+  tdsSettles: boolean;
 }
 
 export type InvoiceTimelineAction =

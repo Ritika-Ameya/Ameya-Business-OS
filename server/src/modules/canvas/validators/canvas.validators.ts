@@ -26,6 +26,11 @@ export const receiptIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const receiptPaymentParamsSchema = z.object({
+  receiptId: z.string().min(1),
+  index: z.coerce.number().int().min(0),
+});
+
 export const setTemperatureSchema = z.object({
   temperature: temperatureValueSchema.or(z.literal('')),
 });
@@ -80,7 +85,8 @@ export const splitReceiptSchema = z.object({
 
 export const markReceiptPaidSchema = z.object({
   cardId: z.string().min(1),
-  invoiceId: z.string().min(1, 'Choose the invoice this payment is against'),
+  /** Empty when the money is recorded on the forecast itself, with no invoice. */
+  invoiceId: z.string().optional().default(''),
   amount: z.coerce.number().positive('Amount must be greater than 0'),
   paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
   mode: z.string().trim().min(1, 'Payment mode is required'),
@@ -88,6 +94,8 @@ export const markReceiptPaidSchema = z.object({
   notes: z.string().trim().max(2000).optional().default(''),
   removeGstReason: z.string().trim().max(2000).optional(),
   receivedAccount: z.enum(['gst', 'other']).optional(),
+  tdsAmount: z.coerce.number().min(0).optional().default(0),
+  tdsSettles: z.boolean().optional().default(false),
 });
 
 export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;

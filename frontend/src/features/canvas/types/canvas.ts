@@ -20,6 +20,21 @@ export type CanvasDisplayStatus =
   | "cancelled"
   | "superseded";
 
+export interface CanvasForecastPayment {
+  date: string;
+  amount: number;
+  tdsAmount: number;
+  tdsSettles: boolean;
+  remainingAfter: number;
+}
+
+export interface CanvasForecastHistory {
+  createdOn: string;
+  originalAmount: number;
+  payments: CanvasForecastPayment[];
+  remaining: number;
+}
+
 export interface CanvasCard {
   id: string;
   persistedId: string | null;
@@ -53,6 +68,8 @@ export interface CanvasCard {
   internationalClient?: boolean;
   /** Set on screen only: the unpaid month this card was carried forward from. */
   carriedFrom?: string;
+  /** Set when part of this forecast is already received and a balance is still expected. */
+  history?: CanvasForecastHistory;
 }
 
 export type CanvasRenewalStatus = "overdue" | "this_month" | "next_month" | "later";
@@ -83,6 +100,8 @@ export interface CanvasPaidEntry {
   amount: number;
   paidAt: string;
   collectionAccount?: "innovex" | "ritika";
+  tdsAmount?: number;
+  tdsSettles?: boolean;
 }
 
 export interface CanvasAccountOption {

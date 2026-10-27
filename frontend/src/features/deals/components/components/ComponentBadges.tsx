@@ -29,15 +29,18 @@ export function ComponentStatusBadge({
   status,
   hasRenewal = false,
   dueDate,
+  firstPayment = false,
 }: {
   status: ComponentStatus;
   hasRenewal?: boolean;
   dueDate?: string;
+  firstPayment?: boolean;
 }) {
-  if (hasRenewal) {
+  if (hasRenewal || (firstPayment && dueDate)) {
+    const label = firstPayment ? "First payment due" : "Next renewal";
     return (
       <Badge variant="secondary" className={cn(componentStatusStyles.pending)}>
-        {dueDate ? `Due ${formatComponentDate(dueDate)}` : "Due"}
+        {dueDate ? `${label} ${formatComponentDate(dueDate)}` : label}
       </Badge>
     );
   }

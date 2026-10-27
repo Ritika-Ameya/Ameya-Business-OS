@@ -24,7 +24,10 @@ export function CustomerInvoicesTab({ customer }: CustomerInvoicesTabProps) {
 
   const context: GenerateInvoiceContext = {
     customerId: customer.id,
-    customerName: customer.name,
+    customerName:
+      customer.company?.trim() && customer.name?.trim() && customer.company.trim() !== customer.name.trim()
+        ? `${customer.company.trim()} · ${customer.name.trim()}`
+        : customer.company?.trim() || customer.name,
   };
 
   const generateButton = (

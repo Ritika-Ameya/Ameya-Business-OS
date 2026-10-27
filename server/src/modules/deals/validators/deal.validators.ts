@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { hasRenewalFrequency } from '../utils/renewalHelpers.util';
 
 export const dealStatusSchema = z.enum(['draft', 'active', 'completed', 'on-hold']);
 export const billingTypeSchema = z.enum([
@@ -74,16 +73,6 @@ const componentRenewalRefine = <T extends {
   ctx: z.RefinementCtx,
 ) => {
   const frequency = data.renewalFrequency ?? 'none';
-  if (!hasRenewalFrequency(frequency)) return;
-
-  if (!String(data.renewalStartDate ?? '').trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Renewal start date is required when renewal frequency is selected',
-      path: ['renewalStartDate'],
-    });
-  }
-
   if (frequency === 'custom' && !String(data.renewalDate ?? '').trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

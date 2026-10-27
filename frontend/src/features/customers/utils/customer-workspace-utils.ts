@@ -4,6 +4,7 @@ import {
   computeComponentTaxable,
   getComponentCurrentDueDate,
   hasComponentRenewal,
+  isRecordedRenewal,
 } from "@/features/deals/utils/deal-component-utils";
 import {
   formatBaseWithGst,
@@ -28,6 +29,15 @@ export interface CustomerPaymentHistoryItem {
   amount: number;
   mode: PaymentMode;
   status: PaymentStatus;
+  /** Cash recorded on a forecast, not against an invoice. */
+  source: "invoice" | "expected_receipt";
+  /** What this invoice still has left after every payment on it. */
+  invoiceOutstanding?: number;
+  receiptId?: string;
+  receiptPaymentIndex?: number;
+  reason?: string;
+  tdsAmount?: number;
+  tdsSettles?: boolean;
 }
 
 export type CustomerRenewalStatus = "upcoming" | "overdue" | "scheduled";
@@ -68,12 +78,56 @@ export function getCustomerPaymentHistory(
         amount: payment.amount,
         mode: payment.mode,
         status: payment.status,
+        source: "invoice" as const,
+        invoiceOutstanding: invoice.outstanding,
+        tdsAmount: payment.tdsAmount,
+        tdsSettles: payment.tdsSettles,
       };
     })
     .sort(
       (a, b) =>
         new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
     );
+}
+
+export interface CustomerBillingDue {
+  id: string;
+  dealId: string;
+  dealTitle: string;
+  componentName: string;
+  dueDate: string;
+  /** No payment recorded yet, so this date is the first bill, not a renewal. */
+  firstPayment: boolean;
+}
+
+/** Every dated component on this customer's deals, including a one-time first bill. */
+export function getCustomerBillingSchedule(
+  customerId: string,
+  deals: Deal[],
+  components: DealComponent[] = []
+): CustomerBillingDue[] {
+  const customerDeals = getDealsByCustomerId(deals, customerId);
+  const dealById = new Map(customerDeals.map((deal) => [deal.id, deal]));
+
+  return components
+    .filter(
+      (component) =>
+        dealById.has(component.dealId) &&
+        Boolean(getComponentCurrentDueDate(component))
+    )
+    .map((component) => {
+      const deal = dealById.get(component.dealId)!;
+      return {
+        id: component.id,
+        dealId: deal.id,
+        dealTitle: deal.title,
+        componentName: component.name,
+        dueDate: getComponentCurrentDueDate(component),
+        firstPayment: !component.lastRenewedDate?.trim(),
+      };
+    })
+    .filter((item) => Boolean(item.dueDate))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
 export function getCustomerRenewals(
@@ -140,24 +194,53 @@ export function enrichCustomersListMetrics(
   }
 
   const nextRenewalByCustomer = new Map<string, string>();
+  const nextDueByCustomer = new Map<
+    string,
+    { date: string; kind: "first" | "renewal"; name: string; count: number }
+  >();
   for (const component of components) {
-    if (!hasComponentRenewal(component.renewalFrequency)) continue;
     const dueDate = getComponentCurrentDueDate(component);
     if (!dueDate) continue;
     const customerId = dealCustomerId.get(component.dealId);
     if (!customerId) continue;
-    const existing = nextRenewalByCustomer.get(customerId);
-    if (!existing || dueDate < existing) {
-      nextRenewalByCustomer.set(customerId, dueDate);
+    const recorded = isRecordedRenewal(component);
+    if (recorded) {
+      const existingRenewal = nextRenewalByCustomer.get(customerId);
+      if (!existingRenewal || dueDate < existingRenewal) {
+        nextRenewalByCustomer.set(customerId, dueDate);
+      }
+    }
+    const existingDue = nextDueByCustomer.get(customerId);
+    if (!existingDue) {
+      nextDueByCustomer.set(customerId, {
+        date: dueDate,
+        kind: recorded ? "renewal" : "first",
+        name: component.name,
+        count: 1,
+      });
+    } else {
+      existingDue.count += 1;
+      if (dueDate < existingDue.date) {
+        existingDue.date = dueDate;
+        existingDue.kind = recorded ? "renewal" : "first";
+        existingDue.name = component.name;
+      }
     }
   }
 
-  return customers.map((customer) => ({
-    ...customer,
-    outstanding: outstandingByCustomer?.get(customer.id) ?? customer.outstanding,
-    activeDeals: activeDealCount.get(customer.id) ?? 0,
-    nextRenewal: nextRenewalByCustomer.get(customer.id),
-  }));
+  return customers.map((customer) => {
+    const due = nextDueByCustomer.get(customer.id);
+    return {
+      ...customer,
+      outstanding: outstandingByCustomer?.get(customer.id) ?? customer.outstanding,
+      activeDeals: activeDealCount.get(customer.id) ?? 0,
+      nextRenewal: nextRenewalByCustomer.get(customer.id),
+      nextDueDate: due?.date,
+      nextDueKind: due?.kind,
+      nextDueName: due?.name,
+      dueCount: due?.count ?? 0,
+    };
+  });
 }
 
 export const customerRenewalStatusLabels: Record<CustomerRenewalStatus, string> = {

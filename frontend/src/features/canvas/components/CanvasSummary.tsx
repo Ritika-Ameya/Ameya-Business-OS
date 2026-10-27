@@ -127,7 +127,7 @@ export function CanvasSummary({
       ) : null}
       <Tile
         icon={<CheckCircle2 className="size-4" />}
-        label="Paid"
+        label="Received"
         amount={summary.paid.amount}
         detail={`${items(summary.paid.count, "payment", "payments")} · Innovex ${formatCurrency(summary.paid.innovex)} · Ritika ${formatCurrency(summary.paid.ritika)}`}
         tone={{ ring: "border-emerald-500/25 focus-visible:ring-emerald-400", icon: "bg-emerald-500/15 text-emerald-600", glow: "bg-emerald-400/20" }}

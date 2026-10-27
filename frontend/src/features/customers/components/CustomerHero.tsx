@@ -24,7 +24,10 @@ import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
 import { EditFollowUpDateDialog } from "@/features/customers/components/EditFollowUpDateDialog";
-import { getCustomerRenewals } from "@/features/customers/utils/customer-workspace-utils";
+import {
+  getCustomerBillingSchedule,
+  type CustomerBillingDue,
+} from "@/features/customers/utils/customer-workspace-utils";
 import { formatCurrency, formatDate, formatPhoneForDisplay } from "@/shared/utils";
 import { useDashboard } from "@/features/dashboard/hooks/use-dashboard";
 import {
@@ -51,6 +54,50 @@ const TEMPERATURE_OPTIONS = [
   { value: "cold", label: "Cold", dot: "bg-sky-500" },
   { value: "unset", label: "Not set", dot: "bg-slate-400" },
 ] as const;
+
+function BillingDueCard({ items }: { items: CustomerBillingDue[] }) {
+  const firstCount = items.filter((item) => item.firstPayment).length;
+  const label =
+    items.length > 0 && firstCount === 0 ? "Next renewals" : "Payments due";
+  const dealTitles = new Set(items.map((item) => item.dealTitle));
+
+  return (
+    <div className="col-span-full min-w-0 rounded-xl border border-white/20 bg-white/15 px-3 py-3 shadow-sm backdrop-blur-md sm:px-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70 sm:text-[11px]">
+          {label}
+        </p>
+        <p className="text-[10px] text-white/75 sm:text-[11px]">
+          {items.length === 0
+            ? "No dated components"
+            : `${items.length} ${items.length === 1 ? "component" : "components"}`}
+        </p>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-1 text-sm font-bold text-white">—</p>
+      ) : (
+        <ul className="mt-2 max-h-52 space-y-2 overflow-y-auto">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">
+                  {item.componentName}
+                </p>
+                <p className="text-[10px] text-white/75 sm:text-[11px]">
+                  {item.firstPayment ? "First payment due" : "Next renewal"}
+                  {dealTitles.size > 1 ? ` · ${item.dealTitle}` : ""}
+                </p>
+              </div>
+              <p className="shrink-0 text-sm font-bold tabular-nums text-white">
+                {formatDate(item.dueDate)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function HeroMetric({
   label,
@@ -113,14 +160,7 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
   const activeDealsCount = deals.filter(
     (deal) => deal.customerId === customer.id && deal.status !== "completed"
   ).length;
-  const renewals = getCustomerRenewals(customer.id, deals, components);
-  const nextRenewal = renewals[0];
-  const nextRenewalValue = nextRenewal ? formatDate(nextRenewal.dueDate) : "—";
-  const nextRenewalDetail = nextRenewal
-    ? renewals.length > 1
-      ? `${nextRenewal.componentName} · +${renewals.length - 1} more`
-      : nextRenewal.componentName
-    : undefined;
+  const billingDue = getCustomerBillingSchedule(customer.id, deals, components);
 
   const outstanding = getCollectionInvoices(invoices)
     .filter((invoice) => invoice.customerId === customer.id)
@@ -414,7 +454,8 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
               </div>
             </div>
 
-            <div className="grid w-full shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:w-80 xl:grid-cols-2 2xl:w-96">
+            <div className="grid w-full shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:w-[26rem] xl:grid-cols-2">
+              <BillingDueCard items={billingDue} />
               <HeroMetric
                 label="Outstanding"
                 value={formatCurrency(outstanding)}
@@ -427,11 +468,6 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
               <HeroMetric
                 label="Last Payment"
                 value={formatDate(customer.lastPayment)}
-              />
-              <HeroMetric
-                label="Next Renewal"
-                value={nextRenewalValue}
-                detail={nextRenewalDetail}
               />
               <HeroMetric
                 label="Next Action"

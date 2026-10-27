@@ -5,6 +5,7 @@ import { AddCustomerDialog } from "@/features/customers/components/AddCustomerDi
 import { CustomerSearchFilters } from "@/features/customers/components/CustomerSearchFilters";
 import { CustomerStatsCards } from "@/features/customers/components/CustomerStatsCards";
 import { CustomerTable } from "@/features/customers/components/CustomerTable";
+import { BillingScheduleDialog } from "@/features/deals/components/BillingScheduleDialog";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { TableSkeleton } from "@/shared/components/ListSkeleton";
 import { Button } from "@/shared/ui/button";
@@ -28,6 +29,7 @@ export function CustomersPage() {
   const [filters, setFilters] = useState<CustomerFilters>(defaultFilters);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | undefined>();
+  const [scheduleCustomer, setScheduleCustomer] = useState<Customer | null>(null);
 
   useEffect(() => {
     const state = location.state as { openAdd?: boolean } | null;
@@ -137,6 +139,7 @@ export function CustomersPage() {
           customers={filteredCustomers}
           stages={stages}
           onEdit={handleEdit}
+          onOpenSchedule={setScheduleCustomer}
           onDelete={(customer) => {
             void handleDelete(customer);
           }}
@@ -146,6 +149,20 @@ export function CustomersPage() {
           onResetFilters={resetFilters}
         />
       )}
+
+      <BillingScheduleDialog
+        open={Boolean(scheduleCustomer)}
+        onOpenChange={(open) => {
+          if (!open) setScheduleCustomer(null);
+        }}
+        title={scheduleCustomer?.company || scheduleCustomer?.name || "Payments due"}
+        subtitle={
+          scheduleCustomer?.company && scheduleCustomer.company !== scheduleCustomer.name
+            ? scheduleCustomer.name
+            : undefined
+        }
+        customerId={scheduleCustomer?.id}
+      />
 
       <AddCustomerDialog
         key={`${editingCustomer?.id ?? "new"}-${dialogOpen}`}

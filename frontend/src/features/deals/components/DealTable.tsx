@@ -21,7 +21,7 @@ import {
 } from "@/shared/ui/table";
 import { formatDate } from "@/shared/utils/format-date";
 import { cn } from "@/shared/utils";
-import { getEarliestComponentRenewal } from "@/features/deals/utils/deal-utils";
+import { getDealComponentRenewals } from "@/features/deals/utils/deal-utils";
 import type { Deal, DealStatus } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
 
@@ -35,6 +35,7 @@ const statusStyles: Record<DealStatus, string> = {
 interface DealTableProps {
   deals: Deal[];
   components?: DealComponent[];
+  onOpenSchedule?: (deal: Deal) => void;
   isFiltered?: boolean;
   isEmpty?: boolean;
   onAdd?: () => void;
@@ -47,6 +48,7 @@ interface DealTableProps {
 export function DealTable({
   deals,
   components = [],
+  onOpenSchedule,
   isFiltered = false,
   isEmpty = false,
   onAdd,
@@ -88,14 +90,15 @@ export function DealTable({
             <TableHead>Customer</TableHead>
             <TableHead className="hidden md:table-cell">Start Date</TableHead>
             <TableHead className="hidden lg:table-cell">Components</TableHead>
-            <TableHead className="hidden lg:table-cell">Next Renewal</TableHead>
+            <TableHead className="hidden lg:table-cell">Next due</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {deals.map((deal) => {
-            const nextRenewal = getEarliestComponentRenewal(deal.id, components);
+            const dueItems = getDealComponentRenewals(deal.id, components);
+            const nextDue = dueItems[0];
             return (
             <TableRow key={deal.id} className="group">
               <TableCell className="pl-4">
@@ -104,9 +107,12 @@ export function DealTable({
                   className="block rounded-lg py-1 transition-colors hover:text-primary"
                 >
                   <p className="font-medium">{deal.title}</p>
-                  <p className="text-xs text-muted-foreground lg:hidden">
-                    {formatDate(nextRenewal)}
-                  </p>
+                  {nextDue ? (
+                    <p className="text-xs text-muted-foreground lg:hidden">
+                      {formatDate(nextDue.dueDate)}
+                      {nextDue.lastPaidDate ? " · Renewal" : " · First payment"}
+                    </p>
+                  ) : null}
                 </Link>
               </TableCell>
               <TableCell>
@@ -124,8 +130,23 @@ export function DealTable({
               <TableCell className="hidden lg:table-cell">
                 {deal.componentsCount}
               </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {formatDate(nextRenewal)}
+              <TableCell className="hidden lg:table-cell">
+                {nextDue ? (
+                  <button
+                    type="button"
+                    className="rounded-lg py-1 text-left transition-colors hover:text-primary"
+                    onClick={() => onOpenSchedule?.(deal)}
+                  >
+                    <p className="font-medium tabular-nums">{formatDate(nextDue.dueDate)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {nextDue.lastPaidDate ? "Renewal" : "First payment"}
+                      {nextDue.name ? ` · ${nextDue.name}` : ""}
+                      {dueItems.length > 1 ? ` · +${dueItems.length - 1}` : ""}
+                    </p>
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell>
                 <Badge

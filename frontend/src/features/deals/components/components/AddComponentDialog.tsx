@@ -185,12 +185,13 @@ export function AddComponentDialog({
     const paidForDate =
       renewalPaymentPreview?.paidForDate || unpaidCycleDate || form.renewalDate;
     const nextDueDate = renewalPaymentPreview?.nextDueDate;
+    const receivedLine = `This records ${formatComponentCurrency(costSummary.cycleTotal)} in Business Canvas Received. An invoice is not required.`;
     const confirmed = window.confirm(
       paidForDate && nextDueDate
-        ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\nLast paid cycle will become ${formatComponentDate(paidForDate)}. Next unpaid cycle will move to ${formatComponentDate(nextDueDate)}.`
+        ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\n${receivedLine}\n\nLast paid cycle will become ${formatComponentDate(paidForDate)}. Next unpaid cycle will move to ${formatComponentDate(nextDueDate)}.`
         : paidForDate
-          ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\nIf this is a custom date, also set the next unpaid cycle after saving.`
-          : "Mark the current unpaid cycle as paid?"
+          ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\n${receivedLine}\n\nIf this is a custom date, also set the next unpaid cycle after saving.`
+          : `Mark the current unpaid cycle as paid?\n\n${receivedLine}`
     );
     if (!confirmed) return;
 
@@ -216,8 +217,8 @@ export function AddComponentDialog({
     const preview = previewRenewalCycleRollback(initialComponent);
     const confirmed = window.confirm(
       preview
-        ? `Mark ${formatComponentDate(preview.unpaidDate)} as unpaid again?\n\nNext unpaid cycle will go back to ${formatComponentDate(preview.unpaidDate)}.`
-        : "Undo the last paid renewal cycle?"
+        ? `Mark ${formatComponentDate(preview.unpaidDate)} as unpaid again?\n\nThat cycle's amount leaves Business Canvas Received, and the next unpaid cycle goes back to ${formatComponentDate(preview.unpaidDate)}.`
+        : "Undo the last paid renewal cycle? That amount leaves Business Canvas Received."
     );
     if (!confirmed) return;
 
@@ -250,8 +251,7 @@ export function AddComponentDialog({
         const frequency = value as ComponentRenewalFrequency | "";
         if (!frequency || frequency === "none") {
           next.billingType = "one-time";
-          next.renewalStartDate = "";
-          next.renewalDate = "";
+          next.renewalDate = next.renewalStartDate;
         } else if (frequency === "monthly" || frequency === "yearly") {
           next.billingType = frequency;
         } else if (frequency === "quarterly" || frequency === "half-yearly") {
@@ -270,8 +270,6 @@ export function AddComponentDialog({
 
       if (
         field === "renewalStartDate" &&
-        next.renewalFrequency &&
-        next.renewalFrequency !== "none" &&
         next.renewalFrequency !== "custom" &&
         !initialComponent?.lastRenewedDate
       ) {
@@ -351,6 +349,23 @@ export function AddComponentDialog({
               <p className="text-xs text-muted-foreground">
                 Enter the rate for this period. Cost is calculated automatically.
               </p>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="renewal-start-date">First billing date (expected)</Label>
+              <DateInput
+                id="renewal-start-date"
+                value={form.renewalStartDate}
+                onChange={(e) => updateField("renewalStartDate", e.target.value)}
+                className="w-full min-w-0 rounded-xl"
+                aria-invalid={Boolean(errors.renewalStartDate)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional. Leave it blank, or add and change it later.
+              </p>
+              {errors.renewalStartDate && (
+                <p className="text-xs text-destructive">{errors.renewalStartDate}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -498,26 +513,6 @@ export function AddComponentDialog({
                   )}
                 </SelectContent>
               </Select>
-            </div>
-            ) : null}
-
-            {renewalEnabled ? (
-            <div className="space-y-2">
-              <Label htmlFor="renewal-start-date">
-                First billing date
-                <span className="text-destructive"> *</span>
-              </Label>
-              <DateInput
-                id="renewal-start-date"
-                value={form.renewalStartDate}
-                onChange={(e) => updateField("renewalStartDate", e.target.value)}
-                className="w-full min-w-0 rounded-xl"
-                disabled={!renewalEnabled}
-                aria-invalid={Boolean(errors.renewalStartDate)}
-              />
-              {errors.renewalStartDate && (
-                <p className="text-xs text-destructive">{errors.renewalStartDate}</p>
-              )}
             </div>
             ) : null}
 

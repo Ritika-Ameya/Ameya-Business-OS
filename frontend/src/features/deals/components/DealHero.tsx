@@ -1,4 +1,4 @@
-import { Calendar, ChevronDown, Handshake, Layers, User } from "lucide-react";
+import { Calendar, Handshake, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
@@ -83,75 +83,57 @@ function HeroMetric({
   );
 }
 
-function NextRenewalMetric({
-  renewals,
+function BillingDueList({
+  items,
 }: {
-  renewals: Array<{
+  items: Array<{
     id: string;
     name: string;
     dueDate: string;
     lastPaidDate: string;
   }>;
 }) {
-  const [open, setOpen] = useState(false);
-  const next = renewals[0];
-  const canExpand = renewals.length > 0;
+  const firstCount = items.filter((item) => !item.lastPaidDate).length;
+  const label =
+    items.length === 0
+      ? "Payments due"
+      : firstCount === items.length
+        ? "Payments due"
+        : firstCount === 0
+          ? "Next renewals"
+          : "Billing due";
 
   return (
-    <div className="rounded-xl border border-border/50 bg-background/60 px-4 py-3">
-      <button
-        type="button"
-        className="w-full text-left disabled:cursor-default"
-        disabled={!canExpand}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Next Renewal
-          </p>
-          {canExpand ? (
-            <ChevronDown
-              className={cn(
-                "size-4 shrink-0 text-muted-foreground transition-transform",
-                open && "rotate-180"
-              )}
-            />
-          ) : null}
-        </div>
-        <p className="mt-1 text-sm font-semibold sm:text-base">
-          {next ? formatDate(next.dueDate) : "—"}
+    <div className="col-span-full rounded-xl border border-border/50 bg-background/60 px-4 py-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
         </p>
-        {!open && next ? (
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {renewals.length === 1
-              ? next.name
-              : `${next.name} · ${renewals.length} components`}
-          </p>
-        ) : null}
-      </button>
-
-      {open && next ? (
-        <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto border-t border-border/50 pt-2">
-          {renewals.map((item, index) => (
+        <p className="text-[11px] text-muted-foreground">
+          {items.length === 0
+            ? "No dated components"
+            : `${items.length} ${items.length === 1 ? "component" : "components"}`}
+        </p>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-1 text-sm font-semibold">—</p>
+      ) : (
+        <ul className="mt-2 max-h-52 space-y-2 overflow-y-auto">
+          {items.map((item) => (
             <li key={item.id} className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-xs font-medium">{item.name}</p>
-                {index === 0 ? (
-                  <p className="text-[10px] text-muted-foreground">Next due</p>
-                ) : item.lastPaidDate ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    Paid through {formatDate(item.lastPaidDate)}
-                  </p>
-                ) : null}
+                <p className="truncate text-sm font-medium">{item.name}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {item.lastPaidDate ? "Next renewal" : "First payment due"}
+                </p>
               </div>
-              <p className="shrink-0 text-xs font-semibold tabular-nums">
+              <p className="shrink-0 text-sm font-semibold tabular-nums">
                 {formatDate(item.dueDate)}
               </p>
             </li>
           ))}
         </ul>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -170,7 +152,6 @@ export function DealHero({ deal }: DealHeroProps) {
   const currentStage = getStageById(stages, deal.currentStageId);
   const applicableStages = getStagesForRecordType(stages, recordType);
   const nextRenewals = getDealComponentRenewals(deal.id, components);
-  const nextRenewal = nextRenewals[0];
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === deal.currentStageId) return;
@@ -287,22 +268,12 @@ export function DealHero({ deal }: DealHeroProps) {
                   <Calendar className="size-4" />
                   Started {formatDate(deal.startDate)}
                 </span>
-                {nextRenewal && (
-                  <span className="flex items-center gap-2">
-                    <Layers className="size-4" />
-                    Renewal {formatDate(nextRenewal.dueDate)}
-                    {nextRenewal.name ? ` · ${nextRenewal.name}` : ""}
-                    {nextRenewals.length > 1
-                      ? ` (+${nextRenewals.length - 1} more)`
-                      : ""}
-                  </span>
-                )}
               </div>
             </div>
 
             <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:max-w-md lg:grid-cols-2">
+              <BillingDueList items={nextRenewals} />
               <HeroMetric label="Start Date" value={formatDate(deal.startDate)} />
-              <NextRenewalMetric renewals={nextRenewals} />
               <HeroMetric
                 label="Next Action"
                 value={formatDate(deal.nextActionDate)}

@@ -24,6 +24,14 @@ export function hasComponentRenewal(
   return Boolean(frequency) && frequency !== "none";
 }
 
+/** A renewal only exists after one cycle has already been paid. */
+export function isRecordedRenewal(component: {
+  renewalFrequency?: ComponentRenewalFrequency | "" | null;
+  lastRenewedDate?: string;
+}): boolean {
+  return hasComponentRenewal(component.renewalFrequency) && Boolean(component.lastRenewedDate?.trim());
+}
+
 function parseLocalIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   if (match) {
@@ -191,13 +199,8 @@ export function validateComponentForm(
     errors.discount = "Discount cannot be negative";
   }
 
-  if (hasComponentRenewal(data.renewalFrequency)) {
-    if (!data.renewalStartDate.trim()) {
-      errors.renewalStartDate = "Renewal start date is required when frequency is selected";
-    }
-    if (data.renewalFrequency === "custom" && !data.renewalDate.trim()) {
-      errors.renewalDate = "Custom renewal date is required";
-    }
+  if (data.renewalFrequency === "custom" && !data.renewalDate.trim()) {
+    errors.renewalDate = "Custom renewal date is required";
   }
 
   return errors;
@@ -302,8 +305,7 @@ export function applyBillingPeriod(
   const next: ComponentFormData = { ...form, billingType };
   if (billingType === "one-time") {
     next.renewalFrequency = "";
-    next.renewalStartDate = "";
-    next.renewalDate = "";
+    next.renewalDate = next.renewalStartDate;
     return next;
   }
   if (billingType === "monthly") next.renewalFrequency = "monthly";

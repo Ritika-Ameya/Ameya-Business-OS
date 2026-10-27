@@ -65,6 +65,7 @@ export function DealComponentsTable({
             const billingPeriod = resolveComponentBillingPeriod(component);
             const isRenewing = hasComponentRenewal(component.renewalFrequency);
             const dueDate = getComponentCurrentDueDate(component);
+            const firstPayment = Boolean(dueDate) && !component.lastRenewedDate?.trim();
             return (
             <TableRow key={component.id}>
               <TableCell className="pl-4">
@@ -102,7 +103,7 @@ export function DealComponentsTable({
                 </div>
               </TableCell>
               <TableCell className="hidden text-muted-foreground lg:table-cell">
-                {isRenewing ? (
+                {isRenewing || dueDate ? (
                   component.lastRenewedDate ? (
                     <p>Paid through {formatComponentDate(component.lastRenewedDate)}</p>
                   ) : (
@@ -117,6 +118,7 @@ export function DealComponentsTable({
                   status={component.status}
                   hasRenewal={isRenewing}
                   dueDate={dueDate}
+                  firstPayment={firstPayment}
                 />
                 {isRenewing && component.lastRenewedDate ? (
                   <p className="mt-0.5 text-xs text-muted-foreground lg:hidden">

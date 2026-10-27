@@ -68,6 +68,9 @@ const parseLineItems = (raw: string): InvoiceLineItem[] => {
         gstPercent: Number(item.gstPercent) || 0,
         gstAmount: Number(item.gstAmount) || 0,
         total: Number(item.total) || 0,
+        ...(/^\d{4}-\d{2}-\d{2}$/.test(String(item.cycleDate ?? '').slice(0, 10))
+          ? { cycleDate: String(item.cycleDate).slice(0, 10) }
+          : {}),
       };
     });
   } catch {
@@ -161,6 +164,8 @@ export const paymentMapper = createBaseEntityMapper<PaymentEntity>(
     transactionId: str(record, 'transactionId'),
     notes: str(record, 'notes'),
     receivedAccount: parsePaymentAccount(str(record, 'receivedAccount')),
+    tdsAmount: num(record, 'tdsAmount'),
+    tdsSettles: str(record, 'tdsSettles') === 'yes',
   }),
   (entity) => ({
     invoiceId: rowStr(entity, 'invoiceId'),
@@ -175,5 +180,7 @@ export const paymentMapper = createBaseEntityMapper<PaymentEntity>(
     transactionId: rowStr(entity, 'transactionId'),
     notes: rowStr(entity, 'notes'),
     receivedAccount: rowStr(entity, 'receivedAccount'),
+    tdsAmount: String(entity.tdsAmount ?? 0),
+    tdsSettles: entity.tdsSettles ? 'yes' : '',
   }),
 );

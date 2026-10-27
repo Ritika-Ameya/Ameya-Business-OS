@@ -25,6 +25,8 @@ export const EXPECTED_RECEIPTS_CONTRACT: PersistenceContract = {
     'expectedDate',
     'reason',
     'status',
+    'receivedLog',
+    'suppressInvoice',
   ]),
 };
 

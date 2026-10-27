@@ -1,6 +1,7 @@
 import { ArrowRight, BellRing, CalendarClock, CheckCircle2, History, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { ForecastHistory } from "@/features/canvas/components/ForecastHistory";
 import {
   SOURCE_LABELS,
   type CanvasCard,
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
+import { formatTdsDeductionNote } from "@/features/revenue/utils/payment-utils";
 import { cn, formatCurrency, formatDate } from "@/shared/utils";
 
 export type BreakdownKind = "outstanding" | "expected" | "carried" | "paid" | "renewals";
@@ -52,7 +54,7 @@ const HEADERS: Record<BreakdownKind, { title: string; icon: ReactNode; tone: str
     tone: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
   },
   paid: {
-    title: "Paid",
+    title: "Received",
     icon: <CheckCircle2 className="size-4" />,
     tone: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   },
@@ -358,6 +360,9 @@ function CardList({
                         </span>
                       ) : null}
                     </p>
+                    {card.history && card.history.payments.length > 0 ? (
+                      <ForecastHistory history={card.history} compact />
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <div className="text-right">
@@ -429,15 +434,29 @@ function PaidBody({
                         {entry.companyName}
                       </Link>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatDate(entry.paidAt)} ·{" "}
-                        <Link to={`/invoices/${entry.invoiceId}`} className="text-primary hover:underline">
-                          {entry.invoiceNumber || "Invoice"}
-                        </Link>
+                        {formatDate(entry.paidAt)}
+                        {entry.invoiceId ? (
+                          <>
+                            {" · "}
+                            <Link to={`/invoices/${entry.invoiceId}`} className="text-primary hover:underline">
+                              {entry.invoiceNumber || "Invoice"}
+                            </Link>
+                          </>
+                        ) : (
+                          " · Forecast receipt"
+                        )}
                       </p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-                      {formatCurrency(entry.amount)}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                        {formatCurrency(entry.amount)}
+                      </p>
+                      {formatTdsDeductionNote(entry.tdsAmount, entry.tdsSettles) ? (
+                        <p className="max-w-40 text-[11px] text-muted-foreground">
+                          {formatTdsDeductionNote(entry.tdsAmount, entry.tdsSettles)}
+                        </p>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -448,9 +467,9 @@ function PaidBody({
       <Rules
         items={[
           `Counts payments with status Received and a payment date in ${periodLabel}.`,
-          "Every payment is recorded against an invoice, whether it was entered on the invoice or with Mark as paid on this board.",
-          "The amount is what was received, with GST.",
-          "Paid receipts are already left out of Due and Carried forward, so nothing is subtracted twice.",
+          "Cash received on an invoice, or marked on a forecast with no invoice, is listed here.",
+          "The amount is only the cash that reached the bank. TDS never adds to Received. When TDS is marked as settled, it only reduces what is still due on the bill.",
+          "Received amounts are left out of Due and Carried forward, so nothing is subtracted twice.",
         ]}
       />
     </>

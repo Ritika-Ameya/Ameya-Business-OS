@@ -1,6 +1,9 @@
 import type { Deal, DealFilters } from "@/features/deals/types/deal";
 import type { DealComponent } from "@/features/deals/types/deal-component";
-import { hasComponentRenewal, getComponentCurrentDueDate } from "@/features/deals/utils/deal-component-utils";
+import {
+  getComponentCurrentDueDate,
+  isRecordedRenewal,
+} from "@/features/deals/utils/deal-component-utils";
 import { isRenewalThisMonth, isUpcomingRenewal } from "@/shared/utils/format-date";
 
 export const defaultDealFilters: DealFilters = {
@@ -27,7 +30,14 @@ function getDealRenewalDates(
   dealId: string,
   components: DealComponent[]
 ): string[] {
-  return getDealComponentRenewals(dealId, components).map((item) => item.dueDate);
+  return components
+    .filter(
+      (component) =>
+        component.dealId === dealId &&
+        isRecordedRenewal(component) &&
+        Boolean(getComponentCurrentDueDate(component))
+    )
+    .map((component) => getComponentCurrentDueDate(component));
 }
 
 export function getDealComponentRenewals(
@@ -42,9 +52,7 @@ export function getDealComponentRenewals(
   return components
     .filter(
       (component) =>
-        component.dealId === dealId &&
-        hasComponentRenewal(component.renewalFrequency) &&
-        Boolean(getComponentCurrentDueDate(component))
+        component.dealId === dealId && Boolean(getComponentCurrentDueDate(component))
     )
     .map((component) => ({
       id: component.id,

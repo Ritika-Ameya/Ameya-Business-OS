@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { canvasApi } from "@/features/canvas/api/canvas.api";
 import type { CanvasBoard, CanvasCard } from "@/features/canvas/types/canvas";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
@@ -10,6 +9,7 @@ import {
   PaidWithoutGstPrompt,
 } from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
 import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
+import { TdsDeductionFields } from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
 import type { PaymentAccount } from "@/features/revenue/types/payment";
 import { isBaseOnlyPayment } from "@/features/revenue/utils/invoice-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
@@ -112,9 +112,14 @@ function MarkPaidForm({
   const [removeGst, setRemoveGst] = useState(false);
   const [removeGstReason, setRemoveGstReason] = useState(DEFAULT_REMOVE_GST_REASON);
   const [accountChoice, setAccountChoice] = useState<PaymentAccount | null>(null);
+  const [tdsAmount, setTdsAmount] = useState("");
+  const [tdsSettles, setTdsSettles] = useState(false);
 
   const invoice = openInvoices.find((item) => item.id === invoiceId);
   const parsedAmount = Number(amount.replace(/,/g, ""));
+  const parsedTds = Number(tdsAmount.replace(/,/g, ""));
+  const tdsValue = Number.isFinite(parsedTds) && parsedTds > 0 ? round(parsedTds) : 0;
+  const settledTds = tdsSettles ? tdsValue : 0;
   const showGstPrompt = invoice !== undefined && isBaseOnlyPayment(invoice, parsedAmount);
   const convertToNonGst = showGstPrompt && removeGst;
   const receivedAccount: PaymentAccount =
@@ -123,22 +128,23 @@ function MarkPaidForm({
     convertToNonGst && invoice && invoice.amount > 0
       ? round((expected * invoice.subtotal) / invoice.amount)
       : expected;
-  const remaining = round(
-    expectedAfterGst - (Number.isFinite(parsedAmount) ? parsedAmount : 0)
-  );
+  const cash = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+  const remaining = round(expectedAfterGst - cash - settledTds);
 
   const submit = async () => {
     if (pending) return;
-    if (!invoice) {
-      setError("Choose the invoice this payment is against.");
-      return;
-    }
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError("Enter the amount received.");
       return;
     }
-    if (parsedAmount > invoice.outstanding + 0.001) {
-      setError(`Amount cannot be more than the invoice balance of ${formatCurrency(invoice.outstanding)}.`);
+    if (invoice && round(parsedAmount + settledTds) > invoice.outstanding + 0.001) {
+      setError(
+        `Cash plus counted TDS cannot be more than the invoice balance of ${formatCurrency(invoice.outstanding)}.`,
+      );
+      return;
+    }
+    if (!invoice && round(parsedAmount + settledTds) > expected + 0.001) {
+      setError(`Amount cannot be more than the ${formatCurrency(expected)} still expected.`);
       return;
     }
     if (!paymentDate) {
@@ -158,13 +164,15 @@ function MarkPaidForm({
     try {
       const board = await canvasApi.markPaid({
         cardId: card.id,
-        invoiceId: invoice.id,
+        invoiceId: invoice?.id || card.invoiceId || "",
         amount: round(parsedAmount),
         paymentDate,
         mode,
         referenceNumber: referenceNumber.trim(),
         removeGstReason: convertToNonGst ? removeGstReason.trim() : undefined,
         receivedAccount,
+        tdsAmount: tdsValue,
+        tdsSettles: settledTds > 0,
       });
       onDone(board);
       void refreshInvoices();
@@ -180,27 +188,21 @@ function MarkPaidForm({
         <DialogTitle>Mark as paid</DialogTitle>
         <DialogDescription>
           {card.companyName} · expected {formatCurrency(expected)}
-          {card.expectedDate ? ` on ${formatDate(card.expectedDate)}` : ""}. Which invoice is this
-          payment against?
+          {card.expectedDate ? ` on ${formatDate(card.expectedDate)}` : ""}. Enter the cash received.
+          An invoice is optional.
         </DialogDescription>
       </DialogHeader>
 
-      {openInvoices.length === 0 ? (
-        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm">
-          <p>
-            {card.invoiceId
-              ? `Invoice ${card.invoiceNumber || ""} has no balance left to pay.`
-              : `${card.companyName} has no open invoice with a balance.`}{" "}
-            A payment is always recorded against an invoice, so create or open the invoice first.
-          </p>
-          <Link to={`/customers/${card.customerId}`} className="font-medium text-primary hover:underline">
-            Open account
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
+      <div className="space-y-4">
+          {openInvoices.length === 0 ? (
+            <p className="rounded-xl border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              No open invoice is linked. The cash is marked received on this forecast, and only the
+              remainder stays in To collect.
+            </p>
+          ) : null}
+          {openInvoices.length > 0 ? (
           <div className="space-y-1.5">
-            <Label htmlFor="mark-paid-invoice">Invoice</Label>
+            <Label htmlFor="mark-paid-invoice">Invoice (optional)</Label>
             <Select
               value={invoiceId || undefined}
               disabled={Boolean(card.invoiceId) || pending}
@@ -230,6 +232,7 @@ function MarkPaidForm({
               </p>
             ) : null}
           </div>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -286,6 +289,14 @@ function MarkPaidForm({
             </div>
           </div>
 
+          <TdsDeductionFields
+            tdsAmount={tdsAmount}
+            onTdsAmountChange={setTdsAmount}
+            settles={tdsSettles}
+            onSettlesChange={setTdsSettles}
+            disabled={pending}
+          />
+
           {showGstPrompt && invoice ? (
             <PaidWithoutGstPrompt
               invoice={invoice}
@@ -307,7 +318,6 @@ function MarkPaidForm({
             </p>
           ) : null}
         </div>
-      )}
 
       {error ? (
         <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm">
@@ -319,11 +329,9 @@ function MarkPaidForm({
         <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
           Cancel
         </Button>
-        {openInvoices.length > 0 ? (
-          <Button type="button" disabled={pending || !invoice} onClick={() => void submit()}>
-            {pending ? "Recording…" : "Confirm payment"}
-          </Button>
-        ) : null}
+        <Button type="button" disabled={pending} onClick={() => void submit()}>
+          {pending ? "Recording…" : "Confirm payment"}
+        </Button>
       </DialogFooter>
     </>
   );
