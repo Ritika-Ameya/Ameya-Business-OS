@@ -310,6 +310,7 @@ export function CustomerPaymentsTab({ customer }: CustomerPaymentsTabProps) {
       />
 
       <MarkReceiptPaidDialog
+        board={null}
         card={markPaidCard}
         today={today}
         onOpenChange={(open) => {

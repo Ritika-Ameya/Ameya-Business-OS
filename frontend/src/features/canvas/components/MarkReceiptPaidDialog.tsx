@@ -194,7 +194,7 @@ function MarkPaidForm({
           }));
           if (fromHistory.length > 0) return fromHistory;
           if (!board || !part.persistedId) return [];
-          return board.paid
+          return (board.paid ?? [])
             .filter((entry) => entry.receiptId === part.persistedId)
             .map((entry) => ({
               amount: entry.amount,
