@@ -15,6 +15,7 @@ import {
   customerIdParamSchema,
   customerRecordTypeChangeSchema,
   customerStageChangeSchema,
+  customerStatusChangeSchema,
   customerTimelineNoteSchema,
   customerUpdateSchema,
 } from '../validators/customer.validators';
@@ -93,6 +94,17 @@ export class CustomerController {
     validate({ params: customerIdParamSchema, body: customerRecordTypeChangeSchema }),
     asyncHandler(async (req: Request, res: Response): Promise<void> => {
       const entity = await customerService.changeRecordType(
+        getRouteParam(req.params.id),
+        req.body,
+      );
+      ApiResponse.updated(res, entity, MESSAGES.UPDATED, getResponseMeta(req));
+    }),
+  ];
+
+  readonly changeStatus = [
+    validate({ params: customerIdParamSchema, body: customerStatusChangeSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      const entity = await customerService.changeStatus(
         getRouteParam(req.params.id),
         req.body,
       );

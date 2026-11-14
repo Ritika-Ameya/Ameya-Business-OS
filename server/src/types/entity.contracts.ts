@@ -27,8 +27,8 @@ export interface UserEntity extends BaseEntity {
   lockedUntil?: string;
 }
 
-export type CustomerRecordType = 'opportunity' | 'customer';
-export type CustomerStatus = 'active' | 'inactive' | 'prospect';
+export type CustomerRecordType = 'opportunity' | 'customer' | 'uncategorized';
+export type CustomerStatus = 'active' | 'inactive' | 'prospect' | 'lost';
 
 export interface CustomerTimelineEntry {
   id: string;

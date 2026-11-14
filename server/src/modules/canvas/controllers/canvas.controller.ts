@@ -17,6 +17,7 @@ import {
   scheduleReceiptSchema,
   setTemperatureSchema,
   splitReceiptSchema,
+  updateReceiptPaymentSchema,
   updateReceiptSchema,
 } from '../validators/canvas.validators';
 
@@ -115,6 +116,18 @@ export class CanvasController {
         Number(req.params.index),
       );
       ApiResponse.success(res, { removed: true }, MESSAGES.SUCCESS, HTTP_STATUS.OK, getResponseMeta(req));
+    }),
+  ];
+
+  readonly updateReceiptPayment = [
+    validate({ params: receiptPaymentParamsSchema, body: updateReceiptPaymentSchema }),
+    asyncHandler(async (req: Request, res: Response): Promise<void> => {
+      await canvasService.updateReceiptPayment(
+        getRouteParam(req.params.receiptId),
+        Number(req.params.index),
+        req.body,
+      );
+      ApiResponse.updated(res, { updated: true }, MESSAGES.UPDATED, getResponseMeta(req));
     }),
   ];
 

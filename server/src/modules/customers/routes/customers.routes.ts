@@ -10,6 +10,7 @@ router.post('/', ...customerController.create);
 router.post('/:id/restore', ...customerController.restore);
 router.patch('/:id/stage', ...customerController.changeStage);
 router.patch('/:id/record-type', ...customerController.changeRecordType);
+router.patch('/:id/status', ...customerController.changeStatus);
 
 router.get('/:id/timeline', ...customerController.getTimeline);
 router.post('/:id/timeline', ...customerController.addTimelineNote);

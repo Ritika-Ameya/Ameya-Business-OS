@@ -2,8 +2,8 @@ import type { Customer, CustomerFormData } from "@/features/customers/types/cust
 import type { CustomerCreateBody, CustomerDto } from "@/features/customers/api/customer.dto";
 import { normalizePhoneToE164 } from "@/shared/utils/phone";
 
-const toPhoneForTransport = (value: string): string => {
-  const normalized = normalizePhoneToE164(value, { required: true });
+const toPhoneForTransport = (value: string, required = false): string => {
+  const normalized = normalizePhoneToE164(value, { required });
   return normalized === "__INVALID__" ? value.trim() : normalized;
 };
 
@@ -45,7 +45,7 @@ export function mapFormToCreateBody(
     recordType: data.recordType,
     contactPerson: data.name.trim(),
     companyName: data.company.trim(),
-    phone: toPhoneForTransport(data.phone),
+    phone: toPhoneForTransport(data.phone, Boolean(data.phone.trim())),
     email: data.email.trim(),
     gstin: data.gst.trim().toUpperCase(),
     internationalClient: data.internationalClient,

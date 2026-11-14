@@ -277,6 +277,10 @@ export function BusinessCanvasPage() {
             setDraft(null);
           }}
           onBoard={setBoard}
+          onSelectCard={(card) => {
+            setDraft(null);
+            setSelected(card);
+          }}
           onMarkPaid={(card) => {
             setSelected(null);
             setDraft(null);
@@ -286,6 +290,7 @@ export function BusinessCanvasPage() {
       ) : null}
 
       <MarkReceiptPaidDialog
+        board={board}
         card={paying}
         today={today}
         onOpenChange={(open) => {

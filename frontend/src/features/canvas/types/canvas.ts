@@ -26,6 +26,9 @@ export interface CanvasForecastPayment {
   tdsAmount: number;
   tdsSettles: boolean;
   remainingAfter: number;
+  mode?: string;
+  receivedAccount?: "gst" | "other";
+  receiptPaymentIndex?: number;
 }
 
 export interface CanvasForecastHistory {
@@ -40,8 +43,23 @@ export interface CanvasCard {
   persistedId: string | null;
   kind: "receipt" | "account";
   customerId: string;
+  /** Display title: contact / opportunity name (falls back to company). */
   companyName: string;
-  recordType: "opportunity" | "customer";
+  /** Company name when it differs from the display title. */
+  organizationName?: string;
+  /**
+   * Shared id for a multi-installment forecast. Empty when the receipt stands alone.
+   */
+  installmentSeriesId?: string;
+  /** Total parts in the series when greater than 1. */
+  installmentCount?: number;
+  /** Full installment amount including GST, before payments. */
+  originalAmount?: number | null;
+  /** Cash already applied to this forecast. */
+  receivedAmount?: number | null;
+  /** Original deal total with GST for the whole series, when known. */
+  seriesDealTotal?: number | null;
+  recordType: "opportunity" | "customer" | "uncategorized";
   temperature: LeadTemperature;
   rowKey: CanvasRowKey;
   monthKey: string;
@@ -100,6 +118,9 @@ export interface CanvasPaidEntry {
   amount: number;
   paidAt: string;
   collectionAccount?: "innovex" | "ritika";
+  receivedAccount?: "gst" | "other";
+  receiptId?: string;
+  receiptPaymentIndex?: number;
   tdsAmount?: number;
   tdsSettles?: boolean;
 }
@@ -107,7 +128,7 @@ export interface CanvasPaidEntry {
 export interface CanvasAccountOption {
   id: string;
   companyName: string;
-  recordType: "opportunity" | "customer";
+  recordType: "opportunity" | "customer" | "uncategorized";
   temperature: LeadTemperature;
   internationalClient?: boolean;
 }

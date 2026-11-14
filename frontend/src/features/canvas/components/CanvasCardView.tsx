@@ -32,6 +32,11 @@ export function CanvasCardView({
   const statusLabel = paid ? "Received" : card.status;
   const exGst = card.amountExGst ?? card.expectedAmount;
   const showExGst = card.expectedAmount != null && exGst != null && Math.abs(card.expectedAmount - exGst) > 0.009;
+  const seriesTotal = card.installmentCount ?? 0;
+  const seriesLabel =
+    seriesTotal > 1 && card.installmentIndex > 0
+      ? `${card.installmentIndex} of ${seriesTotal}`
+      : "";
 
   return (
     <button
@@ -50,24 +55,43 @@ export function CanvasCardView({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="line-clamp-2 text-sm font-semibold leading-snug">{card.companyName}</p>
-        {card.status !== "expected" ? (
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-              overdue
-                ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                : paid
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                  : "bg-muted text-muted-foreground"
-            )}
-          >
-            {statusLabel}
-          </span>
-        ) : null}
+        <p className="line-clamp-2 text-sm font-semibold leading-snug">
+          {card.companyName}
+          {card.organizationName ? (
+            <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">
+              {card.organizationName}
+            </span>
+          ) : null}
+          {card.recordType === "uncategorized" ? (
+            <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Uncategorized
+            </span>
+          ) : null}
+        </p>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {seriesLabel ? (
+            <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+              {seriesLabel}
+            </span>
+          ) : null}
+          {card.status !== "expected" ? (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                overdue
+                  ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                  : paid
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    : "bg-muted text-muted-foreground"
+              )}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      {card.expectedAmount != null ? (
+      {card.expectedAmount != null && card.expectedAmount > 0.009 ? (
         <p className="mt-1.5 text-base font-bold tabular-nums leading-tight">
           {formatCurrency(card.expectedAmount)}
           {card.internationalClient ? (
@@ -83,7 +107,9 @@ export function CanvasCardView({
           )}
         </p>
       ) : (
-        <p className="mt-1.5 text-xs text-muted-foreground">No expected receipt yet</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {card.kind === "receipt" ? "Amount not set" : "No expected receipt yet"}
+        </p>
       )}
 
       {card.kind === "receipt" ? (

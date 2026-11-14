@@ -32,7 +32,14 @@ const SOURCES = new Set<ReceiptSourceType>([
   'opportunity_conversion',
   'other',
 ]);
-const REF_TYPES = new Set<ReceiptSourceRefType>(['invoice', 'component', 'deal', 'customer', '']);
+const REF_TYPES = new Set<ReceiptSourceRefType>([
+  'invoice',
+  'component',
+  'deal',
+  'customer',
+  'series',
+  '',
+]);
 const STATUSES = new Set<ReceiptStoredStatus>(['expected', 'received', 'cancelled', 'superseded']);
 const TEMPERATURES = new Set<LeadTemperatureValue>(['hot', 'warm', 'cold']);
 
@@ -64,6 +71,7 @@ export const expectedReceiptMapper = createBaseEntityMapper<ExpectedReceiptEntit
     componentId: str(record, 'componentId'),
     installmentIndex: num(record, 'installmentIndex', 1),
     expectedAmount: num(record, 'expectedAmount'),
+    seriesDealTotal: num(record, 'seriesDealTotal'),
     gstPercent: str(record, 'gstPercent').trim() === '' ? null : num(record, 'gstPercent'),
     currency: str(record, 'currency', 'INR'),
     expectedDate: str(record, 'expectedDate').slice(0, 10),
@@ -83,6 +91,7 @@ export const expectedReceiptMapper = createBaseEntityMapper<ExpectedReceiptEntit
     componentId: rowStr(entity, 'componentId'),
     installmentIndex: String(entity.installmentIndex ?? 1),
     expectedAmount: String(entity.expectedAmount ?? 0),
+    seriesDealTotal: String(entity.seriesDealTotal ?? 0),
     gstPercent: entity.gstPercent == null ? '' : String(entity.gstPercent),
     currency: rowStr(entity, 'currency') || 'INR',
     expectedDate: rowStr(entity, 'expectedDate'),

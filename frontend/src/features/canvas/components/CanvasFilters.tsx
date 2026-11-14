@@ -149,20 +149,20 @@ export function CanvasFilters({
       ) : null}
 
       {preset === "custom" && !overdue ? (
-        <div className="grid grid-cols-2 gap-2 lg:w-[300px] lg:shrink-0">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:w-[360px] lg:shrink-0">
           <Input
             type="month"
             aria-label="From"
             value={customFrom}
             onChange={(event) => onCustomFrom(event.target.value)}
-            className="h-9 rounded-xl bg-card"
+            className="h-9 min-w-0 rounded-xl bg-card [-webkit-appearance:none] [appearance:none]"
           />
           <Input
             type="month"
             aria-label="To"
             value={customTo}
             onChange={(event) => onCustomTo(event.target.value)}
-            className="h-9 rounded-xl bg-card"
+            className="h-9 min-w-0 rounded-xl bg-card [-webkit-appearance:none] [appearance:none]"
           />
         </div>
       ) : null}

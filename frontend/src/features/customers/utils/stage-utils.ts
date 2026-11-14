@@ -34,6 +34,7 @@ export const stageColorOptions = [
 export const recordTypeLabels: Record<RecordType, string> = {
   opportunity: "Opportunity",
   customer: "Customer",
+  uncategorized: "Uncategorized",
 };
 
 export function getActiveStages(stages: SettingsStage[]): SettingsStage[] {
@@ -55,6 +56,7 @@ export function isStageApplicableForRecordType(
   recordType: RecordType
 ): boolean {
   if (stage.applicableFor === "both") return true;
+  if (recordType === "uncategorized") return stage.applicableFor === "opportunity";
   return stage.applicableFor === recordType;
 }
 
@@ -78,12 +80,22 @@ export function isInactiveStage(stage: { name: string }): boolean {
   return stage.name.trim().toLowerCase() === "inactive";
 }
 
+export function isLostStage(stage: { name: string }): boolean {
+  return stage.name.trim().toLowerCase() === "lost";
+}
+
+export function isClosedStage(stage: { name: string }): boolean {
+  return isInactiveStage(stage) || isLostStage(stage);
+}
+
 export function getEffectiveCustomerStatus(
   customer: Customer,
   stages: SettingsStage[] = []
 ): CustomerStatus {
   const stage = getStageById(stages, customer.currentStageId);
+  if (stage && isLostStage(stage)) return "lost";
   if (stage && isInactiveStage(stage)) return "inactive";
+  if (customer.status === "lost") return "lost";
   if (customer.recordType === "customer") {
     return customer.status === "inactive" ? "inactive" : "active";
   }

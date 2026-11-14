@@ -6,7 +6,7 @@ import type {
   CustomerDto,
   CustomerStageChangeBody,
 } from "@/features/customers/api/customer.dto";
-import type { RecordType } from "@/features/customers/types/customer";
+import type { CustomerStatus, RecordType } from "@/features/customers/types/customer";
 
 const CUSTOMERS_BASE = "/customers";
 const LIST_LIMIT = 200;
@@ -43,6 +43,12 @@ export const customersApi = {
     apiRequest<CustomerDto>(`${CUSTOMERS_BASE}/${id}/record-type`, {
       method: "PATCH",
       body: { recordType },
+    }),
+
+  changeStatus: (id: string, body: { status: CustomerStatus; notes?: string }) =>
+    apiRequest<CustomerDto>(`${CUSTOMERS_BASE}/${id}/status`, {
+      method: "PATCH",
+      body,
     }),
 
   getTimeline: (id: string) =>

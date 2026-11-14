@@ -180,6 +180,17 @@ export const statusFilterLabels: Record<StatusFilter, string> = {
   active: "Active",
   inactive: "Inactive",
   prospect: "Prospect",
+  lost: "Lost",
+};
+
+export const customerStatusLabels: Record<
+  Exclude<StatusFilter, "all">,
+  string
+> = {
+  active: "Active",
+  inactive: "Inactive",
+  prospect: "Prospect",
+  lost: "Lost",
 };
 
 export const outstandingFilterLabels: Record<OutstandingFilter, string> = {
@@ -204,4 +215,5 @@ export const recordTypeFilterLabels: Record<RecordTypeFilter, string> = {
   all: "All",
   opportunity: "Opportunity",
   customer: "Customer",
+  uncategorized: "Uncategorized",
 };

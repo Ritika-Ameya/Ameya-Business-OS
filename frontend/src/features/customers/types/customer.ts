@@ -1,6 +1,6 @@
-export type CustomerStatus = "active" | "inactive" | "prospect";
+export type CustomerStatus = "active" | "inactive" | "prospect" | "lost";
 
-export type RecordType = "opportunity" | "customer";
+export type RecordType = "opportunity" | "customer" | "uncategorized";
 
 export interface CustomerTimelineEntry {
   id: string;

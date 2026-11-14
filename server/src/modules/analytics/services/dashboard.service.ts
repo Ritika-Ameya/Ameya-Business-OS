@@ -12,6 +12,8 @@ import { stoppedPendingGenerations } from '../../expenses/utils/recurring.util';
 import type { StageMasterEntity } from '../../masters/types/master.entities';
 import { stageMasterRepository } from '../../masters/services/master.services';
 import { isInactiveStage } from '../../customers/utils/stageEngine.util';
+import { expectedReceiptRepository } from '../../canvas/services/canvas.repository';
+import { parseReceivedLog } from '../../canvas/utils/receivedLog.util';
 import { invoiceRepository, paymentRepository } from '../../revenue';
 import type { InvoiceEntity } from '../../revenue/types/revenue.entities';
 import type {
@@ -21,7 +23,8 @@ import type {
 } from '../types/analytics.types';
 import { buildRecentActivity } from '../utils/activityAggregation.util';
 import {
-  buildRevenueExpenseChart,
+  buildFinanceTotals,
+  buildRevenueExpenseChartForMonths,
   getDashboardExpenseStats,
   sumInvoicedByMonth,
   sumReceivedByMonth,
@@ -39,6 +42,10 @@ import {
 } from '../utils/dateRange.util';
 import { getCompanyRenewals } from '../utils/renewalAggregation.util';
 import { buildUpcomingRevenue } from '../utils/upcomingRevenueAggregation.util';
+import {
+  resolveDashboardPeriod,
+  type DashboardPeriodInput,
+} from '../utils/dashboardPeriod.util';
 
 /** Bucket by the actual next-action date so tomorrow never appears under today. */
 const getActionDateKey = (nextActionDate: string): string =>
@@ -56,8 +63,7 @@ const buildCustomerFollowUp = (
   if (!customer.nextActionDate) return null;
   const stage = stagesById.get(customer.currentStageId);
   if (stage && isInactiveStage(stage)) return null;
-  const recordType =
-    customer.recordType === 'opportunity' ? 'opportunity' : 'customer';
+  const recordType = customer.recordType === 'customer' ? 'customer' : 'opportunity';
   return {
     id: `customer-${customer.id}`,
     entityType: 'customer',
@@ -283,8 +289,9 @@ export class DashboardService extends BaseService {
     super('DashboardService');
   }
 
-  async getSummary(): Promise<DashboardSummary> {
+  async getSummary(periodInput: DashboardPeriodInput = {}): Promise<DashboardSummary> {
     this.logInfo('Building dashboard summary');
+    const resolvedPeriod = resolveDashboardPeriod(periodInput);
 
     // Run once before parallel sheet reads so renewals use post-migration components.
     await migrateDealRenewalsToComponents().catch(() => undefined);
@@ -298,6 +305,7 @@ export class DashboardService extends BaseService {
       expenseMasters,
       stages,
       components,
+      expectedReceipts,
     ] = await Promise.all([
       customerRepository.findAll({ includeDeleted: true }),
       dealRepository.findAll({ includeDeleted: true }),
@@ -310,6 +318,10 @@ export class DashboardService extends BaseService {
         return [] as StageMasterEntity[];
       }),
       dealComponentRepository.findAll(),
+      expectedReceiptRepository.findAll().catch((error) => {
+        this.logWarn('Expected receipts load failed; finance uses invoice payments only', error);
+        return [];
+      }),
     ]);
 
     const customers = customersWithDeleted.filter((customer) => !customer.isDeleted);
@@ -319,6 +331,7 @@ export class DashboardService extends BaseService {
       stoppedPendingGenerations(expenseMasters, loadedExpenses).map((expense) => expense.id),
     );
     const expenses = loadedExpenses.filter((expense) => !stoppedIds.has(expense.id));
+    const liveReceipts = expectedReceipts.filter((receipt) => !receipt.isDeleted);
 
     const now = new Date();
     const thisYear = now.getFullYear();
@@ -408,29 +421,54 @@ export class DashboardService extends BaseService {
     const trend = (current: number, previous: number): number =>
       previous === 0 ? 0 : Math.round(((current - previous) / previous) * 100);
 
-    const receivedThisMonth = sumReceivedByMonth(payments, invoices, thisMonthKey);
-    const receivedLastMonth = sumReceivedByMonth(payments, invoices, lastMonthKey);
-    const receivedItems = payments
-      .filter(
-        (payment) =>
-          payment.status === 'received' &&
-          invoiceById.has(payment.invoiceId) &&
-          String(payment.paidAt ?? '').slice(0, 7) === thisMonthKey,
-      )
-      .map((payment) => {
-        const invoice = invoiceById.get(payment.invoiceId);
-        const customerId = payment.customerId || invoice?.customerId || '';
-        return {
-          id: payment.id,
-          customerId,
-          company: companyOf(customerId, invoice?.customerName),
-          invoiceId: payment.invoiceId,
-          invoiceNumber: invoice?.invoiceNumber || '—',
-          amount: roundMoney(Number(payment.amount || 0)),
-          date: String(payment.paidAt ?? '').slice(0, 10),
-        };
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const receivedThisMonth = sumReceivedByMonth(
+      payments,
+      invoices,
+      thisMonthKey,
+      liveReceipts,
+    );
+    const receivedLastMonth = sumReceivedByMonth(
+      payments,
+      invoices,
+      lastMonthKey,
+      liveReceipts,
+    );
+    const receivedItems = [
+      ...payments
+        .filter(
+          (payment) =>
+            payment.status === 'received' &&
+            invoiceById.has(payment.invoiceId) &&
+            String(payment.paidAt ?? '').slice(0, 7) === thisMonthKey,
+        )
+        .map((payment) => {
+          const invoice = invoiceById.get(payment.invoiceId);
+          const customerId = payment.customerId || invoice?.customerId || '';
+          return {
+            id: payment.id,
+            customerId,
+            company: companyOf(customerId, invoice?.customerName),
+            invoiceId: payment.invoiceId,
+            invoiceNumber: invoice?.invoiceNumber || '—',
+            amount: roundMoney(Number(payment.amount || 0)),
+            date: String(payment.paidAt ?? '').slice(0, 10),
+          };
+        }),
+      ...liveReceipts.flatMap((receipt) => {
+        if (receipt.invoiceId) return [];
+        return parseReceivedLog(receipt.receivedLog)
+          .filter((entry) => entry.date.slice(0, 7) === thisMonthKey)
+          .map((entry, index) => ({
+            id: `${receipt.id}:${index}`,
+            customerId: receipt.customerId,
+            company: companyOf(receipt.customerId),
+            invoiceId: '',
+            invoiceNumber: 'Forecast',
+            amount: roundMoney(Number(entry.amount) || 0),
+            date: entry.date,
+          }));
+      }),
+    ].sort((a, b) => b.date.localeCompare(a.date));
 
     const invoicedThisMonth = sumInvoicedByMonth(invoices, thisMonthKey);
     const invoicedLastMonth = sumInvoicedByMonth(invoices, lastMonthKey);
@@ -469,17 +507,35 @@ export class DashboardService extends BaseService {
       };
     });
 
-    const totalReceived = roundMoney(
-      invoices.reduce((sum, invoice) => sum + Number(invoice.received || 0), 0),
-    );
-    const paidExpenses = roundMoney(
-      expenses
-        .filter((expense) => expense.status === 'paid')
-        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
-    );
-    const cashPosition = roundMoney(totalReceived - paidExpenses);
-
     const expenseStats = getDashboardExpenseStats(expenses);
+    const financeTotals = buildFinanceTotals(
+      payments,
+      invoices,
+      expenses,
+      resolvedPeriod.from,
+      resolvedPeriod.to,
+      resolvedPeriod.periodLabel,
+      liveReceipts,
+      customers,
+    );
+    const allTimeFinance = buildFinanceTotals(
+      payments,
+      invoices,
+      expenses,
+      null,
+      null,
+      'All time',
+      liveReceipts,
+      customers,
+    );
+    const cashPosition = allTimeFinance.difference;
+    const chartPoints = buildRevenueExpenseChartForMonths(
+      invoices,
+      expenses,
+      payments,
+      resolvedPeriod.chartMonths,
+      liveReceipts,
+    );
     const insight = buildInsightMessage(
       invoices,
       renewals,
@@ -537,8 +593,12 @@ export class DashboardService extends BaseService {
       renewalsAll,
       upcomingRevenue: buildUpcomingRevenue(invoices, now),
       chart: {
-        points: buildRevenueExpenseChart(invoices, expenses, payments),
+        points: chartPoints,
         expenseStats,
+      },
+      finance: {
+        ...financeTotals,
+        period: resolvedPeriod.period,
       },
       followUps: buildFollowUps(customers, deals, invoices, stages),
       activity: buildRecentActivity(

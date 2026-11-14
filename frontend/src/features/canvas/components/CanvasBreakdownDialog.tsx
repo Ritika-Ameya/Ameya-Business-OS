@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
+import { PAYMENT_ACCOUNT_LABELS } from "@/features/revenue/types/payment";
 import { formatTdsDeductionNote } from "@/features/revenue/utils/payment-utils";
 import { cn, formatCurrency, formatDate } from "@/shared/utils";
 
@@ -348,6 +349,11 @@ function CardList({
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{card.companyName}</p>
+                    {card.organizationName ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {card.organizationName}
+                      </p>
+                    ) : null}
                     <p className="truncate text-xs text-muted-foreground">
                       {card.sourceType ? SOURCE_LABELS[card.sourceType] : "Receipt"}
                       {card.reason ? ` · ${card.reason}` : card.invoiceNumber ? ` · ${card.invoiceNumber}` : ""}
@@ -446,6 +452,17 @@ function PaidBody({
                           " · Forecast receipt"
                         )}
                       </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {entry.receivedAccount
+                          ? entry.receivedAccount === "gst"
+                            ? PAYMENT_ACCOUNT_LABELS.gst
+                            : "Other account (non-GST)"
+                          : entry.collectionAccount === "ritika"
+                            ? "Other account (non-GST)"
+                            : entry.collectionAccount === "innovex"
+                              ? PAYMENT_ACCOUNT_LABELS.gst
+                              : null}
+                      </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
@@ -510,7 +527,7 @@ function RenewalsBody({
           `Needs attention = overdue, or due within ${RENEWAL_REMINDER_DAYS} days, so you get about a month's notice.`,
           "Amount = the plan's price with GST. When the renewal invoice is raised, it is shown here and the board counts the invoice balance instead.",
           "When the renewal invoice is fully paid, the plan moves to its next renewal date (for example next year). Nothing is stored for reminders, so they can't duplicate.",
-          "Board columns also include invoice balances and instalments, so a month on the board can hold more cards than it has renewals.",
+          "Unpaid renewals in this list should also appear under To collect for the same months. Extra board cards can still appear from invoices, instalments, or one-time receipts.",
         ]}
       />
     </>

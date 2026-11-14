@@ -47,7 +47,11 @@ export function DashboardPage() {
         <DashboardKpiCards />
       </section>
 
-      <section>
+      <section className="space-y-3 sm:space-y-4">
+        <SectionTitle
+          title="Cash overview"
+          subtitle="Total revenue, total expense, and money in vs money out by period"
+        />
         <RevenueExpenseChart />
       </section>
 

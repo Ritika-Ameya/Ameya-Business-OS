@@ -109,6 +109,46 @@ export interface DashboardExpenseStatsDto {
   yearlyExpense: number;
 }
 
+export type DashboardPeriod =
+  | "last-6-months"
+  | "this-month"
+  | "last-month"
+  | "this-year"
+  | "year"
+  | "month"
+  | "custom"
+  | "all";
+
+export interface DashboardFinanceCashLineDto {
+  id: string;
+  date: string;
+  amount: number;
+  label: string;
+  detail: string;
+  source: "invoice_payment" | "forecast_payment" | "paid_expense";
+}
+
+export interface DashboardFinanceDto {
+  totalRevenue: number;
+  totalExpense: number;
+  difference: number;
+  totalInvoiced: number;
+  periodLabel: string;
+  dateFrom: string;
+  dateTo: string;
+  period: string;
+  revenueItems?: DashboardFinanceCashLineDto[];
+  expenseItems?: DashboardFinanceCashLineDto[];
+}
+
+export interface DashboardPeriodQuery {
+  period: DashboardPeriod;
+  dateFrom?: string;
+  dateTo?: string;
+  year?: number;
+  month?: number;
+}
+
 export interface FollowUpItemDto {
   id: string;
   entityType: "customer" | "deal" | "invoice";
@@ -149,6 +189,7 @@ export interface DashboardSummaryDto {
     points: ChartMonthPointDto[];
     expenseStats: DashboardExpenseStatsDto;
   };
+  finance?: DashboardFinanceDto;
   followUps: {
     today: FollowUpItemDto[];
     tomorrow: FollowUpItemDto[];

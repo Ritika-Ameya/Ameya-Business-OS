@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/', canvasController.getBoard);
 router.get('/customers/:customerId/receipt-payments', ...canvasController.listCustomerReceiptPayments);
+router.put('/receipts/:receiptId/payments/:index', ...canvasController.updateReceiptPayment);
 router.delete('/receipts/:receiptId/payments/:index', ...canvasController.removeReceiptPayment);
 router.get('/deals/:dealId/forecasts', ...canvasController.listDealForecasts);
 router.put('/temperatures/:customerId', ...canvasController.setTemperature);

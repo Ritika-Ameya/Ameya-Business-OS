@@ -1,9 +1,10 @@
-import { Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   PaymentModeBadge,
   PaymentStatusBadge,
 } from "@/features/revenue/components/invoices/payments/PaymentBadges";
+import { PAYMENT_ACCOUNT_LABELS } from "@/features/revenue/types/payment";
 import { Button } from "@/shared/ui/button";
 import { ResponsiveTableFrame } from "@/shared/components/ResponsiveTableFrame";
 import {
@@ -24,12 +25,20 @@ import type { CustomerPaymentHistoryItem } from "@/features/customers/utils/cust
 interface CustomerPaymentHistoryTableProps {
   payments: CustomerPaymentHistoryItem[];
   onDeleteReceiptPayment?: (payment: CustomerPaymentHistoryItem) => void;
+  onEditPayment?: (payment: CustomerPaymentHistoryItem) => void;
   deletingId?: string | null;
+}
+
+function accountLabel(payment: CustomerPaymentHistoryItem): string {
+  if (payment.receivedAccount === "gst") return PAYMENT_ACCOUNT_LABELS.gst;
+  if (payment.receivedAccount === "other") return "Other account (non-GST)";
+  return "—";
 }
 
 export function CustomerPaymentHistoryTable({
   payments,
   onDeleteReceiptPayment,
+  onEditPayment,
   deletingId = null,
 }: CustomerPaymentHistoryTableProps) {
   const navigate = useNavigate();
@@ -43,6 +52,7 @@ export function CustomerPaymentHistoryTable({
             <TableHead>Invoice Number</TableHead>
             <TableHead className="hidden md:table-cell">Deal</TableHead>
             <TableHead>Amount</TableHead>
+            <TableHead className="hidden sm:table-cell">Received In</TableHead>
             <TableHead className="hidden sm:table-cell">Payment Mode</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="pr-4 text-right">Actions</TableHead>
@@ -75,6 +85,9 @@ export function CustomerPaymentHistoryTable({
                     Partially received against this invoice · {formatPaymentCurrency(payment.invoiceOutstanding ?? 0)} still due
                   </p>
                 ) : null}
+                <p className="truncate text-xs text-muted-foreground sm:hidden">
+                  {accountLabel(payment)}
+                </p>
                 <p className="truncate text-xs text-muted-foreground md:hidden">
                   {payment.dealTitle || "—"}
                 </p>
@@ -102,6 +115,9 @@ export function CustomerPaymentHistoryTable({
                   </p>
                 ) : null}
               </TableCell>
+              <TableCell className="hidden text-sm text-muted-foreground sm:table-cell">
+                {accountLabel(payment)}
+              </TableCell>
               <TableCell className="hidden sm:table-cell">
                 {payment.mode ? <PaymentModeBadge mode={payment.mode} /> : "—"}
               </TableCell>
@@ -112,22 +128,38 @@ export function CustomerPaymentHistoryTable({
                 ) : null}
               </TableCell>
               <TableCell className="pr-4 text-right">
-                {fromReceipt ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    disabled={deletingId === payment.paymentId}
-                    aria-label="Delete expected receipt payment"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDeleteReceiptPayment?.(payment);
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                ) : null}
+                <div className="flex items-center justify-end gap-1">
+                  {onEditPayment ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit payment"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEditPayment(payment);
+                      }}
+                    >
+                      <Edit className="size-4" />
+                    </Button>
+                  ) : null}
+                  {fromReceipt && onDeleteReceiptPayment ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      disabled={deletingId === payment.paymentId}
+                      aria-label="Delete expected receipt payment"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDeleteReceiptPayment(payment);
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
               </TableCell>
             </TableRow>
             );
