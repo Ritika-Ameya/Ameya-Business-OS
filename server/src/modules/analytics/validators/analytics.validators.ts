@@ -11,6 +11,27 @@ export const datePresetSchema = z.enum([
   'all',
 ]);
 
+export const dashboardPeriodSchema = z.enum([
+  'last-6-months',
+  'this-month',
+  'last-month',
+  'this-year',
+  'year',
+  'month',
+  'custom',
+  'all',
+]);
+
+export const dashboardQuerySchema = z.object({
+  period: dashboardPeriodSchema.optional().default('last-6-months'),
+  dateFrom: z.string().optional().default(''),
+  dateTo: z.string().optional().default(''),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  month: z.coerce.number().int().min(1).max(12).optional(),
+});
+
+export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
+
 export const reportFiltersQuerySchema = z.object({
   datePreset: datePresetSchema.optional().default('this-month'),
   dateFrom: z.string().optional().default(''),

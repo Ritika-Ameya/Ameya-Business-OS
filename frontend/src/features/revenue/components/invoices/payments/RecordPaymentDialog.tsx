@@ -22,7 +22,7 @@ import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { invoicesApi } from "@/features/revenue/api/invoices.api";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
-import { fileToUploadPayload, toLocalIsoDate } from "@/shared/utils";
+import { fileToUploadPayload, formatCurrency, toLocalIsoDate } from "@/shared/utils";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
 import { isBaseOnlyPayment } from "@/features/revenue/utils/invoice-utils";
 import {
@@ -30,7 +30,10 @@ import {
   PaidWithoutGstPrompt,
 } from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
 import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
-import { TdsDeductionFields } from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
+import {
+  parseTdsInput,
+  TdsDeductionFields,
+} from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
 import type {
   Payment,
   PaymentAccount,
@@ -80,8 +83,9 @@ function formFromPayment(
     receivedBy: payment.receivedBy || "",
     transactionId: payment.transactionId || "",
     notes: payment.notes || "",
-    tdsAmount: "",
-    tdsSettles: false,
+    tdsAmount:
+      payment.tdsAmount && payment.tdsAmount > 0 ? String(payment.tdsAmount) : "",
+    tdsSettles: Boolean(payment.tdsSettles && (payment.tdsAmount || 0) > 0),
     receivedAccount: payment.receivedAccount ?? defaultAccount,
   };
 }
@@ -94,7 +98,7 @@ export function RecordPaymentDialog({
   initialPayment = null,
 }: RecordPaymentDialogProps) {
   const { paymentMethods } = useAppConfig();
-  const { recordPayment, updatePayment, getInvoice } = useRevenue();
+  const { recordPayment, updatePayment, getInvoice, payments } = useRevenue();
   const invoice = getInvoice(invoiceId);
   const activePaymentMethods = getActivePaymentMethods(paymentMethods);
   const fallbackMode = (activePaymentMethods[0]?.slug as PaymentMode) || "upi";
@@ -121,6 +125,21 @@ export function RecordPaymentDialog({
   const enteredAmount = Number.parseFloat(form.amount.replace(/,/g, ""));
   const showGstPrompt =
     !isEditing && invoice !== undefined && isBaseOnlyPayment(invoice, enteredAmount);
+  const priorPayments = payments.filter(
+    (payment) =>
+      payment.invoiceId === invoiceId &&
+      payment.status === "received" &&
+      payment.id !== initialPayment?.id,
+  );
+  const alreadyCut = priorPayments.reduce((sum, payment) => sum + (payment.tdsAmount || 0), 0);
+  const cashAlready = priorPayments.reduce((sum, payment) => sum + payment.amount, 0);
+  const dropGst = Boolean(invoice && (invoice.billingType === "non_gst" || (showGstPrompt && removeGst)));
+  const beforeGst = invoice
+    ? dropGst
+      ? invoice.subtotal || invoice.amount
+      : invoice.subtotal
+    : maxAmount;
+  const billTotal = invoice ? (dropGst ? invoice.subtotal || invoice.amount : invoice.amount) : maxAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +152,22 @@ export function RecordPaymentDialog({
       setError("Enter a valid payment amount.");
       return;
     }
-    const tds = Number.parseFloat(form.tdsAmount.replace(/,/g, ""));
-    const countedTds = form.tdsSettles && Number.isFinite(tds) && tds > 0 ? tds : 0;
-    if (!isEditing && maxAmount != null && amount + countedTds > maxAmount + 0.001) {
-      setError("Cash plus counted TDS cannot exceed the outstanding balance.");
+    const tds = parseTdsInput(form.tdsAmount, beforeGst ?? 0);
+    const countedTds = form.tdsSettles && tds > 0 ? tds : 0;
+    const openBalance =
+      maxAmount != null
+        ? maxAmount + (isEditing && initialPayment ? initialPayment.amount + (initialPayment.tdsSettles ? initialPayment.tdsAmount || 0 : 0) : 0)
+        : null;
+    if (openBalance != null && amount + countedTds > openBalance + 0.001) {
+      setError(
+        `Cash plus counted TDS cannot be more than the ${formatCurrency(openBalance)} still left on the bill.`,
+      );
+      return;
+    }
+    if (openBalance != null && countedTds > Math.max(0, openBalance - amount) + 0.001) {
+      setError(
+        `Counted TDS cannot be more than the ${formatCurrency(Math.max(0, openBalance - amount))} still left after cash.`,
+      );
       return;
     }
     const convertToNonGst = showGstPrompt && removeGst;
@@ -145,13 +176,19 @@ export function RecordPaymentDialog({
       return;
     }
 
+    const payload: PaymentFormData = {
+      ...form,
+      tdsAmount: tds > 0 ? String(tds) : "",
+      tdsSettles: countedTds > 0,
+    };
+
     setSaving(true);
     setError(null);
     try {
       if (isEditing && initialPayment) {
-        await updatePayment(invoiceId, initialPayment.id, form);
+        await updatePayment(invoiceId, initialPayment.id, payload);
       } else {
-        await recordPayment(invoiceId, form, {
+        await recordPayment(invoiceId, payload, {
           removeGstReason: convertToNonGst ? removeGstReason.trim() : undefined,
         });
       }
@@ -209,7 +246,7 @@ export function RecordPaymentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="payment-amount">
-                Amount <span className="text-destructive">*</span>
+                Money you received <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="payment-amount"
@@ -263,6 +300,12 @@ export function RecordPaymentDialog({
                 settles={form.tdsSettles}
                 onSettlesChange={(value) => updateField("tdsSettles", value)}
                 disabled={saving}
+                cash={Number.isFinite(enteredAmount) ? enteredAmount : 0}
+                outstanding={maxAmount ?? invoice?.outstanding}
+                billTotal={billTotal}
+                beforeGst={beforeGst}
+                alreadyCut={alreadyCut}
+                cashAlready={cashAlready}
               />
             </div>
 

@@ -7,10 +7,15 @@ export const getActiveStagesSorted = (stages: StageMasterEntity[]): StageMasterE
     .filter((stage) => stage.isActive)
     .sort((a, b) => a.sequence - b.sequence);
 
+/** Uncategorized uses the opportunity stages. It is not a lead and not a customer. */
+const stageRecordType = (recordType: CustomerRecordType): 'opportunity' | 'customer' =>
+  recordType === 'customer' ? 'customer' : 'opportunity';
+
 export const isStageApplicableForRecordType = (
   stage: StageMasterEntity,
   recordType: CustomerRecordType,
-): boolean => stage.applicableFor === 'both' || stage.applicableFor === recordType;
+): boolean =>
+  stage.applicableFor === 'both' || stage.applicableFor === stageRecordType(recordType);
 
 export const getStagesForRecordType = (
   stages: StageMasterEntity[],
@@ -33,6 +38,9 @@ export const resolveRecordTypeFromStage = (
   currentRecordType: CustomerRecordType,
   stage: StageMasterEntity,
 ): CustomerRecordType => {
+  if (currentRecordType === 'uncategorized') {
+    return stage.applicableFor === 'customer' ? 'customer' : 'uncategorized';
+  }
   if (stage.applicableFor === 'customer') {
     return 'customer';
   }
@@ -45,11 +53,18 @@ export const resolveRecordTypeFromStage = (
 export const isInactiveStage = (stage: { name: string }): boolean =>
   stage.name.trim().toLowerCase() === 'inactive';
 
+export const isLostStage = (stage: { name: string }): boolean =>
+  stage.name.trim().toLowerCase() === 'lost';
+
+/** Stages that close the opportunity and drop the next-action date. */
+export const isClosedStage = (stage: { name: string }): boolean =>
+  isInactiveStage(stage) || isLostStage(stage);
+
 export const resolveStatusAfterRecordTypeChange = (
   status: CustomerStatus,
   recordType: CustomerRecordType,
 ): CustomerStatus => {
-  if (recordType === 'customer' && status === 'prospect') {
+  if (recordType === 'customer' && (status === 'prospect' || status === 'lost')) {
     return 'active';
   }
   return status;
@@ -60,10 +75,12 @@ export const resolveStatusFromStage = (
   recordType: CustomerRecordType,
   currentStatus: CustomerStatus,
 ): CustomerStatus => {
+  if (isLostStage(stage)) return 'lost';
+  if (isInactiveStage(stage)) return 'inactive';
   if (recordType !== 'customer') {
     return resolveStatusAfterRecordTypeChange(currentStatus, recordType);
   }
-  return isInactiveStage(stage) ? 'inactive' : 'active';
+  return 'active';
 };
 
 export const assertStageChangeRequirements = (
@@ -74,14 +91,21 @@ export const assertStageChangeRequirements = (
 
   if (
     stage.dateRequired &&
-    !isInactiveStage(stage) &&
+    !isClosedStage(stage) &&
     !String(payload.nextActionDate ?? '').trim()
   ) {
     errors.push('Next action date is required for this stage');
   }
 
-  if (stage.notesRequired && !String(payload.notes ?? '').trim()) {
-    errors.push('Notes are required for this stage');
+  if (
+    (stage.notesRequired || isLostStage(stage)) &&
+    !String(payload.notes ?? '').trim()
+  ) {
+    errors.push(
+      isLostStage(stage)
+        ? 'Remarks are required when marking as lost'
+        : 'Notes are required for this stage',
+    );
   }
 
   if (errors.length > 0) {

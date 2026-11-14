@@ -36,7 +36,11 @@ import {
   getComponentCurrentDueDate,
   hasRenewalFrequency,
 } from '../../deals/utils/renewalHelpers.util';
-import type { CustomerEntity, DocumentEntity } from '../types/customer.entities';
+import type {
+  CustomerEntity,
+  CustomerStatus,
+  DocumentEntity,
+} from '../types/customer.entities';
 import type {
   CustomerCreateInput,
   CustomerDocumentCreateInput,
@@ -55,7 +59,8 @@ import {
   assertStageChangeRequirements,
   computeReminderDate,
   getDefaultStageForRecordType,
-  isInactiveStage,
+  isClosedStage,
+  isStageApplicableForRecordType,
   resolveRecordTypeFromStage,
   resolveStatusAfterRecordTypeChange,
   resolveStatusFromStage,
@@ -230,7 +235,7 @@ export class CustomerService extends BaseService {
       notes: input.notes.trim(),
       businessValue: input.businessValue,
       expectedRevenue: input.expectedRevenue,
-      nextActionDate: isInactiveStage(defaultStage) ? '' : input.nextActionDate,
+      nextActionDate: defaultStage && isClosedStage(defaultStage) ? '' : input.nextActionDate,
       lastContactDate: input.lastContactDate,
       renewalDate: input.renewalDate,
       outstandingAmount: input.outstandingAmount,
@@ -393,7 +398,7 @@ export class CustomerService extends BaseService {
         stageId: stage.id,
         stageName: stage.name,
         notes: payload.notes,
-        nextActionDate: isInactiveStage(stage) ? undefined : payload.nextActionDate,
+        nextActionDate: isClosedStage(stage) ? undefined : payload.nextActionDate,
       }),
     );
 
@@ -409,7 +414,7 @@ export class CustomerService extends BaseService {
       );
     }
 
-    const nextActionDate = isInactiveStage(stage)
+    const nextActionDate = isClosedStage(stage)
       ? ''
       : payload.nextActionDate !== undefined
         ? payload.nextActionDate
@@ -444,8 +449,7 @@ export class CustomerService extends BaseService {
     const stageStillApplies =
       currentStage &&
       currentStage.isActive &&
-      (currentStage.applicableFor === 'both' ||
-        currentStage.applicableFor === payload.recordType);
+      isStageApplicableForRecordType(currentStage, payload.recordType);
 
     const nextStageId = stageStillApplies
       ? existing.currentStageId
@@ -478,8 +482,52 @@ export class CustomerService extends BaseService {
         currentStageId: nextStageId,
         status,
         nextActionDate:
-          nextStage && isInactiveStage(nextStage) ? '' : existing.nextActionDate,
+          nextStage && isClosedStage(nextStage) ? '' : existing.nextActionDate,
         timeline,
+      },
+      'Customer',
+    );
+  }
+
+  async changeStatus(
+    id: string,
+    payload: { status: CustomerStatus; notes?: string },
+  ): Promise<CustomerEntity> {
+    const existing = await this.getById(id);
+    const remarks = String(payload.notes ?? '').trim();
+    if (payload.status === 'lost' && !remarks) {
+      throw new ValidationError('Remarks are required when marking as lost', [
+        'Enter why this opportunity was lost.',
+      ]);
+    }
+
+    const timeline = prependTimelineEntry(
+      existing.timeline,
+      createTimelineEntry({
+        action: 'status_changed',
+        stageId: existing.currentStageId,
+        stageName:
+          payload.status === 'lost'
+            ? 'Lost'
+            : payload.status === 'inactive'
+              ? 'Inactive'
+              : payload.status === 'prospect'
+                ? 'Prospect'
+                : 'Active',
+        notes: remarks || undefined,
+      }),
+    );
+
+    return customerRepository.updateOrThrow(
+      id,
+      {
+        status: payload.status,
+        nextActionDate:
+          payload.status === 'lost' || payload.status === 'inactive'
+            ? ''
+            : existing.nextActionDate,
+        timeline,
+        ...(remarks ? { notes: remarks } : {}),
       },
       'Customer',
     );
@@ -493,8 +541,8 @@ export class CustomerService extends BaseService {
     const currentStage = existing.currentStageId
       ? await stageMasterRepository.findById(existing.currentStageId)
       : undefined;
-    const inactive = Boolean(currentStage && isInactiveStage(currentStage));
-    const nextActionDate = inactive
+    const closed = Boolean(currentStage && isClosedStage(currentStage));
+    const nextActionDate = closed
       ? ''
       : payload.nextActionDate !== undefined
         ? payload.nextActionDate
@@ -507,7 +555,7 @@ export class CustomerService extends BaseService {
         stageId: existing.currentStageId,
         stageName: 'Notes Added',
         notes: payload.notes,
-        nextActionDate: inactive ? undefined : payload.nextActionDate,
+        nextActionDate: closed ? undefined : payload.nextActionDate,
       }),
     );
 

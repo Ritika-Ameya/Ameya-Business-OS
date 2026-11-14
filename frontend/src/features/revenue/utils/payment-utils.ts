@@ -11,8 +11,8 @@ export function formatTdsDeductionNote(amount: number | undefined, settles: bool
   if (!amount || amount <= 0.009) return "";
   const money = formatCurrency(amount);
   return settles
-    ? `TDS ${money} deducted, counted on the bill`
-    : `TDS ${money} deducted`;
+    ? `Client cut ${money} as tax. Counted in the bill.`
+    : `Client cut ${money} as tax. Not counted.`;
 }
 
 export function getPaymentsByInvoiceId(

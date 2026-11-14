@@ -53,18 +53,32 @@ export const shiftDateToMonth = (isoDate: string, monthKey: string): string => {
   return `${monthKey}-${pad2(safeDay)}`;
 };
 
+/** Canvas title: customer / opportunity name first, then company. */
 const companyNameOf = (customer: CustomerEntity | undefined, fallback = ''): string =>
-  customer?.companyName?.trim() ||
   customer?.contactPerson?.trim() ||
+  customer?.companyName?.trim() ||
   fallback.trim() ||
   'Untitled account';
 
+/** Company line under the title when it differs from the person name. */
+const organizationNameOf = (customer: CustomerEntity | undefined): string => {
+  const company = customer?.companyName?.trim() || '';
+  const person = customer?.contactPerson?.trim() || '';
+  if (company && person && company.toLowerCase() !== person.toLowerCase()) return company;
+  return '';
+};
+
 const rowFor = (
-  recordType: 'opportunity' | 'customer',
+  recordType: 'opportunity' | 'customer' | 'uncategorized',
   temperature: LeadTemperatureValue | '',
 ): CanvasCard['rowKey'] => {
   if (recordType === 'customer') return 'customer';
-  if (temperature === 'hot' || temperature === 'warm' || temperature === 'cold') return temperature;
+  if (
+    recordType === 'opportunity' &&
+    (temperature === 'hot' || temperature === 'warm' || temperature === 'cold')
+  ) {
+    return temperature;
+  }
   return 'unclassified';
 };
 
@@ -162,11 +176,20 @@ const openInvoicesForComponent = (
       isCollectionInvoice(invoice) && (invoice.componentIds ?? []).includes(componentId),
   );
 
-/** Taxable amount already on an open invoice. Unknown multi-component splits count as fully billed. */
-const invoicedTaxableForComponent = (invoices: InvoiceEntity[], componentId: string): number => {
+/**
+ * Taxable amount already on an open invoice for this cycle. Unknown multi-component
+ * splits count as fully billed. Invoices from an earlier/later cycle are ignored so
+ * a prior open invoice cannot wipe the next renewal off To collect.
+ */
+const invoicedTaxableForComponent = (
+  invoices: InvoiceEntity[],
+  componentId: string,
+  dueDate = '',
+): number => {
   let sum = 0;
   let known = false;
   for (const invoice of openInvoicesForComponent(invoices, componentId)) {
+    if (dueDate && !sameCollectionCycle(dueDate, invoice.dueDate)) continue;
     const lines = (invoice.lineItems ?? []).filter((line) => line.componentId === componentId);
     if (lines.length > 0) {
       known = true;
@@ -190,6 +213,35 @@ const sourceForComponent = (component: DealComponentEntity): ReceiptSourceType =
   if (component.billingType === 'yearly') return 'license';
   if (component.billingType === 'half-yearly') return 'subscription';
   return 'renewal';
+};
+
+/** Group key so the drawer can list every part of a multi-installment forecast. */
+const installmentSeriesIdOf = (receipt: {
+  invoiceId?: string;
+  sourceRefType?: string;
+  sourceRefId?: string;
+  origin?: string;
+  customerId?: string;
+  dealId?: string;
+  componentId?: string;
+  sourceType?: string;
+}): string => {
+  if (receipt.invoiceId) return `invoice:${receipt.invoiceId}`;
+  if (receipt.sourceRefType === 'series' && receipt.sourceRefId) {
+    return `series:${receipt.sourceRefId}`;
+  }
+  // Legacy multi-create rows shared customer/deal/component refs without a series id.
+  if (receipt.origin === 'installment') {
+    return [
+      'legacy',
+      receipt.customerId || '',
+      receipt.dealId || '',
+      receipt.componentId || '',
+      receipt.sourceType || '',
+      receipt.sourceRefId || '',
+    ].join(':');
+  }
+  return '';
 };
 
 const displayStatus = (
@@ -247,18 +299,35 @@ export const buildCanvasCards = (input: {
     receipt.componentId ||
     componentIdMatchingDealTotal(receipt.dealId, receipt.expectedAmount, input.components);
 
+  /**
+   * A receipt only covers the component's *current* unpaid cycle. An older unpaid
+   * receipt (or a paid prior cycle) must not hide the next renewal on the board —
+   * otherwise Renewals can list money that To collect never shows.
+   */
   const coveredComponents = new Set(
     activeReceipts
       .map((receipt) => {
         const componentId = componentIdForReceipt(receipt);
         if (!componentId) return '';
-        if (!paidReceipt(receipt)) return componentId;
         const component = componentById.get(componentId);
-        const currentDue = component ? getComponentCurrentDueDate(component).slice(0, 10) : '';
-        return receipt.expectedDate.slice(0, 10) === currentDue ? componentId : '';
+        const currentDue = component
+          ? getComponentCurrentDueDate(component).slice(0, 10)
+          : '';
+        const receiptDate = (receipt.expectedDate || '').slice(0, 10);
+        if (currentDue && !sameCollectionCycle(receiptDate, currentDue)) return '';
+        if (paidReceipt(receipt) && currentDue && receiptDate !== currentDue) return '';
+        return componentId;
       })
       .filter(Boolean),
   );
+
+  /** Open invoices only block / replace the suggestion for the same billing cycle. */
+  const openInvoiceCoversCycle = (component: DealComponentEntity, dueDate: string): boolean => {
+    const open = openInvoicesForComponent(input.invoices, component.id);
+    if (open.length === 0) return false;
+    if (!dueDate) return true;
+    return open.some((invoice) => sameCollectionCycle(dueDate, invoice.dueDate));
+  };
   const suppressedInvoices = new Set(
     input.receipts
       .filter((receipt) => receipt.suppressInvoice && receipt.invoiceId)
@@ -295,14 +364,6 @@ export const buildCanvasCards = (input: {
     }
   }
 
-  const openInvoiceComponents = new Set<string>();
-  for (const invoice of input.invoices) {
-    if (!isCollectionInvoice(invoice)) continue;
-    for (const componentId of invoice.componentIds ?? []) {
-      if (componentId) openInvoiceComponents.add(componentId);
-    }
-  }
-
   const cards: CanvasCard[] = [];
 
   const pushReceipt = (card: CanvasCard) => {
@@ -321,10 +382,21 @@ export const buildCanvasCards = (input: {
     const expectedDate = receipt.expectedDate?.slice(0, 10) ?? '';
     const status = displayStatus(receipt.status, expectedDate, input.today, invoice);
     if (status === 'superseded' || status === 'cancelled') continue;
-    const shownAmount =
+    const originalAmount = roundMoney(Number(receipt.expectedAmount || 0));
+    const settledAmount = settledFromLog(receipt.receivedLog);
+    const fromLogOrOverride =
       displayAmountById.get(receipt.id) ??
-      roundMoney(Math.max(0, Number(receipt.expectedAmount || 0) - settledFromLog(receipt.receivedLog)));
-    if (shownAmount <= 0.009) continue;
+      roundMoney(Math.max(0, originalAmount - settledAmount));
+    // Status received means the forecast is closed even if receivedLog was not rewritten.
+    const shownAmount = status === 'received' ? 0 : fromLogOrOverride;
+    const receivedAmount =
+      status === 'received'
+        ? originalAmount
+        : roundMoney(Math.max(0, originalAmount - shownAmount));
+    // Fully paid forecasts drop off the board. Multi-installment siblings stay so the
+    // drawer can still show Original / Received / Pending for the full schedule.
+    const seriesId = installmentSeriesIdOf(receipt);
+    if (shownAmount <= 0.009 && originalAmount > 0.009 && !seriesId) continue;
     const componentId = componentIdForReceipt(receipt);
     // Same-cycle forecast is replaced by the invoice. A later cycle stays visible.
     if (
@@ -372,11 +444,16 @@ export const buildCanvasCards = (input: {
       kind: 'receipt',
       customerId: receipt.customerId,
       companyName: companyNameOf(customer, invoice?.customerName || deal?.customerName),
+      organizationName: organizationNameOf(customer),
       recordType,
       temperature,
       rowKey: rowFor(recordType, temperature),
       monthKey: expectedDate ? monthKeyFromDate(expectedDate) : 'unscheduled',
-      expectedAmount: shownAmount,
+      expectedAmount: originalAmount <= 0.009 && shownAmount <= 0.009 ? null : shownAmount,
+      originalAmount: originalAmount > 0.009 ? originalAmount : null,
+      receivedAmount: receivedAmount > 0.009 ? receivedAmount : 0,
+      seriesDealTotal:
+        Number(receipt.seriesDealTotal) > 0.009 ? roundMoney(Number(receipt.seriesDealTotal)) : null,
       ...gst,
       expectedDate,
       sourceType: receipt.sourceType,
@@ -391,6 +468,7 @@ export const buildCanvasCards = (input: {
       amountOverridden: true,
       origin: receipt.origin,
       installmentIndex: receipt.installmentIndex || 1,
+      installmentSeriesId: installmentSeriesIdOf(receipt),
       currency: receipt.currency || invoice?.currency || 'INR',
       collectionAccount: collectionAccountForExpected({
         internationalClient: Boolean(customer?.internationalClient),
@@ -419,6 +497,7 @@ export const buildCanvasCards = (input: {
       kind: 'receipt',
       customerId: invoice.customerId,
       companyName: companyNameOf(customer, invoice.customerName),
+      organizationName: organizationNameOf(customer),
       recordType,
       temperature,
       rowKey: rowFor(recordType, temperature),
@@ -459,7 +538,7 @@ export const buildCanvasCards = (input: {
       continue;
     }
     if (coveredComponents.has(component.id)) continue;
-    if (openInvoiceComponents.has(component.id)) continue;
+    if (openInvoiceCoversCycle(component, dueDate)) continue;
     const deal = dealById.get(component.dealId);
     if (!deal?.customerId) continue;
     if (!customerById.has(deal.customerId)) continue;
@@ -474,6 +553,7 @@ export const buildCanvasCards = (input: {
       kind: 'receipt',
       customerId: deal.customerId,
       companyName: companyNameOf(customer, deal.customerName),
+      organizationName: organizationNameOf(customer),
       recordType,
       temperature,
       rowKey: rowFor(recordType, temperature),
@@ -503,9 +583,10 @@ export const buildCanvasCards = (input: {
   }
 
   for (const component of input.components) {
-    if (!openInvoiceComponents.has(component.id)) continue;
+    const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
+    if (!openInvoiceCoversCycle(component, dueDate)) continue;
     const taxable = roundMoney(computeComponentTaxable(component));
-    const invoiced = invoicedTaxableForComponent(input.invoices, component.id);
+    const invoiced = invoicedTaxableForComponent(input.invoices, component.id, dueDate);
     const remainderBase = roundMoney(taxable - invoiced);
     if (remainderBase <= 0.5 || !Number.isFinite(remainderBase)) continue;
     const deal = dealById.get(component.dealId);
@@ -514,7 +595,6 @@ export const buildCanvasCards = (input: {
     const recordType = customer?.recordType ?? 'customer';
     const temperature =
       recordType === 'opportunity' ? temperatureByCustomer.get(deal.customerId) ?? '' : '';
-    const dueDate = getComponentCurrentDueDate(component)?.slice(0, 10) ?? '';
     const cashOnly = openInvoicesForComponent(input.invoices, component.id).every(
       (invoice) => invoice.billingType === 'non_gst',
     );
@@ -528,6 +608,7 @@ export const buildCanvasCards = (input: {
       kind: 'receipt',
       customerId: deal.customerId,
       companyName: companyNameOf(customer, deal.customerName),
+      organizationName: organizationNameOf(customer),
       recordType,
       temperature,
       rowKey: rowFor(recordType, temperature),
@@ -564,7 +645,10 @@ export const buildCanvasCards = (input: {
 
   for (const customer of input.customers) {
     if (upcomingCustomers.has(customer.id)) continue;
-    const recordType = customer.recordType === 'opportunity' ? 'opportunity' : 'customer';
+    const recordType =
+      customer.recordType === 'opportunity' || customer.recordType === 'uncategorized'
+        ? customer.recordType
+        : 'customer';
     const temperature =
       recordType === 'opportunity' ? temperatureByCustomer.get(customer.id) ?? '' : '';
     cards.push({
@@ -573,6 +657,7 @@ export const buildCanvasCards = (input: {
       kind: 'account',
       customerId: customer.id,
       companyName: companyNameOf(customer),
+      organizationName: organizationNameOf(customer),
       recordType,
       temperature,
       rowKey: rowFor(recordType, temperature),
@@ -598,6 +683,20 @@ export const buildCanvasCards = (input: {
       collectionAccount: customer.internationalClient ? 'innovex' : 'ritika',
       internationalClient: Boolean(customer.internationalClient),
     });
+  }
+
+  const seriesCounts = new Map<string, number>();
+  for (const card of cards) {
+    const seriesId = card.installmentSeriesId?.trim();
+    if (!seriesId || card.kind !== 'receipt') continue;
+    if (card.status === 'cancelled' || card.status === 'superseded') continue;
+    seriesCounts.set(seriesId, (seriesCounts.get(seriesId) ?? 0) + 1);
+  }
+  for (const card of cards) {
+    const seriesId = card.installmentSeriesId?.trim();
+    if (!seriesId) continue;
+    const count = seriesCounts.get(seriesId) ?? 0;
+    if (count > 1) card.installmentCount = count;
   }
 
   return cards;
@@ -706,6 +805,12 @@ export const buildPaidEntries = (input: {
       paidAt,
       tdsAmount: roundMoney(Number(payment.tdsAmount) || 0),
       tdsSettles: Boolean(payment.tdsSettles),
+      receivedAccount:
+        payment.receivedAccount === 'other'
+          ? 'other'
+          : payment.receivedAccount === 'gst'
+            ? 'gst'
+            : undefined,
       collectionAccount: collectionAccountForPayment({
         internationalClient: Boolean(customerById.get(customerId)?.internationalClient),
         receivedAccount: payment.receivedAccount || '',
@@ -716,9 +821,9 @@ export const buildPaidEntries = (input: {
   for (const receipt of input.receipts ?? []) {
     if (receipt.isDeleted || receipt.invoiceId) continue;
     const customer = customerById.get(receipt.customerId);
-    for (const entry of parseReceivedLog(receipt.receivedLog)) {
+    parseReceivedLog(receipt.receivedLog).forEach((entry, index) => {
       entries.push({
-        id: `${receipt.id}-${entry.date}-${entry.amount}`,
+        id: `${receipt.id}-${entry.date}-${entry.amount}-${index}`,
         invoiceId: '',
         invoiceNumber: '',
         customerId: receipt.customerId,
@@ -727,13 +832,16 @@ export const buildPaidEntries = (input: {
         paidAt: entry.date,
         tdsAmount: entry.tdsAmount,
         tdsSettles: entry.tdsSettles,
+        receivedAccount: entry.account,
+        receiptId: receipt.id,
+        receiptPaymentIndex: index,
         collectionAccount: collectionAccountForExpected({
           internationalClient: Boolean(customer?.internationalClient),
           gstPercent: entry.account === 'gst' ? 18 : 0,
           billingType: entry.account === 'other' ? 'non_gst' : 'gst',
         }),
       });
-    }
+    });
   }
   return entries;
 };
@@ -749,6 +857,9 @@ interface HistoryStep {
   tdsAmount: number;
   tdsSettles: boolean;
   order: number;
+  mode?: string;
+  receivedAccount?: 'gst' | 'other';
+  receiptPaymentIndex?: number;
 }
 
 /**
@@ -809,6 +920,9 @@ export const withForecastHistory = (input: {
           tdsAmount: entry.tdsAmount,
           tdsSettles: entry.tdsSettles,
           order: index,
+          mode: entry.mode,
+          receivedAccount: entry.account,
+          receiptPaymentIndex: index,
         });
       });
       if (steps.length === 0 && receipt.invoiceId) {
@@ -845,6 +959,9 @@ export const withForecastHistory = (input: {
         tdsAmount: step.tdsAmount,
         tdsSettles: step.tdsSettles,
         remainingAfter: left,
+        mode: step.mode,
+        receivedAccount: step.receivedAccount,
+        receiptPaymentIndex: step.receiptPaymentIndex,
       };
     });
     const remaining = roundMoney(Math.max(0, Number(card.expectedAmount) || 0));

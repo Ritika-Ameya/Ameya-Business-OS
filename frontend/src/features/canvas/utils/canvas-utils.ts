@@ -115,6 +115,7 @@ export const filterCanvasCards = (cards: CanvasCard[], filters: CanvasFilters): 
     if (!query) return true;
     const haystack = [
       card.companyName,
+      card.organizationName,
       card.dealTitle,
       card.invoiceNumber,
       card.reason,
@@ -405,8 +406,40 @@ export const cardsInCell = (
   monthKey: string
 ): CanvasCard[] =>
   cards
-    .filter((card) => card.rowKey === rowKey && card.monthKey === monthKey)
+    .filter(
+      (card) =>
+        card.rowKey === rowKey &&
+        card.monthKey === monthKey &&
+        // Paid series siblings stay on the board for the drawer schedule, but not in cells.
+        card.status !== "received" &&
+        card.status !== "cancelled" &&
+        card.status !== "superseded"
+    )
     .sort((a, b) => a.companyName.localeCompare(b.companyName) || a.expectedDate.localeCompare(b.expectedDate));
+
+/** Other parts of the same multi-installment forecast, including the current card. */
+export const installmentSiblings = (
+  card: CanvasCard,
+  cards: CanvasCard[]
+): CanvasCard[] => {
+  if (card.kind !== "receipt") return [];
+  const seriesId = card.installmentSeriesId?.trim();
+  if (!seriesId) return [];
+  return cards
+    .filter(
+      (item) =>
+        item.kind === "receipt" &&
+        item.installmentSeriesId === seriesId &&
+        item.status !== "cancelled" &&
+        item.status !== "superseded"
+    )
+    .sort(
+      (a, b) =>
+        (a.installmentIndex || 0) - (b.installmentIndex || 0) ||
+        a.expectedDate.localeCompare(b.expectedDate) ||
+        a.id.localeCompare(b.id)
+    );
+};
 
 export const dateInMonth = (monthKey: string, day = 15): string => {
   const match = /^(\d{4})-(\d{2})$/.exec(monthKey);

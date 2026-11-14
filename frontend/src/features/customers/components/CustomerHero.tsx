@@ -23,6 +23,7 @@ import { useCustomers } from "@/features/customers/hooks/use-customers";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
 import { StageChangeDialog } from "@/features/customers/components/StageChangeDialog";
+import { StatusChangeDialog } from "@/features/customers/components/StatusChangeDialog";
 import { EditFollowUpDateDialog } from "@/features/customers/components/EditFollowUpDateDialog";
 import {
   getCustomerBillingSchedule,
@@ -37,12 +38,24 @@ import {
 import {
   getStageById,
   getStagesForRecordType,
-  isInactiveStage,
+  isClosedStage,
+  isLostStage,
   recordTypeLabels,
 } from "@/features/customers/utils/stage-utils";
+import { customerStatusLabels } from "@/features/customers/utils/customer-utils";
 import { cn } from "@/shared/utils";
-import type { Customer, RecordType } from "@/features/customers/types/customer";
+import type {
+  Customer,
+  CustomerStatus,
+  RecordType,
+} from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
+
+const OPPORTUNITY_STATUS_OPTIONS: CustomerStatus[] = [
+  "active",
+  "inactive",
+  "lost",
+];
 
 interface CustomerHeroProps {
   customer: Customer;
@@ -150,11 +163,18 @@ function HeroMetric({
 export function CustomerHero({ customer }: CustomerHeroProps) {
   const { deals, components } = useDeals();
   const { stages } = useAppConfig();
-  const { changeCustomerStage, updateRecordType, updateCustomerFollowUp } = useCustomers();
+  const {
+    changeCustomerStage,
+    updateRecordType,
+    updateCustomerFollowUp,
+    changeCustomerStatus,
+  } = useCustomers();
   const { invoices } = useRevenue();
   const { refreshDashboard } = useDashboard();
   const [pendingStage, setPendingStage] = useState<SettingsStage | null>(null);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<CustomerStatus | null>(null);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
 
   const activeDealsCount = deals.filter(
@@ -167,7 +187,25 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
     .reduce((sum, invoice) => sum + invoice.outstanding, 0);
   const currentStage = getStageById(stages, customer.currentStageId);
   const applicableStages = getStagesForRecordType(stages, customer.recordType);
-  const inactiveCustomer = Boolean(currentStage && isInactiveStage(currentStage));
+  const isLost =
+    customer.status === "lost" || Boolean(currentStage && isLostStage(currentStage));
+  const closedCustomer =
+    isLost ||
+    customer.status === "inactive" ||
+    Boolean(currentStage && isClosedStage(currentStage));
+  const lostRemarks =
+    [...customer.timeline]
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      .find(
+        (entry) =>
+          entry.stageName.trim().toLowerCase() === "lost" &&
+          entry.notes?.trim()
+      )?.notes?.trim() ||
+    (isLost ? customer.notes?.trim() : "") ||
+    "";
 
   const handleStageSelect = (stageId: string) => {
     if (stageId === customer.currentStageId) return;
@@ -205,6 +243,27 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
   const handleRecordTypeChange = (recordType: RecordType) => {
     if (recordType === customer.recordType) return;
     void updateRecordType(customer.id, recordType, stages);
+  };
+
+  const handleStatusSelect = (status: CustomerStatus) => {
+    if (status === customer.status) return;
+    if (status === "lost") {
+      setPendingStatus(status);
+      setStatusDialogOpen(true);
+      return;
+    }
+    void changeCustomerStatus(customer.id, { status }).then(() =>
+      refreshDashboard({ silent: true })
+    );
+  };
+
+  const handleStatusConfirm = (data: { notes?: string }) => {
+    if (!pendingStatus) return;
+    void changeCustomerStatus(customer.id, {
+      status: pendingStatus,
+      notes: data.notes,
+    }).then(() => refreshDashboard({ silent: true }));
+    setPendingStatus(null);
   };
 
   const isOpportunity = customer.recordType === "opportunity";
@@ -279,6 +338,11 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                     <Badge className="capitalize border-white/25 bg-white/15 text-white">
                       {currentStage?.name ?? customer.status}
                     </Badge>
+                    {isLost ? (
+                      <Badge className="border-rose-300/50 bg-rose-500/25 text-rose-50">
+                        Lost
+                      </Badge>
+                    ) : null}
                     {outstanding > 0 && (
                       <Badge className="border-amber-300/40 bg-amber-400/20 text-amber-50">
                         Outstanding
@@ -302,6 +366,16 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                         <span className="break-words">{customer.company}</span>
                       </p>
                     )}
+                    {isLost && lostRemarks ? (
+                      <div className="mt-3 max-w-xl rounded-xl border border-rose-200/40 bg-rose-950/25 px-3 py-2.5 backdrop-blur-sm">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-100/80">
+                          Lost remarks
+                        </p>
+                        <p className="mt-1 text-sm leading-snug text-white">
+                          {lostRemarks}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -321,6 +395,9 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                     <SelectContent>
                       <SelectItem value="opportunity">
                         {recordTypeLabels.opportunity}
+                      </SelectItem>
+                      <SelectItem value="uncategorized">
+                        {recordTypeLabels.uncategorized}
                       </SelectItem>
                       <SelectItem value="customer">{recordTypeLabels.customer}</SelectItem>
                     </SelectContent>
@@ -363,6 +440,34 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {isOpportunity ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                      Status
+                    </p>
+                    <Select
+                      value={customer.status}
+                      onValueChange={(value) =>
+                        handleStatusSelect(value as CustomerStatus)
+                      }
+                    >
+                      <SelectTrigger className="w-full rounded-xl border-white/30 bg-white text-slate-900 shadow-sm hover:bg-white/95 [&_svg]:text-slate-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(customer.status === "prospect"
+                          ? (["prospect", ...OPPORTUNITY_STATUS_OPTIONS] as CustomerStatus[])
+                          : OPPORTUNITY_STATUS_OPTIONS
+                        ).map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {customerStatusLabels[status]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
 
                 {isOpportunity ? (
                   <div className="space-y-1.5">
@@ -472,13 +577,13 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
               <HeroMetric
                 label="Next Action"
                 value={
-                  inactiveCustomer
+                  closedCustomer
                     ? "—"
                     : formatDate(customer.nextActionDate)
                 }
-                highlight={!inactiveCustomer && Boolean(customer.nextActionDate)}
+                highlight={!closedCustomer && Boolean(customer.nextActionDate)}
                 onClick={
-                  inactiveCustomer
+                  closedCustomer
                     ? undefined
                     : () => setFollowUpDialogOpen(true)
                 }
@@ -504,11 +609,21 @@ export function CustomerHero({ customer }: CustomerHeroProps) {
         onConfirm={handleStageConfirm}
       />
 
+      <StatusChangeDialog
+        open={statusDialogOpen}
+        onOpenChange={(open) => {
+          setStatusDialogOpen(open);
+          if (!open) setPendingStatus(null);
+        }}
+        status={pendingStatus}
+        onConfirm={handleStatusConfirm}
+      />
+
       <EditFollowUpDateDialog
         open={followUpDialogOpen}
         onOpenChange={setFollowUpDialogOpen}
         currentDate={customer.nextActionDate}
-        entityLabel={customer.recordType === "opportunity" ? "opportunity" : "customer"}
+        entityLabel={recordTypeLabels[customer.recordType].toLowerCase()}
         onSave={handleFollowUpSave}
       />
     </>

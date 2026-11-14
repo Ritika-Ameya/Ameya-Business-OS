@@ -84,8 +84,8 @@ const tagsSchema = z
   .default([])
   .transform(parseTagsInput);
 
-export const recordTypeSchema = z.enum(['opportunity', 'customer']);
-export const customerStatusSchema = z.enum(['active', 'inactive', 'prospect']);
+export const recordTypeSchema = z.enum(['opportunity', 'customer', 'uncategorized']);
+export const customerStatusSchema = z.enum(['active', 'inactive', 'prospect', 'lost']);
 
 const customerFieldsSchema = z.object({
   recordType: recordTypeSchema.default('opportunity'),
@@ -99,7 +99,7 @@ const customerFieldsSchema = z.object({
   industryId: optionalIdSchema,
   sourceId: optionalIdSchema,
   contactPerson: z.string().min(1, 'Contact person is required'),
-  phone: phoneSchema,
+  phone: optionalPhoneSchema,
   alternatePhone: optionalPhoneSchema,
   email: optionalEmailSchema,
   website: optionalWebsiteSchema,
@@ -184,6 +184,21 @@ export const customerRecordTypeChangeSchema = z.object({
   recordType: recordTypeSchema,
 });
 
+export const customerStatusChangeSchema = z
+  .object({
+    status: customerStatusSchema,
+    notes: z.string().optional().default(''),
+  })
+  .superRefine((value, ctx) => {
+    if (value.status === 'lost' && !value.notes.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Remarks are required when marking as lost',
+        path: ['notes'],
+      });
+    }
+  });
+
 export const customerTimelineNoteSchema = z.object({
   notes: z.string().min(1, 'Notes are required'),
   nextActionDate: z.string().optional(),
@@ -210,5 +225,6 @@ export type CustomerCreateInput = z.infer<typeof customerCreateSchema>;
 export type CustomerUpdateInput = z.infer<typeof customerUpdateSchema>;
 export type CustomerStageChangeInput = z.infer<typeof customerStageChangeSchema>;
 export type CustomerRecordTypeChangeInput = z.infer<typeof customerRecordTypeChangeSchema>;
+export type CustomerStatusChangeInput = z.infer<typeof customerStatusChangeSchema>;
 export type CustomerTimelineNoteInput = z.infer<typeof customerTimelineNoteSchema>;
 export type CustomerDocumentCreateInput = z.infer<typeof customerDocumentCreateSchema>;

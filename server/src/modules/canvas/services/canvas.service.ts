@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { customerRepository } from '../../customers';
 import { dealComponentRepository, dealRepository } from '../../deals';
 import { computeComponentLineTotal } from '../../deals/utils/componentAmount.util';
@@ -80,8 +81,11 @@ export class CanvasService extends BaseService {
       accounts: snapshot.customers.map((customer) => ({
         id: customer.id,
         companyName:
-          customer.companyName?.trim() || customer.contactPerson?.trim() || 'Untitled account',
-        recordType: customer.recordType === 'opportunity' ? 'opportunity' : 'customer',
+          customer.contactPerson?.trim() || customer.companyName?.trim() || 'Untitled account',
+        recordType:
+          customer.recordType === 'opportunity' || customer.recordType === 'uncategorized'
+            ? customer.recordType
+            : 'customer',
         temperature:
           customer.recordType === 'opportunity'
             ? temperatureByCustomer.get(customer.id) ?? ''
@@ -217,7 +221,14 @@ export class CanvasService extends BaseService {
       gstRemoved && invoiceTotal > 0
         ? roundMoney((statedExpected * Number(invoice.subtotal || 0)) / invoiceTotal)
         : statedExpected;
-    const remaining = roundMoney(expected - paidAmount);
+    const countedTds = alreadyRecorded
+      ? alreadyRecorded.tdsSettles
+        ? roundMoney(Number(alreadyRecorded.tdsAmount) || 0)
+        : 0
+      : Boolean(input.tdsSettles)
+        ? roundMoney(Math.max(0, Number(input.tdsAmount) || 0))
+        : 0;
+    const remaining = roundMoney(expected - paidAmount - countedTds);
     const settled = remaining <= PAYMENT_TOLERANCE;
     const link = {
       invoiceId: invoice.id,
@@ -306,38 +317,94 @@ export class CanvasService extends BaseService {
         throw new ValidationError('That deal does not belong to this account.');
       }
     }
-    const componentId = this.componentForNewReceipt(input, dealComponents);
-    const dueSync = input.componentId
-      ? await this.planComponentDueSync(
-          {
-            componentId,
-            invoiceId: input.invoiceId ?? '',
-            sourceType: input.sourceType,
-            status: 'expected',
-          },
-          input.expectedDate,
-        )
-      : null;
 
-    const created = await expectedReceiptRepository.create({
-      origin: 'manual',
-      sourceType: input.sourceType,
-      sourceRefType: componentId ? 'component' : this.refType(input),
-      sourceRefId: input.invoiceId || componentId || input.dealId || input.customerId,
-      customerId: input.customerId,
-      dealId: input.dealId ?? '',
-      invoiceId: input.invoiceId ?? '',
-      componentId,
-      installmentIndex: 1,
-      expectedAmount: roundMoney(input.expectedAmount),
-      gstPercent: input.gstPercent ?? null,
-      currency: 'INR',
-      expectedDate: input.expectedDate,
-      reason: input.reason.trim(),
-      status: 'expected',
-    } as Omit<ExpectedReceiptEntity, 'id'>);
-    if (dueSync) await dealComponentRepository.update(dueSync.id, dueSync.patch);
-    return created;
+    const parts =
+      input.installments && input.installments.length > 0
+        ? input.installments
+        : [
+            {
+              expectedAmount: input.expectedAmount ?? 0,
+              expectedDate: input.expectedDate,
+              reason: input.reason ?? '',
+            },
+          ];
+    if (parts.some((part) => !/^\d{4}-\d{2}-\d{2}$/.test(part.expectedDate))) {
+      throw new ValidationError('Each installment needs a valid expected date.');
+    }
+
+    const matchAmount =
+      Number(input.expectedAmount) > 0
+        ? Number(input.expectedAmount)
+        : parts.reduce((sum, part) => sum + Number(part.expectedAmount || 0), 0);
+    const componentId = this.componentForNewReceipt(
+      { ...input, expectedAmount: matchAmount },
+      dealComponents,
+    );
+    const multi = parts.length > 1;
+    const seriesId = multi ? randomUUID() : '';
+    const partsTotal = roundMoney(
+      parts.reduce((sum, part) => sum + Number(part.expectedAmount || 0), 0),
+    );
+    const seriesDealTotal = multi
+      ? roundMoney(Number(input.expectedAmount) > 0 ? Number(input.expectedAmount) : partsTotal)
+      : 0;
+    const note = String(input.reason ?? '').trim();
+    let first: ExpectedReceiptEntity | null = null;
+    let index = 1;
+
+    for (const part of parts) {
+      const partReason = String(part.reason ?? '').trim();
+      const reason = partReason
+        ? partReason
+        : multi
+          ? note
+            ? `Installment ${index} · ${note}`
+            : `Installment ${index}`
+          : note;
+      const created = await expectedReceiptRepository.create({
+        origin: multi ? 'installment' : 'manual',
+        sourceType: input.sourceType,
+        sourceRefType: multi
+          ? 'series'
+          : componentId
+            ? 'component'
+            : this.refType(input),
+        sourceRefId: multi
+          ? seriesId
+          : input.invoiceId || componentId || input.dealId || input.customerId,
+        customerId: input.customerId,
+        dealId: input.dealId ?? '',
+        invoiceId: input.invoiceId ?? '',
+        componentId,
+        installmentIndex: index,
+        expectedAmount: roundMoney(part.expectedAmount),
+        seriesDealTotal,
+        gstPercent: input.gstPercent ?? null,
+        currency: 'INR',
+        expectedDate: part.expectedDate,
+        reason,
+        status: 'expected',
+      } as Omit<ExpectedReceiptEntity, 'id'>);
+      if (!first) first = created;
+      index += 1;
+    }
+
+    if (!first) throw new ValidationError('Add at least one installment.');
+
+    if (input.componentId) {
+      const dueSync = await this.planComponentDueSync(
+        {
+          componentId,
+          invoiceId: input.invoiceId ?? '',
+          sourceType: input.sourceType,
+          status: 'expected',
+        },
+        first.expectedDate,
+      );
+      if (dueSync) await dealComponentRepository.update(dueSync.id, dueSync.patch);
+    }
+
+    return first;
   }
 
   async updateReceipt(input: UpdateReceiptInput): Promise<void> {
@@ -439,9 +506,15 @@ export class CanvasService extends BaseService {
       paymentDate: string;
       amount: number;
       mode: string;
+      receivedAccount: 'gst' | 'other';
       tdsAmount: number;
       tdsSettles: boolean;
       status: 'received';
+      /** Full bill still open after every other payment on this receipt. */
+      outstanding: number;
+      billTotal: number;
+      beforeGst: number;
+      gstPercent: number;
     }>
   > {
     const customer = await customerRepository.findById(customerId);
@@ -462,13 +535,27 @@ export class CanvasService extends BaseService {
       paymentDate: string;
       amount: number;
       mode: string;
+      receivedAccount: 'gst' | 'other';
       tdsAmount: number;
       tdsSettles: boolean;
       status: 'received';
+      outstanding: number;
+      billTotal: number;
+      beforeGst: number;
+      gstPercent: number;
     }> = [];
     for (const receipt of receipts) {
       if (receipt.isDeleted || receipt.customerId !== customerId || receipt.invoiceId) continue;
-      parseReceivedLog(receipt.receivedLog).forEach((entry, index) => {
+      const entries = parseReceivedLog(receipt.receivedLog);
+      const billTotal = roundMoney(Number(receipt.expectedAmount) || 0);
+      const gstPercent = Number(receipt.gstPercent) || 0;
+      const beforeGst =
+        gstPercent > 0 ? roundMoney(billTotal / (1 + gstPercent / 100)) : billTotal;
+      entries.forEach((entry, index) => {
+        const others = entries.filter((_, entryIndex) => entryIndex !== index);
+        const settledOthers = roundMoney(
+          others.reduce((sum, item) => sum + settledByEntry(item), 0),
+        );
         rows.push({
           receiptId: receipt.id,
           index,
@@ -480,9 +567,14 @@ export class CanvasService extends BaseService {
           paymentDate: entry.date,
           amount: entry.amount,
           mode: entry.mode,
+          receivedAccount: entry.account,
           tdsAmount: entry.tdsAmount,
           tdsSettles: entry.tdsSettles,
           status: 'received',
+          outstanding: roundMoney(Math.max(0, billTotal - settledOthers)),
+          billTotal,
+          beforeGst,
+          gstPercent,
         });
       });
     }
@@ -508,6 +600,53 @@ export class CanvasService extends BaseService {
     await expectedReceiptRepository.update(receiptId, {
       receivedLog: formatReceivedLog(nextEntries),
       ...(reopen ? { status: 'expected' as const } : {}),
+    });
+  }
+
+  async updateReceiptPayment(
+    receiptId: string,
+    index: number,
+    input: {
+      amount: number;
+      paymentDate: string;
+      mode: string;
+      receivedAccount?: 'gst' | 'other';
+      tdsAmount?: number;
+      tdsSettles?: boolean;
+    },
+  ): Promise<void> {
+    const receipt = await expectedReceiptRepository.findById(receiptId);
+    if (!receipt || receipt.isDeleted) throw new NotFoundError('Expected receipt not found');
+    const entries = parseReceivedLog(receipt.receivedLog);
+    if (!Number.isInteger(index) || index < 0 || index >= entries.length) {
+      throw new NotFoundError('Payment not found');
+    }
+    const tdsAmount = roundMoney(Math.max(0, Number(input.tdsAmount) || 0));
+    const tdsSettles = Boolean(input.tdsSettles) && tdsAmount > 0;
+    const account: 'gst' | 'other' = input.receivedAccount === 'other' ? 'other' : 'gst';
+    const nextEntries = entries.map((entry, entryIndex) =>
+      entryIndex === index
+        ? {
+            date: input.paymentDate,
+            amount: roundMoney(input.amount),
+            account,
+            tdsAmount,
+            tdsSettles,
+            mode: input.mode.trim(),
+          }
+        : entry,
+    );
+    const settled = roundMoney(nextEntries.reduce((sum, entry) => sum + settledByEntry(entry), 0));
+    const expected = roundMoney(Number(receipt.expectedAmount) || 0);
+    if (settled > expected + 0.001) {
+      throw new ValidationError(
+        `Cash plus counted TDS cannot be more than the ${expected} bill on this forecast.`,
+      );
+    }
+    const fullyReceived = settled >= expected - 0.001;
+    await expectedReceiptRepository.update(receiptId, {
+      receivedLog: formatReceivedLog(nextEntries),
+      status: fullyReceived ? ('received' as const) : ('expected' as const),
     });
   }
 

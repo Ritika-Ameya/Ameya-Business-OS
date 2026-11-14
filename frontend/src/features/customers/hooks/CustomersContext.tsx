@@ -17,6 +17,7 @@ import { getErrorMessage } from "@/shared/api/getErrorMessage";
 import type {
   Customer,
   CustomerFormData,
+  CustomerStatus,
   RecordType,
 } from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
@@ -56,6 +57,10 @@ interface CustomersContextValue {
     id: string,
     recordType: RecordType,
     stages: SettingsStage[]
+  ) => Promise<void>;
+  changeCustomerStatus: (
+    id: string,
+    payload: { status: CustomerStatus; notes?: string }
   ) => Promise<void>;
   getCustomer: (id: string) => Customer | undefined;
 }
@@ -180,6 +185,15 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const changeCustomerStatus = useCallback(
+    async (id: string, payload: { status: CustomerStatus; notes?: string }) => {
+      const updated = await customersApi.changeStatus(id, payload);
+      const customer = mapCustomerFromDto(updated);
+      setCustomers((prev) => upsertCustomer(prev, customer));
+    },
+    []
+  );
+
   const getCustomer = useCallback(
     (id: string) => customers.find((c) => c.id === id),
     [customers]
@@ -197,6 +211,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       changeCustomerStage,
       updateCustomerFollowUp,
       updateRecordType,
+      changeCustomerStatus,
       getCustomer,
     }),
     [
@@ -210,6 +225,7 @@ export function CustomersProvider({ children }: { children: ReactNode }) {
       changeCustomerStage,
       updateCustomerFollowUp,
       updateRecordType,
+      changeCustomerStatus,
       getCustomer,
     ]
   );

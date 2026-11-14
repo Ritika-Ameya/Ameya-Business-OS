@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { canvasApi } from "@/features/canvas/api/canvas.api";
 import type { CanvasBoard, CanvasCard } from "@/features/canvas/types/canvas";
+import { installmentSiblings } from "@/features/canvas/utils/canvas-utils";
 import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { useAppConfig } from "@/features/settings/hooks/use-app-config";
 import { getActivePaymentMethods } from "@/features/settings/utils/app-config-utils";
@@ -9,7 +10,10 @@ import {
   PaidWithoutGstPrompt,
 } from "@/features/revenue/components/invoices/payments/PaidWithoutGstPrompt";
 import { ReceivedAccountToggle } from "@/features/revenue/components/invoices/payments/ReceivedAccountToggle";
-import { TdsDeductionFields } from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
+import {
+  parseTdsInput,
+  TdsDeductionFields,
+} from "@/features/revenue/components/invoices/payments/TdsDeductionFields";
 import type { PaymentAccount } from "@/features/revenue/types/payment";
 import { isBaseOnlyPayment } from "@/features/revenue/utils/invoice-utils";
 import { getErrorMessage } from "@/shared/api/getErrorMessage";
@@ -35,12 +39,30 @@ import { formatCurrency, formatDate } from "@/shared/utils";
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
+/** Full bill before GST. Earlier tax cuts do not shrink this base. */
+function billBeforeGst(card: CanvasCard): number {
+  const percent = Number(card.gstPercent) || 0;
+  const original = card.history?.originalAmount ?? 0;
+  const inclusive = original > 0 ? original : (card.expectedAmount ?? 0);
+  if (percent > 0 && inclusive > 0) return round(inclusive / (1 + percent / 100));
+  if (original > 0) return round(original);
+  if ((card.gstAmount ?? 0) > 0.009 && card.amountExGst != null) return card.amountExGst;
+  return round(card.expectedAmount ?? 0);
+}
+
+function cardInclusive(card: CanvasCard): number {
+  const original = card.history?.originalAmount ?? 0;
+  return original > 0 ? original : round(card.expectedAmount ?? 0);
+}
+
 export function MarkReceiptPaidDialog({
+  board,
   card,
   today,
   onOpenChange,
   onBoard,
 }: {
+  board: CanvasBoard | null;
   card: CanvasCard | null;
   today: string;
   onOpenChange: (open: boolean) => void;
@@ -52,10 +74,11 @@ export function MarkReceiptPaidDialog({
         {card ? (
           <MarkPaidForm
             key={card.id}
+            board={board}
             card={card}
             today={today}
-            onDone={(board) => {
-              onBoard(board);
+            onDone={(next) => {
+              onBoard(next);
               onOpenChange(false);
             }}
             onCancel={() => onOpenChange(false)}
@@ -67,17 +90,19 @@ export function MarkReceiptPaidDialog({
 }
 
 function MarkPaidForm({
+  board,
   card,
   today,
   onDone,
   onCancel,
 }: {
+  board: CanvasBoard | null;
   card: CanvasCard;
   today: string;
   onDone: (board: CanvasBoard) => void;
   onCancel: () => void;
 }) {
-  const { invoices, refreshInvoices } = useRevenue();
+  const { invoices, payments, refreshInvoices } = useRevenue();
   const { paymentMethods } = useAppConfig();
   const methods = getActivePaymentMethods(paymentMethods);
   const expected = round(card.expectedAmount ?? 0);
@@ -117,9 +142,6 @@ function MarkPaidForm({
 
   const invoice = openInvoices.find((item) => item.id === invoiceId);
   const parsedAmount = Number(amount.replace(/,/g, ""));
-  const parsedTds = Number(tdsAmount.replace(/,/g, ""));
-  const tdsValue = Number.isFinite(parsedTds) && parsedTds > 0 ? round(parsedTds) : 0;
-  const settledTds = tdsSettles ? tdsValue : 0;
   const showGstPrompt = invoice !== undefined && isBaseOnlyPayment(invoice, parsedAmount);
   const convertToNonGst = showGstPrompt && removeGst;
   const receivedAccount: PaymentAccount =
@@ -128,23 +150,75 @@ function MarkPaidForm({
     convertToNonGst && invoice && invoice.amount > 0
       ? round((expected * invoice.subtotal) / invoice.amount)
       : expected;
-  const cash = Number.isFinite(parsedAmount) ? parsedAmount : 0;
-  const remaining = round(expectedAfterGst - cash - settledTds);
-
+  const historyOriginal = card.history?.originalAmount ?? 0;
+  const seriesParts = useMemo(() => {
+    const siblings = board ? installmentSiblings(card, board.cards) : [];
+    return siblings.length > 1 ? siblings : [card];
+  }, [board, card]);
+  const isSeries = seriesParts.length > 1;
+  const useInvoiceBase = Boolean(
+    invoice &&
+      (card.invoiceId === invoice.id ||
+        Math.abs(invoice.amount - expected) < 1 ||
+        Math.abs(invoice.outstanding - expected) < 1 ||
+        (historyOriginal > 0 && Math.abs(invoice.amount - historyOriginal) < 1)),
+  );
+  /** 10% TDS is once on the full deal/series base — not 10% of each installment. */
+  const beforeGstBase = useInvoiceBase && invoice
+    ? invoice.billingType === "non_gst" || convertToNonGst
+      ? invoice.subtotal || invoice.amount
+      : invoice.subtotal
+    : round(seriesParts.reduce((sum, part) => sum + billBeforeGst(part), 0));
+  const tdsValue = parseTdsInput(tdsAmount, beforeGstBase);
+  const settledTds = tdsSettles ? tdsValue : 0;
+  const outstandingCap = invoice ? invoice.outstanding : expectedAfterGst;
+  const billTotal = convertToNonGst
+    ? beforeGstBase
+    : useInvoiceBase && invoice
+      ? invoice.amount
+      : round(seriesParts.reduce((sum, part) => sum + cardInclusive(part), 0));
+  const invoicePayments =
+    useInvoiceBase && invoice
+      ? payments.filter((payment) => payment.invoiceId === invoice.id && payment.status === "received")
+      : [];
+  const priorPayments =
+    invoicePayments.length > 0
+      ? invoicePayments.map((payment) => ({
+          amount: payment.amount,
+          tds: payment.tdsAmount || 0,
+        }))
+      : seriesParts.flatMap((part) => {
+          const fromHistory = (part.history?.payments ?? []).map((payment) => ({
+            amount: payment.amount,
+            tds: payment.tdsAmount || 0,
+          }));
+          if (fromHistory.length > 0) return fromHistory;
+          if (!board || !part.persistedId) return [];
+          return board.paid
+            .filter((entry) => entry.receiptId === part.persistedId)
+            .map((entry) => ({
+              amount: entry.amount,
+              tds: entry.tdsAmount || 0,
+            }));
+        });
+  const alreadyCut = round(priorPayments.reduce((sum, payment) => sum + payment.tds, 0));
+  const cashAlready = round(priorPayments.reduce((sum, payment) => sum + payment.amount, 0));
   const submit = async () => {
     if (pending) return;
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError("Enter the amount received.");
       return;
     }
-    if (invoice && round(parsedAmount + settledTds) > invoice.outstanding + 0.001) {
+    if (round(parsedAmount + settledTds) > outstandingCap + 0.001) {
       setError(
-        `Cash plus counted TDS cannot be more than the invoice balance of ${formatCurrency(invoice.outstanding)}.`,
+        `Cash plus counted TDS cannot be more than the ${formatCurrency(outstandingCap)} still left on the bill.`,
       );
       return;
     }
-    if (!invoice && round(parsedAmount + settledTds) > expected + 0.001) {
-      setError(`Amount cannot be more than the ${formatCurrency(expected)} still expected.`);
+    if (settledTds > round(Math.max(0, outstandingCap - parsedAmount)) + 0.001) {
+      setError(
+        `Counted TDS cannot be more than the ${formatCurrency(Math.max(0, outstandingCap - parsedAmount))} still left after cash.`,
+      );
       return;
     }
     if (!paymentDate) {
@@ -182,22 +256,38 @@ function MarkPaidForm({
     }
   };
 
+  const cashEntered = Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0;
+  const billLeftAfterPayment = round(Math.max(0, outstandingCap - cashEntered - settledTds));
+  const showBillLeft =
+    cashEntered > 0 && !Number.isNaN(billLeftAfterPayment) && outstandingCap > 0.009;
+
   return (
     <>
       <DialogHeader>
         <DialogTitle>Mark as paid</DialogTitle>
         <DialogDescription>
-          {card.companyName} · expected {formatCurrency(expected)}
-          {card.expectedDate ? ` on ${formatDate(card.expectedDate)}` : ""}. Enter the cash received.
-          An invoice is optional.
+          {`${card.companyName}. Bill ${formatCurrency(expected)}${card.expectedDate ? `, due ${formatDate(card.expectedDate)}` : ""}.`}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
+          {showBillLeft ? (
+            <p
+              className={
+                billLeftAfterPayment <= 0.009
+                  ? "rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-200"
+                  : "rounded-xl border border-amber-500/40 bg-amber-500/15 px-3 py-2.5 text-sm font-semibold text-amber-950 dark:text-amber-100"
+              }
+              role="status"
+            >
+              {billLeftAfterPayment <= 0.009
+                ? "Nothing left on this bill after this payment."
+                : `${formatCurrency(billLeftAfterPayment)} still left on the bill after this payment.`}
+            </p>
+          ) : null}
           {openInvoices.length === 0 ? (
             <p className="rounded-xl border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              No open invoice is linked. The cash is marked received on this forecast, and only the
-              remainder stays in To collect.
+              No invoice. This payment is on the expected receipt.
             </p>
           ) : null}
           {openInvoices.length > 0 ? (
@@ -236,7 +326,7 @@ function MarkPaidForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="mark-paid-amount">Amount received</Label>
+              <Label htmlFor="mark-paid-amount">Money you received</Label>
               <Input
                 id="mark-paid-amount"
                 inputMode="decimal"
@@ -295,6 +385,18 @@ function MarkPaidForm({
             settles={tdsSettles}
             onSettlesChange={setTdsSettles}
             disabled={pending}
+            cash={Number.isFinite(parsedAmount) ? parsedAmount : 0}
+            outstanding={expectedAfterGst}
+            billTotal={billTotal}
+            beforeGst={beforeGstBase}
+            alreadyCut={alreadyCut}
+            cashAlready={cashAlready}
+            installmentCount={isSeries ? seriesParts.length : undefined}
+            thisInstallmentLabel={
+              isSeries
+                ? `Installment ${card.installmentIndex || seriesParts.findIndex((part) => part.id === card.id) + 1} of ${seriesParts.length}`
+                : undefined
+            }
           />
 
           {showGstPrompt && invoice ? (
@@ -311,12 +413,6 @@ function MarkPaidForm({
             />
           ) : null}
 
-          {expected > 0 && remaining > 0.009 && Number.isFinite(parsedAmount) && parsedAmount > 0 ? (
-            <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-              This is a part payment. {formatCurrency(remaining)} stays expected and keeps carrying
-              forward until it is paid.
-            </p>
-          ) : null}
         </div>
 
       {error ? (
@@ -329,7 +425,15 @@ function MarkPaidForm({
         <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="button" disabled={pending} onClick={() => void submit()}>
+        <Button
+          type="button"
+          disabled={
+            pending ||
+            (Number.isFinite(parsedAmount) &&
+              settledTds > round(Math.max(0, outstandingCap - parsedAmount)) + 0.001)
+          }
+          onClick={() => void submit()}
+        >
           {pending ? "Recording…" : "Confirm payment"}
         </Button>
       </DialogFooter>

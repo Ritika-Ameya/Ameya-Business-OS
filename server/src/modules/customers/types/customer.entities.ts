@@ -68,6 +68,7 @@ export type TimelineAction =
   | 'created'
   | 'edited'
   | 'stage_changed'
+  | 'status_changed'
   | 'converted_to_customer'
   | 'notes_added'
   | 'file_uploaded'
@@ -93,6 +94,7 @@ export const TIMELINE_ACTION_LABELS: Record<TimelineAction, string> = {
   created: 'Created',
   edited: 'Edited',
   stage_changed: 'Stage Changed',
+  status_changed: 'Status Changed',
   converted_to_customer: 'Converted to Customer',
   notes_added: 'Notes Added',
   file_uploaded: 'File Uploaded',

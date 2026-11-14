@@ -12,7 +12,10 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Textarea } from "@/shared/ui/textarea";
 import type { SettingsStage } from "@/features/settings/types/settings";
-import { isInactiveStage } from "@/features/customers/utils/stage-utils";
+import {
+  isClosedStage,
+  isLostStage,
+} from "@/features/customers/utils/stage-utils";
 
 interface StageChangeDialogProps {
   open: boolean;
@@ -38,25 +41,29 @@ export function StageChangeDialog({
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const inactive = Boolean(stage && isInactiveStage(stage));
+  const closed = Boolean(stage && isClosedStage(stage));
+  const lost = Boolean(stage && isLostStage(stage));
+  const notesRequired = Boolean(stage?.notesRequired || lost);
 
   useEffect(() => {
     if (!open) return;
-    setNextActionDate(inactive ? "" : initialNextActionDate?.trim() || "");
+    setNextActionDate(closed ? "" : initialNextActionDate?.trim() || "");
     setNotes("");
     setErrors({});
-  }, [open, initialNextActionDate, stage?.id, inactive]);
+  }, [open, initialNextActionDate, stage?.id, closed]);
 
   const validate = (): boolean => {
     if (!stage) return false;
 
     const nextErrors: FormErrors = {};
 
-    if (stage.dateRequired && !inactive && !nextActionDate.trim()) {
+    if (stage.dateRequired && !closed && !nextActionDate.trim()) {
       nextErrors.nextActionDate = "Next action date is required for this stage";
     }
-    if (stage.notesRequired && !notes.trim()) {
-      nextErrors.notes = "Stage notes are required for this stage";
+    if (notesRequired && !notes.trim()) {
+      nextErrors.notes = lost
+        ? "Remarks are required when marking as lost"
+        : "Stage notes are required for this stage";
     }
 
     setErrors(nextErrors);
@@ -68,7 +75,7 @@ export function StageChangeDialog({
     if (!validate()) return;
 
     onConfirm({
-      nextActionDate: inactive ? undefined : nextActionDate.trim() || undefined,
+      nextActionDate: closed ? undefined : nextActionDate.trim() || undefined,
       notes: notes.trim() || undefined,
     });
     onOpenChange(false);
@@ -82,14 +89,16 @@ export function StageChangeDialog({
         <DialogHeader>
           <DialogTitle>Move to {stage.name}</DialogTitle>
           <DialogDescription>
-            {inactive
-              ? "Inactive customers do not keep a next action date."
-              : "Update follow-up details for this stage change."}
+            {lost
+              ? "Add remarks for why this opportunity was lost. The next action date is cleared."
+              : closed
+                ? "Inactive records do not keep a next action date."
+                : "Update follow-up details for this stage change."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {inactive ? null : (
+          {closed ? null : (
           <div className="space-y-2">
             <Label htmlFor="next-action-date">
               Next Action Date
@@ -120,8 +129,8 @@ export function StageChangeDialog({
 
           <div className="space-y-2">
             <Label htmlFor="stage-notes">
-              Stage Notes
-              {stage.notesRequired ? (
+              {lost ? "Remarks" : "Stage Notes"}
+              {notesRequired ? (
                 <span className="text-destructive"> *</span>
               ) : null}
             </Label>
@@ -134,7 +143,11 @@ export function StageChangeDialog({
                   setErrors((prev) => ({ ...prev, notes: undefined }));
                 }
               }}
-              placeholder="Add notes about this stage change..."
+              placeholder={
+                lost
+                  ? "Why was this opportunity lost?"
+                  : "Add notes about this stage change..."
+              }
               rows={3}
               aria-invalid={Boolean(errors.notes)}
               className="resize-none rounded-xl"

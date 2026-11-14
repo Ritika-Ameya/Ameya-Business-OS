@@ -85,6 +85,9 @@ export function AddComponentDialog({
   );
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [markPaidDate, setMarkPaidDate] = useState("");
+  const [markPaidDateError, setMarkPaidDateError] = useState("");
   const isEditing = Boolean(initialComponent);
 
   const billingPeriod = resolveComponentBillingPeriod(form);
@@ -134,6 +137,9 @@ export function AddComponentDialog({
       setForm(initialComponent ? formFromComponent(initialComponent) : emptyForm);
       setErrors({});
       setSubmitError(null);
+      setMarkPaidOpen(false);
+      setMarkPaidDate("");
+      setMarkPaidDateError("");
     }
     onOpenChange(nextOpen);
   };
@@ -143,6 +149,9 @@ export function AddComponentDialog({
     setForm(initialComponent ? formFromComponent(initialComponent) : emptyForm);
     setErrors({});
     setSubmitError(null);
+    setMarkPaidOpen(false);
+    setMarkPaidDate("");
+    setMarkPaidDateError("");
   }, [open, initialComponent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -173,35 +182,59 @@ export function AddComponentDialog({
     }
   };
 
-  const handleMarkCyclePaid = async () => {
+  const openMarkPaidDialog = () => {
     if (!initialComponent) return;
 
     const validationErrors = validateComponentForm(form);
+    // Billing date is collected in the mark-paid dialog, so don't block here.
+    delete validationErrors.renewalStartDate;
+    delete validationErrors.renewalDate;
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
 
-    const paidForDate =
-      renewalPaymentPreview?.paidForDate || unpaidCycleDate || form.renewalDate;
-    const nextDueDate = renewalPaymentPreview?.nextDueDate;
-    const receivedLine = `This records ${formatComponentCurrency(costSummary.cycleTotal)} in Business Canvas Received. An invoice is not required.`;
-    const confirmed = window.confirm(
-      paidForDate && nextDueDate
-        ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\n${receivedLine}\n\nLast paid cycle will become ${formatComponentDate(paidForDate)}. Next unpaid cycle will move to ${formatComponentDate(nextDueDate)}.`
-        : paidForDate
-          ? `Mark ${formatComponentDate(paidForDate)} as paid?\n\n${receivedLine}\n\nIf this is a custom date, also set the next unpaid cycle after saving.`
-          : `Mark the current unpaid cycle as paid?\n\n${receivedLine}`
+    setMarkPaidDate(
+      unpaidCycleDate ||
+        form.renewalDate ||
+        form.renewalStartDate ||
+        ""
     );
-    if (!confirmed) return;
+    setMarkPaidDateError("");
+    setMarkPaidOpen(true);
+  };
 
+  const handleConfirmMarkCyclePaid = async () => {
+    if (!initialComponent) return;
+
+    const billingDate = markPaidDate.trim();
+    if (!billingDate) {
+      setMarkPaidDateError("Billing date (expected) is required");
+      return;
+    }
+
+    const nextForm: ComponentFormData = {
+      ...form,
+      renewalStartDate: form.renewalStartDate.trim() || billingDate,
+      renewalDate: billingDate,
+    };
+
+    const validationErrors = validateComponentForm(nextForm);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      setMarkPaidOpen(false);
+      return;
+    }
+
+    setForm(nextForm);
     setSaving(true);
     setSubmitError(null);
     try {
       await updateComponent(dealId, initialComponent.id, {
-        ...form,
+        ...nextForm,
         status: "completed",
       });
+      setMarkPaidOpen(false);
       onOpenChange(false);
       setForm(emptyForm);
       setErrors({});
@@ -288,6 +321,7 @@ export function AddComponentDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] min-w-0 overflow-y-auto overflow-x-hidden sm:max-w-lg">
         <DialogHeader>
@@ -352,7 +386,9 @@ export function AddComponentDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="renewal-start-date">First billing date (expected)</Label>
+              <Label htmlFor="renewal-start-date">
+                First billing date (expected)
+              </Label>
               <DateInput
                 id="renewal-start-date"
                 value={form.renewalStartDate}
@@ -361,7 +397,8 @@ export function AddComponentDialog({
                 aria-invalid={Boolean(errors.renewalStartDate)}
               />
               <p className="text-xs text-muted-foreground">
-                Optional. Leave it blank, or add and change it later.
+                Set this first. Mark as paid will ask for this billing date if it
+                is still blank.
               </p>
               {errors.renewalStartDate && (
                 <p className="text-xs text-destructive">{errors.renewalStartDate}</p>
@@ -583,10 +620,12 @@ export function AddComponentDialog({
                     <Button
                       type="button"
                       className="rounded-xl"
-                      disabled={saving || !unpaidCycleDate}
-                      onClick={() => void handleMarkCyclePaid()}
+                      disabled={saving}
+                      onClick={openMarkPaidDialog}
                     >
-                      Mark {unpaidCycleDate ? formatComponentDate(unpaidCycleDate) : "cycle"} as paid
+                      {unpaidCycleDate
+                        ? `Mark ${formatComponentDate(unpaidCycleDate)} as paid`
+                        : "Mark as paid"}
                     </Button>
                     {initialComponent?.lastRenewedDate ? (
                       <Button
@@ -657,5 +696,104 @@ export function AddComponentDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    <Dialog
+      open={markPaidOpen}
+      onOpenChange={(nextOpen) => {
+        if (saving) return;
+        setMarkPaidOpen(nextOpen);
+        if (!nextOpen) setMarkPaidDateError("");
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mark cycle as paid</DialogTitle>
+          <DialogDescription>
+            Confirm the billing date (expected) for this payment. You can edit
+            it here before marking the cycle paid.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="mark-paid-billing-date">
+              Billing date (expected)
+              <span className="text-destructive"> *</span>
+            </Label>
+            <DateInput
+              id="mark-paid-billing-date"
+              value={markPaidDate}
+              onChange={(e) => {
+                setMarkPaidDate(e.target.value);
+                if (markPaidDateError) setMarkPaidDateError("");
+              }}
+              className="w-full min-w-0 rounded-xl"
+              aria-invalid={Boolean(markPaidDateError)}
+            />
+            <p className="text-xs text-muted-foreground">
+              This is the cycle date that will be marked as paid
+              {markPaidDate
+                ? ` (${formatComponentDate(markPaidDate)})`
+                : ""}.
+            </p>
+            {markPaidDateError ? (
+              <p role="alert" className="text-xs text-destructive">
+                {markPaidDateError}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-muted/40 px-3 py-3 text-sm">
+            <p>
+              Records{" "}
+              <span className="font-semibold tabular-nums">
+                {formatComponentCurrency(costSummary.cycleTotal)}
+              </span>{" "}
+              in Business Canvas Received. An invoice is not required.
+            </p>
+            {(() => {
+              const preview = previewRenewalCyclePayment({
+                renewalFrequency: form.renewalFrequency,
+                renewalStartDate:
+                  form.renewalStartDate.trim() || markPaidDate.trim(),
+                renewalDate: markPaidDate.trim(),
+                lastRenewedDate: initialComponent?.lastRenewedDate,
+              });
+              if (!preview) return null;
+              return (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Last paid cycle becomes{" "}
+                  {formatComponentDate(preview.paidForDate)}. Next unpaid cycle
+                  moves to {formatComponentDate(preview.nextDueDate)}.
+                </p>
+              );
+            })()}
+          </div>
+        </div>
+
+        <DialogFooter className="pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={() => setMarkPaidOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleConfirmMarkCyclePaid()}
+          >
+            {saving
+              ? "Saving…"
+              : markPaidDate
+                ? `Mark ${formatComponentDate(markPaidDate)} as paid`
+                : "Mark as paid"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

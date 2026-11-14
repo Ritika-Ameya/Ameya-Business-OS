@@ -11,6 +11,7 @@ import { useRevenue } from "@/features/revenue/hooks/use-revenue";
 import { getCollectionInvoices } from "@/features/revenue/utils/revenue-utils";
 import { getCustomerBillingSchedule } from "@/features/customers/utils/customer-workspace-utils";
 import { formatCurrency, formatDate } from "@/shared/utils";
+import { customerStatusLabels } from "@/features/customers/utils/customer-utils";
 import type { Customer } from "@/features/customers/types/customer";
 
 interface CustomerOverviewTabProps {
@@ -59,7 +60,9 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Status</span>
-              <span className="font-medium capitalize">{customer.status}</span>
+              <span className="font-medium">
+                {customerStatusLabels[customer.status]}
+              </span>
             </div>
           </CardContent>
         </Card>

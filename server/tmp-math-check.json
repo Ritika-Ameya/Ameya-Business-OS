@@ -1,0 +1,160 @@
+{
+  "passed": true,
+  "totalChecks": 30,
+  "failures": [],
+  "sample": {
+    "octFinance": {
+      "totalRevenue": 13800,
+      "totalExpense": 2000,
+      "difference": 11800,
+      "totalInvoiced": 17700,
+      "periodLabel": "Oct",
+      "dateFrom": "2026-10-01",
+      "dateTo": "2026-10-31",
+      "revenueItems": [
+        {
+          "id": "p2",
+          "date": "2026-10-18",
+          "amount": 2000,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        },
+        {
+          "id": "p1",
+          "date": "2026-10-05",
+          "amount": 11800,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        }
+      ],
+      "expenseItems": [
+        {
+          "id": "e2",
+          "date": "2026-10-22",
+          "amount": 500,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        },
+        {
+          "id": "e1",
+          "date": "2026-10-08",
+          "amount": 1500,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        }
+      ]
+    },
+    "novFinance": {
+      "totalRevenue": 1000,
+      "totalExpense": 300,
+      "difference": 700,
+      "totalInvoiced": 2360,
+      "periodLabel": "Nov",
+      "dateFrom": "2026-11-01",
+      "dateTo": "2026-11-30",
+      "revenueItems": [
+        {
+          "id": "p4",
+          "date": "2026-11-12",
+          "amount": 1000,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        }
+      ],
+      "expenseItems": [
+        {
+          "id": "e5",
+          "date": "2026-11-05",
+          "amount": 300,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        }
+      ]
+    },
+    "rangeFinance": {
+      "totalRevenue": 14800,
+      "totalExpense": 2300,
+      "difference": 12500,
+      "totalInvoiced": 20060,
+      "periodLabel": "Oct-Nov",
+      "dateFrom": "2026-10-01",
+      "dateTo": "2026-11-30",
+      "revenueItems": [
+        {
+          "id": "p4",
+          "date": "2026-11-12",
+          "amount": 1000,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        },
+        {
+          "id": "p2",
+          "date": "2026-10-18",
+          "amount": 2000,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        },
+        {
+          "id": "p1",
+          "date": "2026-10-05",
+          "amount": 11800,
+          "label": "Account",
+          "detail": "Invoice payment · marked received",
+          "source": "invoice_payment"
+        }
+      ],
+      "expenseItems": [
+        {
+          "id": "e5",
+          "date": "2026-11-05",
+          "amount": 300,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        },
+        {
+          "id": "e2",
+          "date": "2026-10-22",
+          "amount": 500,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        },
+        {
+          "id": "e1",
+          "date": "2026-10-08",
+          "amount": 1500,
+          "label": "Expense",
+          "detail": "Expense · marked paid",
+          "source": "paid_expense"
+        }
+      ]
+    },
+    "points": [
+      {
+        "month": "Oct",
+        "yearMonth": "2026-10",
+        "revenue": 13800,
+        "received": 13800,
+        "invoiced": 17700,
+        "expense": 2000
+      },
+      {
+        "month": "Nov",
+        "yearMonth": "2026-11",
+        "revenue": 0,
+        "received": 1000,
+        "invoiced": 2360,
+        "expense": 300
+      }
+    ]
+  }
+}

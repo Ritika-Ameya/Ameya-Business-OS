@@ -23,11 +23,33 @@ export const canvasApi = {
         paymentDate: string;
         amount: number;
         mode: string;
+        receivedAccount: "gst" | "other";
         tdsAmount: number;
         tdsSettles: boolean;
         status: "received";
+        outstanding: number;
+        billTotal: number;
+        beforeGst: number;
+        gstPercent: number;
       }>
     >(`${BASE}/customers/${customerId}/receipt-payments`),
+
+  updateReceiptPayment: (
+    receiptId: string,
+    index: number,
+    body: {
+      amount: number;
+      paymentDate: string;
+      mode: string;
+      receivedAccount?: "gst" | "other";
+      tdsAmount?: number;
+      tdsSettles?: boolean;
+    }
+  ) =>
+    apiRequest<{ updated: boolean }>(`${BASE}/receipts/${receiptId}/payments/${index}`, {
+      method: "PUT",
+      body,
+    }),
 
   removeReceiptPayment: (receiptId: string, index: number) =>
     apiRequest<{ removed: boolean }>(`${BASE}/receipts/${receiptId}/payments/${index}`, {
@@ -60,12 +82,17 @@ export const canvasApi = {
   createReceipt: (body: {
     customerId: string;
     expectedAmount: number;
-    expectedDate: string;
+    expectedDate?: string;
     sourceType: ReceiptSourceType;
     reason: string;
     dealId?: string;
     componentId?: string;
     gstPercent?: 0 | 18;
+    installments?: Array<{
+      expectedAmount: number;
+      expectedDate: string;
+      reason?: string;
+    }>;
   }) => apiRequest<CanvasBoard>(`${BASE}/receipts`, { method: "POST", body }),
 
   updateReceipt: (body: {

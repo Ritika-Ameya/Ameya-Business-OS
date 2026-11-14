@@ -4,6 +4,6 @@ import { dashboardController } from '../controllers/dashboard.controller';
 
 const router = Router();
 
-router.get('/', dashboardController.getSummary);
+router.get('/', ...dashboardController.getSummary);
 
 export const dashboardRouter = router;

@@ -24,12 +24,14 @@ import { formatCurrency, formatDate, formatPhoneForDisplay } from "@/shared/util
 import { cn } from "@/shared/utils";
 import type { Customer, CustomerStatus } from "@/features/customers/types/customer";
 import type { SettingsStage } from "@/features/settings/types/settings";
-import { getStageById } from "@/features/customers/utils/stage-utils";
+import { getStageById, recordTypeLabels } from "@/features/customers/utils/stage-utils";
+import { customerStatusLabels } from "@/features/customers/utils/customer-utils";
 
 const statusStyles: Record<CustomerStatus, string> = {
   active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   inactive: "bg-muted text-muted-foreground",
   prospect: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  lost: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
 };
 
 interface CustomerTableProps {
@@ -103,6 +105,9 @@ export function CustomerTable({
                   className="block rounded-lg py-1 transition-colors hover:text-primary"
                 >
                   <p className="font-medium">{customer.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {recordTypeLabels[customer.recordType]}
+                  </p>
                   <p className="text-xs text-muted-foreground md:hidden">
                     {customer.company}
                   </p>
@@ -169,7 +174,7 @@ export function CustomerTable({
                       variant="secondary"
                       className={cn("capitalize", statusStyles[customer.status])}
                     >
-                      {customer.status}
+                      {customerStatusLabels[customer.status]}
                     </Badge>
                   );
                 })()}

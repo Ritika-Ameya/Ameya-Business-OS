@@ -218,6 +218,9 @@ export function AddCustomerDialog({
                   <SelectItem value="opportunity">
                     {recordTypeLabels.opportunity}
                   </SelectItem>
+                  <SelectItem value="uncategorized">
+                    {recordTypeLabels.uncategorized}
+                  </SelectItem>
                   <SelectItem value="customer">{recordTypeLabels.customer}</SelectItem>
                 </SelectContent>
               </Select>
@@ -274,7 +277,7 @@ export function AddCustomerDialog({
               {duplicateCompanyPrompt && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
                   <p className="text-destructive">
-                    Still create this new {form.recordType === "opportunity" ? "opportunity" : "customer"}{" "}
+                    Still create this new {recordTypeLabels[form.recordType].toLowerCase()}{" "}
                     with the same company name?
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">

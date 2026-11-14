@@ -311,6 +311,33 @@ export interface DashboardSummary {
     points: ChartMonthPoint[];
     expenseStats: DashboardExpenseStats;
   };
+  /** Period-scoped money in / money out (received payments vs paid expenses). */
+  finance: {
+    totalRevenue: number;
+    totalExpense: number;
+    difference: number;
+    totalInvoiced: number;
+    periodLabel: string;
+    dateFrom: string;
+    dateTo: string;
+    period: string;
+    revenueItems: Array<{
+      id: string;
+      date: string;
+      amount: number;
+      label: string;
+      detail: string;
+      source: 'invoice_payment' | 'forecast_payment' | 'paid_expense';
+    }>;
+    expenseItems: Array<{
+      id: string;
+      date: string;
+      amount: number;
+      label: string;
+      detail: string;
+      source: 'invoice_payment' | 'forecast_payment' | 'paid_expense';
+    }>;
+  };
   followUps: {
     today: FollowUpItem[];
     tomorrow: FollowUpItem[];

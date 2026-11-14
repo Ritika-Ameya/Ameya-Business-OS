@@ -38,6 +38,11 @@ export interface CustomerPaymentHistoryItem {
   reason?: string;
   tdsAmount?: number;
   tdsSettles?: boolean;
+  receivedAccount?: "gst" | "other";
+  /** For editing a forecast payment: bill left if this line is rewritten. */
+  editOutstanding?: number;
+  billTotal?: number;
+  beforeGst?: number;
 }
 
 export type CustomerRenewalStatus = "upcoming" | "overdue" | "scheduled";
@@ -82,6 +87,7 @@ export function getCustomerPaymentHistory(
         invoiceOutstanding: invoice.outstanding,
         tdsAmount: payment.tdsAmount,
         tdsSettles: payment.tdsSettles,
+        receivedAccount: payment.receivedAccount,
       };
     })
     .sort(

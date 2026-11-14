@@ -15,7 +15,13 @@ export type ReceiptSourceType =
   | 'opportunity_conversion'
   | 'other';
 
-export type ReceiptSourceRefType = 'invoice' | 'component' | 'deal' | 'customer' | '';
+export type ReceiptSourceRefType =
+  | 'invoice'
+  | 'component'
+  | 'deal'
+  | 'customer'
+  | 'series'
+  | '';
 
 export type ReceiptStoredStatus = 'expected' | 'received' | 'cancelled' | 'superseded';
 
@@ -33,6 +39,11 @@ export interface ExpectedReceiptEntity extends CanvasEntityBase {
   installmentIndex: number;
   /** Cash expected, including GST when gstPercent is set. */
   expectedAmount: number;
+  /**
+   * Full deal total (with GST) for a multi-installment create.
+   * Same value on every part. 0 / missing on single receipts and older rows.
+   */
+  seriesDealTotal?: number;
   /** 18 or 0 when chosen on the receipt. Null on older rows, which still infer GST. */
   gstPercent: number | null;
   currency: string;
@@ -65,6 +76,9 @@ export interface CanvasForecastPayment {
   tdsSettles: boolean;
   /** Still expected on this forecast after this payment. */
   remainingAfter: number;
+  mode?: string;
+  receivedAccount?: 'gst' | 'other';
+  receiptPaymentIndex?: number;
 }
 
 /** Shown on a forecast that still has a balance after one or more payments. */
@@ -83,8 +97,27 @@ export interface CanvasCard {
   persistedId: string | null;
   kind: 'receipt' | 'account';
   customerId: string;
+  /** Display title: contact / opportunity name (falls back to company). */
   companyName: string;
-  recordType: 'opportunity' | 'customer';
+  /** Company name when it differs from the display title. */
+  organizationName?: string;
+  /**
+   * Shared id for a multi-installment forecast (manual series or invoice).
+   * Used to show “Installment 1 of 3” and remaining parts in the drawer.
+   */
+  installmentSeriesId?: string;
+  /** Number of parts in the installment series (including this card). */
+  installmentCount?: number;
+  /**
+   * Full installment amount including GST (before payments).
+   * `expectedAmount` on the card is what is still left to collect.
+   */
+  originalAmount?: number | null;
+  /** Cash (+ counted TDS) already applied to this forecast. */
+  receivedAmount?: number | null;
+  /** Original deal total with GST for the whole installment series, when known. */
+  seriesDealTotal?: number | null;
+  recordType: 'opportunity' | 'customer' | 'uncategorized';
   temperature: LeadTemperatureValue | '';
   rowKey: CanvasRowKey;
   monthKey: string;
@@ -117,7 +150,7 @@ export interface CanvasCard {
 export interface CanvasAccountOption {
   id: string;
   companyName: string;
-  recordType: 'opportunity' | 'customer';
+  recordType: 'opportunity' | 'customer' | 'uncategorized';
   temperature: LeadTemperatureValue | '';
   internationalClient: boolean;
 }
@@ -169,6 +202,9 @@ export interface CanvasPaidEntry {
   paidAt: string;
   /** Display bucket only. Does not change the stored payment account. */
   collectionAccount: 'innovex' | 'ritika';
+  receivedAccount?: 'gst' | 'other';
+  receiptId?: string;
+  receiptPaymentIndex?: number;
   tdsAmount?: number;
   tdsSettles?: boolean;
 }
