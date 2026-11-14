@@ -109,12 +109,6 @@ export function AddComponentDialog({
     renewalDate: form.renewalDate,
     lastRenewedDate: initialComponent?.lastRenewedDate,
   });
-  const renewalPaymentPreview = previewRenewalCyclePayment({
-    renewalFrequency: form.renewalFrequency,
-    renewalStartDate: form.renewalStartDate,
-    renewalDate: form.renewalDate,
-    lastRenewedDate: initialComponent?.lastRenewedDate,
-  });
 
   const formFromComponent = (component: DealComponent): ComponentFormData => ({
     name: component.name,

@@ -729,7 +729,7 @@ export function CanvasDrawer({
                     if (!part.persistedId) return sum;
                     return (
                       sum +
-                      board.paid
+                      (board.paid ?? [])
                         .filter((entry) => entry.receiptId === part.persistedId)
                         .reduce((inner, entry) => inner + (entry.tdsAmount || 0), 0)
                     );
